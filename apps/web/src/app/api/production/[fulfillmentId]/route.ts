@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Resvg } from "@resvg/resvg-js";
 import { TECHNIQUE_LABEL, slugify, type Technique } from "@sawwa/catalog";
 import { layerBox, markerLayout, personalize, piecePolygons, unionBox, visibleLayers, type DesignDocument, type RosterEntry } from "@sawwa/design";
-import { buildProductionSheet, fontFiles, renderSurfaceSvg, setPngDpi } from "@sawwa/render";
+import { buildProductionSheet, fontFiles, printDpiFor, renderSurfaceSvg, setPngDpi } from "@sawwa/render";
 import { getSession, hasPlatformRole, vendorMembership } from "@/lib/auth";
 import { logError } from "@/lib/log";
 import { readDoc } from "@/lib/orders";
@@ -116,9 +116,11 @@ async function generate(request: NextRequest, fulfillmentId: string) {
     const copy = request.nextUrl.searchParams.get("copie") === "2";
     if (copy && !(pattern?.mirror && pattern.quantity > 1)) return fail("Cette pièce n'a pas de seconde copie en miroir.", 400);
     if (copy) pieceLabel += "-copie2-miroir";
-    const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm, pattern }, { dpi: 300, images, allOver: doc.allOver ?? null, mirror: copy });
-    return new NextResponse(new Uint8Array(setPngDpi(new Uint8Array(rasterize(svg)), 300)), {
-      headers: { "Content-Type": "image/png", "Content-Disposition": `attachment; filename="${reference}-${zone.key}${pieceLabel}-300dpi.png"`, "Cache-Control": "private, no-store" },
+    // E24b: highest resolution that fits the server's memory (300 dpi for usual prints, 150–200 for large all-over pieces)
+    const dpi = printDpiFor(zone.max_width_mm, zone.max_height_mm, Number(process.env.PRINT_MAX_MEGAPIXELS) || 25);
+    const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm, pattern }, { dpi, images, allOver: doc.allOver ?? null, mirror: copy });
+    return new NextResponse(new Uint8Array(setPngDpi(new Uint8Array(rasterize(svg)), dpi)), {
+      headers: { "Content-Type": "image/png", "Content-Disposition": `attachment; filename="${reference}-${zone.key}${pieceLabel}-${dpi}dpi.png"`, "Cache-Control": "private, no-store" },
     });
   }
 
@@ -139,6 +141,7 @@ async function generate(request: NextRequest, fulfillmentId: string) {
       anchorNote: pattern ? `Pièce de patron : imprimer le rectangle entier (fond perdu ${pattern.bleedMm} mm), couper sur le trait (couture ${pattern.seamMm} mm)${pattern.quantity > 1 ? `, ${pattern.quantity} pièces${pattern.mirror ? " dont une en miroir (fichier « copie 2 »)" : ""}` : ""}` : zone.anchor?.note ?? null,
       colors: d.technique === "embroidery" || d.technique === "screen_print" ? d.colors : null,
       previewPng: new Uint8Array(rasterize(svg, "#F2E9D8")),
+      printDpi: printDpiFor(zone.max_width_mm, zone.max_height_mm, Number(process.env.PRINT_MAX_MEGAPIXELS) || 25),
     };
   });
   // E18b: cutting plan for all-over pieces, per garment, on a 150 cm roll

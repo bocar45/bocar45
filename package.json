@@ -10,7 +10,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && pnpm --filter web typecheck",
     "db:test": "bash scripts/db-test.sh",
-    "build": "pnpm --filter web build"
+    "build": "pnpm --filter web build",
+    "bench:engines": "vitest bench --run scripts/load",
+    "load:http": "node scripts/load/http-load.mjs"
   },
   "devDependencies": {
     "typescript": "5.7.3",

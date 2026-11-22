@@ -12,6 +12,8 @@ export interface SheetZone {
   anchorNote?: string | null;
   colors?: number | null;
   previewPng?: Uint8Array | null;
+  /** Resolution of the separate print file (E24b: lower for large all-over pieces). */
+  printDpi?: number;
 }
 
 export interface SheetData {
@@ -79,7 +81,7 @@ export async function buildProductionSheet(data: SheetData): Promise<Uint8Array>
       ["Position", `${z.offsetLeftCm.toFixed(1)} cm du bord gauche, ${z.offsetTopCm.toFixed(1)} cm du haut de la zone`],
       ["Zone de référence", `${z.zoneWidthCm} x ${z.zoneHeightCm} cm${z.anchorNote ? ` · ${z.anchorNote}` : ""}`],
       ...(z.colors ? [["Couleurs", String(z.colors)] as [string, string]] : []),
-      ["Fichier d'impression", "PNG transparent 300 dpi, taille réelle de la zone (fichier séparé)"],
+      ["Fichier d'impression", `PNG ${z.printDpi ?? 300} dpi, taille réelle de la zone (fichier séparé)`],
     ];
     if (data.roster?.length && data.variableZones?.includes(z.label)) {
       rows.push(["Nom / numéro", `Varie selon la pièce : un fichier PNG par pièce, liste en fin de fiche (${data.roster.length} pièces)`]);

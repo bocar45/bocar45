@@ -157,3 +157,15 @@ describe("all-over pattern pieces (E18b)", async () => {
     });
   }
 });
+
+describe("production resolution within the memory budget (E24b)", async () => {
+  const { printDpiFor } = await import("./png.ts");
+  it("keeps 300 dpi for usual prints and lowers it for large all-over pieces", () => {
+    expect(printDpiFor(300, 400)).toBe(300); // A3 front print: 16.7 Mpx
+    expect(printDpiFor(550, 290)).toBe(300); // tee sleeve
+    expect(printDpiFor(566, 770)).toBe(150); // tee front piece: 200 dpi would be 26.9 Mpx
+    expect(printDpiFor(640, 730)).toBe(150);
+    expect(printDpiFor(566, 770, 40)).toBe(200); // bigger server function
+    expect(printDpiFor(2000, 2000)).toBe(150); // never below 150
+  });
+});

@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → E18b → E24a → **E24b** → E24c → E24d (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → E18b → E24a → E24b → **E24c** → E24d (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -162,8 +162,10 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Montant atelier retiré du droit de lecture général de `fulfillments` (privilège de colonne) et exposé par la vue `fulfillment_costs` (équipe SAWWA, propriétaire et gérants) ; client et opérateur refusés (tests section 20) ; tableau de bord, export, pages commande adaptés. Décision D27.
 - [x] Contours des pièces de patron figés avec la commande (`quote_snapshot.patterns`) et utilisés en priorité pour la production.
 
-## E24b — Tests de charge locaux ⏳
-- [ ] Scénarios k6 ou équivalent sans dépendance externe : catalogue, prix en direct, studio ; budget (p95) et résultats consignés ; limites de débit vérifiées sous charge.
+## E24b — Tests de charge locaux 🔎
+- [x] Outils sans dépendance : `pnpm bench:engines` (moteurs), `pnpm load:http` (charge HTTP), limitation de débit sous accès simultanés dans `pnpm db:test` (10 / 40 acceptés). Résultats et budgets dans `docs/PERFORMANCE.md`.
+- [x] Constat corrigé : un fichier 300 dpi d'une grande pièce prenait 1,46 Go → résolution choisie selon un budget de pixels (300 dpi habituel, 150–200 dpi pour les grandes pièces, jamais moins de 150), annoncée sur la fiche et dans le nom du fichier. Décision D28.
+- [ ] 🧑‍💼 Charge avec la vraie base (après E11).
 
 ## E24c — Référencement ⏳
 - [ ] Métadonnées par page (titre, description, Open Graph), plan du site, robots.txt, données structurées produit, pages légales provisoires (à faire relire, 🧑‍💼).

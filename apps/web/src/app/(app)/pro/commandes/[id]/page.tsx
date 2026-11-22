@@ -137,7 +137,7 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
                 return variable ? (
                   <li key={d.zoneKey}>
                     <details>
-                      <summary className="cursor-pointer underline">Fichiers d&apos;impression · {label} : un par pièce ({item.roster!.length}, PNG 300 dpi)</summary>
+                      <summary className="cursor-pointer underline">Fichiers d&apos;impression · {label} : un par pièce ({item.roster!.length}, PNG haute résolution)</summary>
                       <ol className="mt-2 grid max-h-80 gap-1 overflow-y-auto pl-2">
                         {item.roster!.map((e, i) => (
                           <li key={i}><a className="underline" href={href(i + 1)}>Pièce {i + 1} · {e.size}{e.number ? ` · n° ${e.number}` : ""}{e.name ? ` · ${e.name}` : ""}</a></li>
@@ -147,7 +147,7 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
                   </li>
                 ) : (
                   <li key={d.zoneKey}>
-                    <a className="underline" href={href()}>Fichier d&apos;impression · {label} (PNG 300 dpi, taille réelle{patternOf(zoneOf(d.zoneKey)?.anchor) ? ", fond perdu compris" : " transparent"}{item.roster?.length ? ", identique sur toutes les pièces" : ""})</a>
+                    <a className="underline" href={href()}>Fichier d&apos;impression · {label} (PNG haute résolution, taille réelle{patternOf(zoneOf(d.zoneKey)?.anchor) ? ", fond perdu compris" : " transparent"}{item.roster?.length ? ", identique sur toutes les pièces" : ""})</a>
                     {patternOf(zoneOf(d.zoneKey)?.anchor)?.mirror && <> · <a className="underline" href={`${href()}&copie=2`}>seconde pièce (miroir)</a></>}
                   </li>
                 );

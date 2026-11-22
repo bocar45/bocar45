@@ -64,3 +64,14 @@ export function readPngDpi(png: Uint8Array): number | null {
   }
   return null;
 }
+
+/**
+ * E24b — resolution of a production file within a pixel budget: the rasteriser needs ≈ 15 bytes per pixel at its peak,
+ * so 25 Mpx stays under ≈ 600 MB (a 1 GB server function). Small prints keep 300 dpi; a large all-over piece drops to
+ * 200 or 150 dpi (usual for large-format sublimation, seen from a distance). Never below 150 dpi.
+ */
+export const PRINT_DPI_STEPS = [300, 200, 150] as const;
+export function printDpiFor(widthMm: number, heightMm: number, maxMegapixels = 25): number {
+  const px = (dpi: number) => ((widthMm / 25.4) * dpi) * ((heightMm / 25.4) * dpi) / 1e6;
+  return PRINT_DPI_STEPS.find((d) => px(d) <= maxMegapixels) ?? 150;
+}
