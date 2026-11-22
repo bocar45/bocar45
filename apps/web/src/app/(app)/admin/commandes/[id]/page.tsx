@@ -56,7 +56,7 @@ export default async function AdminOrder({ params }: { params: Promise<{ id: str
         <Section title="Affecter à un atelier" id="assign">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
-              <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wider text-muted"><th className="p-2">Atelier</th><th className="p-2 text-right">Coût atelier</th><th className="p-2 text-right">Marge SAWWA (HT)</th><th className="p-2">Délai</th><th className="p-2" /></tr></thead>
+              <thead><tr className="border-b border-line text-left text-xs uppercase tracking-wider text-muted"><th className="p-2">Atelier</th><th className="p-2 text-right">Coût atelier</th><th className="p-2 text-right">Marge SAWWA (HT)</th><th className="p-2">Délai</th><th className="p-2">Disponibilité</th><th className="p-2" /></tr></thead>
               <tbody>
                 {candidates.map((c) => (
                   <tr key={c.vendorId} className="border-b border-line">
@@ -64,6 +64,12 @@ export default async function AdminOrder({ params }: { params: Promise<{ id: str
                     <td className="p-2 text-right tabular-nums">{c.vendorCost === null ? "ne peut pas produire" : fcfa(c.vendorCost)}</td>
                     <td className={`p-2 text-right tabular-nums ${c.margin !== null && c.margin < 0 ? "font-bold text-error" : ""}`}>{c.margin === null ? "—" : fcfa(c.margin)}</td>
                     <td className="p-2">{c.leadTimeDays} j</td>
+                    <td className="p-2 text-xs">
+                      {c.capacity.closedToday ? <span className="font-bold text-error">Fermé jusqu&apos;au {new Date(c.capacity.closedUntil!).toLocaleDateString("fr-SN")}</span>
+                        : c.capacity.late ? <span className="font-bold text-error">Surchargé : prêt le {new Date(c.capacity.readyBy).toLocaleDateString("fr-SN")} (promis le {new Date(c.capacity.dueBy).toLocaleDateString("fr-SN")})</span>
+                        : <span className="text-ok">Prêt le {new Date(c.capacity.readyBy).toLocaleDateString("fr-SN")}</span>}
+                      <span className="block text-muted">{c.piecesInProgress} pc en cours{c.capacityPerDay ? ` · ${c.capacityPerDay} pc/jour` : " · capacité non déclarée"}{c.capacity.closuresAhead.length && !c.capacity.closedToday ? ` · fermeture prévue du ${new Date(c.capacity.closuresAhead[0]!.starts_on).toLocaleDateString("fr-SN")}` : ""}</span>
+                    </td>
                     <td className="p-2">{c.vendorCost !== null && <ActionForm action={assignVendor.bind(null, o.id, f.id, c.vendorId)} submitLabel="Affecter" pendingLabel="…" className="contents" />}</td>
                   </tr>
                 ))}

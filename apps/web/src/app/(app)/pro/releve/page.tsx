@@ -8,7 +8,7 @@ export const metadata = { title: "Mon relevé" };
 export default async function VendorOwnStatement() {
   const { supabase, memberships } = await requireUser("/pro/releve");
   const vendor = vendorMembership(memberships);
-  if (!vendor) redirect("/pro");
+  if (!vendor || vendor.role === "operator") redirect("/pro"); // money: owner and managers only (RLS too)
   // RLS: a workshop reads only its own ledger.
   const { data } = await supabase.from("vendor_ledger").select("id, type, amount, note, at, fulfillment_id").eq("vendor_id", vendor.organization.id).order("at").order("id");
   return (

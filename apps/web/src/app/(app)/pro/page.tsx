@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { ActionForm } from "@/components/action-form";
 import { requireUser, vendorMembership } from "@/lib/auth";
+import { acceptInvitation } from "./equipe/actions";
 
 export const metadata = { title: "Espace atelier" };
 
@@ -11,12 +13,21 @@ const STATUS_TEXT = {
 } as const;
 
 export default async function ProHome() {
-  const { memberships } = await requireUser("/pro");
+  const { memberships, supabase } = await requireUser("/pro");
   const vendor = vendorMembership(memberships);
   if (!vendor) {
+    // E21: invitations sent to this phone number by a workshop
+    const { data: invitations } = await supabase.rpc("my_vendor_invitations");
+    const ROLE = { manager: "gérant", operator: "opérateur" } as Record<string, string>;
     return (
       <div className="grid max-w-xl gap-4">
         <h1 className="font-display text-3xl">Espace atelier</h1>
+        {((invitations ?? []) as { id: string; vendor_name: string; role: string }[]).map((i) => (
+          <div key={i.id} className="grid gap-2 rounded-lg border-2 border-terra bg-surface p-4">
+            <p><b>{i.vendor_name}</b> vous invite à rejoindre son équipe comme {ROLE[i.role] ?? i.role}.</p>
+            <ActionForm action={acceptInvitation.bind(null, i.id)} submitLabel="Rejoindre l'atelier" />
+          </div>
+        ))}
         <p className="text-muted">Vous n&apos;êtes rattaché à aucun atelier.</p>
         <Link href="/pro/candidature" className="w-fit rounded-md bg-action px-4 py-3 font-bold text-on-action">
           Déposer une candidature
@@ -32,8 +43,12 @@ export default async function ProHome() {
       {status === "active" && (
         <div className="flex flex-wrap gap-3">
           <Link href="/pro/commandes" className="btn btn-terra">Mes commandes</Link>
-          <Link href="/pro/offres" className="btn btn-brun">Mes offres et mes prix</Link>
-          <Link href="/pro/releve" className="btn btn-brun">Mon relevé</Link>
+          {vendor.role !== "operator" && <>
+            <Link href="/pro/offres" className="btn btn-brun">Mes offres et mes prix</Link>
+            <Link href="/pro/disponibilites" className="btn btn-brun">Disponibilités</Link>
+            <Link href="/pro/equipe" className="btn btn-brun">Mon équipe</Link>
+            <Link href="/pro/releve" className="btn btn-brun">Mon relevé</Link>
+          </>}
         </div>
       )}
     </div>

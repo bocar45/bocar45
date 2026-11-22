@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → **E21** → E22 (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → **E22** (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -142,9 +142,9 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Export comptable CSV (Excel FR) : commandes/TVA, grand livre, versements, litiges, par période ; protection contre l'injection de formules. Décision D23.
 - [ ] Plus tard : remboursement en ligne (E13), factures et auto-factures numérotées, rapprochement des paiements.
 
-## E21 — Espace atelier avancé ⏳
-- [ ] Capacité par jour et jours de fermeture pris en compte à l'affectation.
-- [ ] Plusieurs utilisateurs par atelier (propriétaire, gérant, opérateur).
+## E21 — Espace atelier avancé 🔎
+- [x] Capacité par jour et fermetures (`/pro/disponibilites`) prises en compte à l'affectation : charge en cours + commande ÷ capacité, jours ouvrés du lundi au samedi, fermetures sautées ; l'admin voit « prêt le… / surchargé / fermé jusqu'au… », les ateliers disponibles sont proposés en premier, l'affectation à un atelier fermé est refusée (`lib/capacity.ts`, tests). Marge de l'affectation calculée avec `splitGross` (règle 3).
+- [x] Plusieurs utilisateurs par atelier : invitation par numéro de téléphone (7 jours), acceptation par la personne connectée avec ce numéro, rôles propriétaire / gérant / opérateur ; l'opérateur ne voit ni l'argent ni les offres et ne gère ni l'équipe ni les disponibilités ; au moins un propriétaire garanti (`/pro/equipe`). Décision D24.
 
 ## E22 — IA ⏳
 - [ ] Détourage d'image dans le navigateur.

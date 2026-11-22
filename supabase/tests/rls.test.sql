@@ -914,4 +914,58 @@ do $$ declare ok boolean := false; begin
 end $$;
 reset role;
 
+-- 19. Équipe et disponibilités des ateliers (E21)
+insert into auth.users (id, phone) values ('00000000-0000-0000-0000-0000000000d1', '221770000010'); -- format Supabase (sans +)
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+select public.invite_vendor_member((select id from public.organizations where name = 'Atelier Médina'), '+221770000010', 'operator');
+insert into public.vendor_closures (vendor_id, starts_on, ends_on, reason) select id, current_date + 3, current_date + 5, 'Tabaski' from public.organizations where name = 'Atelier Médina';
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+do $$ declare ok boolean := false; begin
+  if exists (select 1 from public.vendor_closures) then raise exception 'FAIL other workshop reads closures'; end if;
+  if exists (select 1 from public.my_vendor_invitations()) then raise exception 'FAIL invitation visible to another phone'; end if;
+  begin perform public.accept_vendor_invitation((select id from public.vendor_invitations limit 1));
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL invitation accepted by another phone'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000d1');
+do $$ begin
+  if (select count(*) from public.my_vendor_invitations()) <> 1 then raise exception 'FAIL invited person does not see the invitation'; end if;
+end $$;
+select public.accept_vendor_invitation((select id from public.my_vendor_invitations() limit 1));
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000d1');
+do $$ declare ok boolean := false; n int; begin
+  if app.vendor_role((select id from public.organizations where name = 'Atelier Médina')) <> 'operator' then raise exception 'FAIL operator membership'; end if;
+  if not exists (select 1 from public.fulfillments) then raise exception 'FAIL operator cannot see the workshop orders'; end if;
+  if exists (select 1 from public.vendor_ledger) or exists (select 1 from public.payouts) then raise exception 'FAIL operator reads the money'; end if;
+  begin perform public.invite_vendor_member((select id from public.organizations where name = 'Atelier Médina'), '+221770000011', 'operator');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL operator invited someone'; end if;
+  update public.vendor_profiles set capacity_per_day = 999;
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAIL operator changed the workshop capacity'; end if;
+  ok := false;
+  begin insert into public.vendor_closures (vendor_id, starts_on, ends_on) select id, current_date, current_date from public.organizations where name = 'Atelier Médina';
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL operator added a closure'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ declare ok boolean := false; begin
+  if (select count(*) from public.vendor_team((select id from public.organizations where name = 'Atelier Médina'))) <> 2 then raise exception 'FAIL owner cannot list the team'; end if;
+  perform public.set_vendor_member((select id from public.organizations where name = 'Atelier Médina'), '00000000-0000-0000-0000-0000000000d1', 'manager');
+  if (select role from public.memberships where user_id = '00000000-0000-0000-0000-0000000000d1') <> 'manager' then raise exception 'FAIL role change'; end if;
+  begin perform public.set_vendor_member((select id from public.organizations where name = 'Atelier Médina'), '00000000-0000-0000-0000-0000000000a1', null);
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL last owner removed'; end if;
+end $$;
+rollback;
+
 select 'ALL RLS TESTS PASSED' as result;

@@ -32,6 +32,7 @@ export async function assignVendor(orderId: string, fulfillmentId: string, vendo
   if (order?.payment_status !== "paid") return { error: "Le paiement doit être confirmé avant l'affectation." };
   const candidate = (await candidateVendors(orderId)).find((c) => c.vendorId === vendorId);
   if (!candidate || candidate.vendorCost === null) return { error: "Cet atelier ne peut pas fabriquer cette commande." };
+  if (candidate.capacity.closedToday) return { error: `${candidate.name} est fermé jusqu'au ${new Date(candidate.capacity.closedUntil!).toLocaleDateString("fr-SN")} : choisissez un autre atelier.` };
   const r = await runTransition(fulfillmentId, { type: "assign", vendorId }, { role: "admin", userId: user.id }, { vendor_cost: candidate.vendorCost }, { vendor: candidate.name });
   if ("error" in r) return { error: r.error };
   await audit({ actorUserId: user.id, action: "fulfillment.assign", entityType: "fulfillment", entityId: fulfillmentId, after: { vendorId, vendorCost: candidate.vendorCost } });
