@@ -45,5 +45,16 @@ create policy reports_insert on public.content_reports for insert to authenticat
     and (reporter_role <> 'staff' or app.has_platform_role('{ops,support}')));
 create policy reports_read on public.content_reports for select to authenticated
   using (reporter_id = auth.uid() or app.has_platform_role('{ops,support}'));
+-- Une décision ne porte que sur le statut et sa justification, une seule fois (depuis « open »).
+create function app.guard_report_resolution() returns trigger language plpgsql set search_path = '' as $$
+begin
+  if old.status <> 'open' then raise exception 'report already resolved' using errcode = 'check_violation'; end if;
+  if (new.target_type, new.target_id, new.reporter_id, new.reporter_role, new.reason, new.details, new.created_at)
+     is distinct from (old.target_type, old.target_id, old.reporter_id, old.reporter_role, old.reason, old.details, old.created_at) then
+    raise exception 'only the decision can change' using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+create trigger guard_resolution before update on public.content_reports for each row execute function app.guard_report_resolution();
 create policy reports_resolve on public.content_reports for update to authenticated
   using (app.has_platform_role('{ops,support}')) with check (app.has_platform_role('{ops,support}'));

@@ -28,6 +28,7 @@ import { AssistantPanel, FieldEditor, TemplateSavePanel } from "./template-panel
 import { moveLayerToZone } from "./move";
 import { useHistory } from "./use-history";
 import { fitsQuote } from "@/lib/b2b-rules";
+import { needsRightsDeclaration } from "@/lib/design-ownership";
 
 export interface StudioZoneProps { key: string; label: string; viewLabel: string; maxWidthMm: number; maxHeightMm: number; techniques: Technique[] }
 export interface StudioProps {
@@ -61,7 +62,8 @@ export interface B2bForStudio {
   decorations: { zoneKey: string; technique: string; widthMm: number; heightMm: number; colors: number }[];
 }
 
-const RIGHTS_KEY = "sawwa:droits-images";
+/** The rights declaration belongs to an account (a shared phone must not declare for someone else). */
+const rightsKey = (userId: string) => `sawwa:droits-images:${userId}`;
 const SWATCHES = ["#2A1A12", "#F2E9D8", "#FFFFFF", "#000000", "#B5562A", "#C9923E", "#2F4B7C", "#68705A", "#A4262C"];
 const fcfa = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).slice(0, 12);
@@ -76,7 +78,11 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   // E18d: rights declaration before importing images (once per device, recorded on the design when saved).
   const [rightsOk, setRightsOk] = useState(false);
   const [rightsGate, setRightsGate] = useState<null | (() => void)>(null);
-  useEffect(() => { try { setRightsOk(Boolean(localStorage.getItem(RIGHTS_KEY))); } catch { /* storage blocked */ } }, []);
+  useEffect(() => {
+    // signed out: the declaration lives only in this page (asked again once signed in, before saving)
+    if (!userId) return;
+    try { setRightsOk(Boolean(localStorage.getItem(rightsKey(userId)))); } catch { /* storage blocked */ }
+  }, [userId]);
   const requireRights = (go: () => void) => { if (rightsOk) go(); else setRightsGate(() => go); };
   // E16: one line per piece (size, name, number) when a text changes on every piece; kept on this device.
   const [roster, setRoster] = useState<RosterEntry[]>([]);
@@ -238,9 +244,15 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
 
   // ── Save to the customer account: upload on-device images, then store the document ──
   /** Returns the saved design id and the exact document stored (images replaced by their storage paths). */
-  const saveToAccount = async (): Promise<{ id: string; doc: DesignDocument } | null> => {
+  const saveToAccount = async (rightsConfirmed = false): Promise<{ id: string; doc: DesignDocument } | null> => {
     if (!userId) {
       router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}${assistant ? `?modele=${assistant.slug}` : ""}`)}`);
+      return null;
+    }
+    // E18d: imported images need this account's declaration (asked here too, e.g. for a design opened on another device)
+    if (needsRightsDeclaration(doc) && !rightsOk && !rightsConfirmed) {
+      setRightsGate(() => () => { void saveToAccount(true); });
+      setNotice("Confirmez vos droits sur les images importées pour enregistrer.");
       return null;
     }
     setSaving(true);
@@ -265,7 +277,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
       }
       if (next !== doc) { setUrls((u) => ({ ...u, ...newUrls })); history.commit(next); }
       if (JSON.stringify(next).length > MAX_DOCUMENT_CHARS) throw new Error("Création trop lourde à enregistrer : remplacez un élément vectorisé très détaillé par l'image d'origine, ou vectorisez avec moins de couleurs.");
-      const r = await save({ id: designId, slug: product.slug, title, document: next, rightsDeclared: rightsOk });
+      const r = await save({ id: designId, slug: product.slug, title, document: next, rightsDeclared: rightsOk || rightsConfirmed });
       if ("error" in r) throw new Error(r.error);
       setDesignId(r.id);
       setNotice("Création enregistrée dans votre compte.");
@@ -502,7 +514,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           {notice && <p role="alert" className="text-sm text-error">⚠ {notice}</p>}
           {rightsGate && (
             <RightsGate onCancel={() => setRightsGate(null)}
-              onAccept={() => { setRightsOk(true); try { localStorage.setItem(RIGHTS_KEY, new Date().toISOString()); } catch { /* storage blocked */ } const go = rightsGate; setRightsGate(null); go(); }} />
+              onAccept={() => { setRightsOk(true); if (userId) { try { localStorage.setItem(rightsKey(userId), new Date().toISOString()); } catch { /* storage blocked */ } } const go = rightsGate; setRightsGate(null); go(); }} />
           )}
         </div>
 

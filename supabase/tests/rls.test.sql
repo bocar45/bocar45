@@ -780,6 +780,23 @@ do $$ begin
   update public.content_reports set status = 'upheld', resolution_note = 'Marque déposée', resolved_by = auth.uid(), resolved_at = now() where reason = 'trademark';
   if (select status from public.content_reports where reason = 'trademark') <> 'upheld' then raise exception 'FAIL staff cannot resolve'; end if;
 end $$;
+do $$ declare ok boolean := false; begin
+  begin update public.content_reports set status = 'open' where reason = 'trademark';
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL resolved report reopened'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin update public.content_reports set reason = 'other', details = 'réécrit' where reason = 'protected_character';
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL report content rewritten by staff'; end if;
+end $$;
+rollback;
+-- a workshop does not read the moderation queue (only its own reports)
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+do $$ begin
+  if exists (select 1 from public.content_reports where reporter_id <> auth.uid()) then raise exception 'FAIL workshop reads the moderation queue'; end if;
+end $$;
 rollback;
 -- rights declaration is stored on the design
 do $$ begin

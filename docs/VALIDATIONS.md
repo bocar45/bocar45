@@ -2,6 +2,25 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E18d — À CORRIGER
+Commit examiné : 987d89c (depuis 887f845, wip 05e25f4 inclus), `git status` propre, branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (131, 21 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0, routes `/admin/moderation` et `/signaler` présentes)
+Vérification navigateur : non refaite (pas de Supabase réel) ; celle de l'auteur couvre la fenêtre de droits. Bout en bout réel : en attente du porteur (E11).
+Critères de l'étape :
+- [ ] Déclaration de droits : fenêtre avant l'import (`studio.tsx` `requireRights` sur l'outil Image et `guard` de l'assistant), case requise pour le logo du devis (`devis/actions.ts:34`), refus serveur à l'enregistrement (`studio/[slug]/actions.ts:45`) et à la commande (`:105`), `needsRightsDeclaration` testé (`design-ownership.test.ts:28`). **Écart** : l'accord est gardé dans `localStorage` sous une clé unique `sawwa:droits-images` (`studio.tsx:64`, `:79`), sans lien avec le compte. Sur un téléphone partagé, un deuxième compte importe sans voir la fenêtre, et `saveDesign` enregistre pour lui `rights_declared_at` (`rightsDeclared: rightsOk`, `studio.tsx:268`) : la base atteste une déclaration que cette personne n'a jamais faite. → correction attendue : rattacher l'accord au compte (clé contenant `userId`, ou relecture d'une date côté serveur) et n'envoyer `rightsDeclared` que pour un accord donné par cet utilisateur.
+- [x] Signalement : atelier depuis la fiche de production (`pro/commandes/[id]/page.tsx`, section « Droits et contenu »), personne connectée depuis `/signaler?modele=` (lien dans l'assistant), limite `reportPerUser`. La base vérifie la visibilité : trigger `app.check_content_report` (modèle publié ; commande du client ou de l'atelier affecté) et politique d'insertion (`reporter_id = auth.uid()`, rôle `staff` réservé à ops/support). Tests section 17 : autre atelier refusé, commande d'un autre client refusée, modèle inconnu refusé, faux `staff` refusé, l'auteur ne voit que ses signalements et ne peut pas les trancher.
+- [x] File `/admin/moderation` : `requirePlatformRole(["ops","support"])` dans la page et dans `resolveReport` ; décision écrite obligatoire (3 caractères min.) ; modèle archivé par le client serveur après contrôle du rôle ; commande mise en pause via `runTransition` `hold` (rôle admin, autorisé depuis tout statut actif, `workflow/fulfillment.ts:138`) ; `audit` `report.upheld|dismissed` ; badge « +48 h » ; onglets à traiter / traités ; état vide ; tuile dans `/admin`. Test SQL : ops lit la file et tranche.
+- [x] Refus motivé au BAT : `RejectReason` étendu (`workflow/fulfillment.ts:25-29`), accepté par `vendorEvent`, libellés `REASON_LABEL`, explication et options (corriger / annuler et être remboursé) sur `compte/commandes/[id]`.
+Critères communs : C1 ✅ · C2 ✅ (ni prix ni argent touchés ; mise en pause via `runTransition` ; permissions serveur ; table neuve avec RLS et tests) · C3 ❌ (point 1 : déclaration enregistrée au nom d'un compte qui ne l'a pas faite ; grep secrets vide dans apps/packages ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ · C6 ✅ (D22, DATABASE:106, ROADMAP:48, BACKLOG 🔎 ; poussé ; aucune nouvelle dépendance).
+Corrections à faire (par priorité) :
+1. Lier la déclaration de droits au compte (voir ci-dessus) ; vérifier qu'un 2e compte sur le même navigateur voit la fenêtre avant son premier import.
+Remarques non bloquantes :
+- Création avec images importées sans `rights_declared_at` (créée avant la migration 9) ouverte sur un appareil sans accord : l'enregistrement est refusé avec « case à cocher dans le studio », mais aucune case n'apparaît tant que le client ne clique pas sur Image. Ouvrir la fenêtre de droits sur cette erreur.
+- `reports_resolve` laisse ops/support modifier toute colonne (cible, motif, auteur) et rouvrir un signalement ; un trigger limitant la mise à jour à `status`/`resolution_note`/`resolved_*` depuis `open` serait plus sûr.
+- Une commande signalée et retenue n'informe pas le client automatiquement (contact manuel annoncé dans la file) ; à reprendre avec les notifications.
+- Pas de test SQL pour le rôle `support` ni pour la lecture de la file par un atelier.
+Décision : reprendre E18d
+
 ## 2026-11-22 — E17 (3e passage) — VALIDÉ
 Commit examiné : a9e35f4 (depuis 1ba4942), branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (130) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé, car du code a changé.
