@@ -7,6 +7,7 @@ import * as THREE from "three";
 import type { Surface } from "@sawwa/design";
 import { GARMENTS, bounds, distanceToOutline, inflate, outline, placeZone, pointInPolygon, uvFor, type GarmentKind, type ModelKind, type Panel, type Placement } from "./garment";
 import { drawFabric, drawSurface, loadImages, type ImageCache } from "./paint";
+import { hasWebGL } from "./support";
 
 export interface Viewer3DProps {
   kind: ModelKind;
@@ -32,6 +33,11 @@ function useCanvas(widthMm: number, heightMm: number) {
     texture.anisotropy = 4;
     return { canvas, texture };
   }, [widthMm, heightMm]);
+}
+
+/** Free GPU memory when a texture or geometry is no longer used (model or product changed). */
+function useDispose(...items: { dispose: () => void }[]) {
+  useEffect(() => () => { for (const i of items) i.dispose(); }, items); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** Repaint textures when the design, colour, images or fonts change (debounced), then ask for one frame. */
@@ -160,6 +166,7 @@ function Garment({ kind, props, images, fontEl }: { kind: GarmentKind; props: Vi
   const front = useCanvas(b.maxX - b.minX, b.maxY - b.minY);
   const back = useCanvas(b.maxX - b.minX, b.maxY - b.minY);
   const geo = useMemo(() => ({ front: buildPanel(kind, "front"), back: buildPanel(kind, "back") }), [kind]);
+  useDispose(geo.front, geo.back, front.texture, back.texture);
   usePaint(() => {
     for (const [panel, c] of [["front", front], ["back", back]] as const) {
       const ctx = c.canvas.getContext("2d")!;
@@ -192,6 +199,7 @@ function Cylindrical({ kind, props, images, fontEl }: { kind: "mug" | "bottle"; 
   const h = kind === "mug" ? 95 : 200;
   const circ = 2 * Math.PI * r;
   const tex = useCanvas(circ, h);
+  useDispose(tex.texture);
   usePaint(() => {
     const ctx = tex.canvas.getContext("2d")!;
     ctx.setTransform(PX_PER_MM, 0, 0, PX_PER_MM, 0, 0);
@@ -233,6 +241,7 @@ function Cap({ props, images, fontEl }: { props: Viewer3DProps; images: ImageCac
   const W = 2 * Math.PI * R;
   const H = (Math.PI / 2) * R;
   const tex = useCanvas(W, H);
+  useDispose(tex.texture);
   usePaint(() => {
     const ctx = tex.canvas.getContext("2d")!;
     ctx.setTransform(PX_PER_MM, 0, 0, PX_PER_MM, 0, 0);
@@ -267,7 +276,7 @@ function Cap({ props, images, fontEl }: { props: Viewer3DProps; images: ImageCac
 
 // ───────────────────────────── Scene and controls ─────────────────────────────
 
-const VIEWS = { face: 0, dos: Math.PI, gauche: Math.PI / 2, droite: -Math.PI / 2 } as const;
+const VIEWS = { face: 0, dos: Math.PI, gauche: Math.PI / 2, droite: -Math.PI / 2, troisQuartsGauche: Math.PI / 4, troisQuartsDroite: -Math.PI / 4 } as const;
 type View = keyof typeof VIEWS;
 
 function Scene({ props, controls }: { props: Viewer3DProps; controls: React.RefObject<CameraControls | null> }) {
@@ -292,14 +301,6 @@ function Scene({ props, controls }: { props: Viewer3DProps; controls: React.RefO
   );
 }
 
-export function hasWebGL(): boolean {
-  try {
-    const c = document.createElement("canvas");
-    return Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
 
 export default function Viewer3D(props: Viewer3DProps) {
   const controls = useRef<CameraControls | null>(null);
@@ -312,7 +313,8 @@ export default function Viewer3D(props: Viewer3DProps) {
     if (!zone) return;
     if (garment) {
       const pl: Placement = placeZone(props.kind as GarmentKind, zone);
-      view(pl.panel === "back" ? "dos" : /sleeve|manche/.test(zone.key) ? (/right|droite/.test(zone.key) ? "droite" : "gauche") : "face");
+      // sleeves: three-quarter view, so the print faces the camera instead of the garment edge
+      view(pl.panel === "back" ? "dos" : /sleeve|manche/.test(zone.key) ? (/right|droite/.test(zone.key) ? "troisQuartsDroite" : "troisQuartsGauche") : "face");
       controls.current?.dolly(0.25, true);
     } else view("face");
   };
@@ -322,13 +324,13 @@ export default function Viewer3D(props: Viewer3DProps) {
   const btn = "rounded-full border border-line bg-white/90 px-3 py-1.5 text-xs font-bold text-brun hover:border-terra";
   return (
     <div className="relative h-full w-full" style={{ background: backdrop === "blanc" ? "#FFFFFF" : "#F2E9D8" }}>
-      <Canvas flat frameloop="demand" dpr={[1, 1.5]} shadows camera={{ fov: 30, near: 0.01, far: 20, position: [0, 0.1, 1.8] }} gl={{ antialias: true, preserveDrawingBuffer: true }}
+      <Canvas flat frameloop="demand" dpr={[1, 1.5]} shadows camera={{ fov: 30, near: 0.01, far: 20, position: [0, 0.1, 1.8] }} gl={{ antialias: true }}
         aria-label={`Vue 3D du produit, zone ${zone?.label ?? ""}`}>
         <Scene props={props} controls={controls} />
       </Canvas>
       <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
         {(["face", "dos", "gauche", "droite"] as const).filter((v) => garment || v !== "dos").map((v) => (
-          <button key={v} type="button" className={btn} onClick={() => view(v)}>{{ face: "Face", dos: "Dos", gauche: "Profil G", droite: "Profil D" }[v]}</button>
+          <button key={v} type="button" className={btn} onClick={() => view(v)}>{({ face: "Face", dos: "Dos", gauche: "Profil G", droite: "Profil D" } as const)[v]}</button>
         ))}
         {zone && <button type="button" className={btn} onClick={focusZone}>Zone : {zone.label}</button>}
         <button type="button" className={btn} onClick={() => { controls.current?.reset(true); }}>Recentrer</button>

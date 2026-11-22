@@ -24,13 +24,14 @@ export interface GarmentTemplate {
 export const GARMENTS: Record<GarmentKind, GarmentTemplate> = {
   tee: {
     label: "T-shirt (modèle provisoire)",
-    neckFront: 80, neckBack: 25, thickness: 75, sleeveCenter: [310, 135],
-    halfOutline: [[90, -10], [180, 5], [235, 15], [390, 150], [330, 230], [265, 185], [262, 420], [268, 720], [0, 725]],
+    neckFront: 80, neckBack: 25, thickness: 75, sleeveCenter: [320, 170],
+    // sleeves ≈ 17 cm wide flat (real tee), so that a 9 × 9 cm sleeve print fits
+    halfOutline: [[90, -10], [180, 5], [240, 12], [450, 180], [330, 300], [262, 215], [262, 420], [268, 720], [0, 725]],
   },
   polo: {
     label: "Polo (modèle provisoire)",
-    neckFront: 70, neckBack: 25, thickness: 75, sleeveCenter: [305, 130],
-    halfOutline: [[85, -15], [180, 5], [235, 15], [385, 150], [330, 225], [265, 185], [262, 420], [268, 730], [0, 735]],
+    neckFront: 70, neckBack: 25, thickness: 75, sleeveCenter: [318, 170],
+    halfOutline: [[85, -15], [180, 5], [240, 12], [445, 180], [330, 295], [262, 215], [262, 420], [268, 730], [0, 735]],
   },
   hoodie: {
     label: "Hoodie (modèle provisoire)",
@@ -65,7 +66,7 @@ export function placeZone(kind: GarmentKind, zone: { key: string; maxWidthMm: nu
   if (kind === "tote") return { panel: /back|dos/.test(k) ? "back" : "front", x: -w / 2, y: Math.max(40, (400 - h) / 2), w, h };
   if (/neck|nuque|label|etiquette/.test(k) && /back|dos|nuque|neck/.test(k)) return { panel: "back", x: -w / 2, y: g.neckBack + 40, w, h };
   if (/back|dos/.test(k)) return { panel: "back", x: -w / 2, y: g.neckBack + 70, w, h };
-  if (/chest_left|poitrine_gauche|coeur|left_chest/.test(k)) return { panel: "front", x: 110 - w / 2, y: g.neckFront + 60, w, h };
+  if (/chest_left|poitrine_gauche|coeur|c_ur|left_chest/.test(k)) return { panel: "front", x: 110 - w / 2, y: g.neckFront + 60, w, h };
   if (/chest_right|poitrine_droite/.test(k)) return { panel: "front", x: -110 - w / 2, y: g.neckFront + 60, w, h };
   const [sx, sy] = g.sleeveCenter;
   if (/left_sleeve|manche_gauche/.test(k)) return { panel: "front", x: sx - w / 2, y: sy - h / 2, w, h };

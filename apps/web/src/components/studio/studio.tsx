@@ -11,7 +11,9 @@ import {
 } from "@sawwa/design";
 import { DELIVERY_OPTIONS, type DeliveryKey } from "@/lib/shipping";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
+import { Viewer3DBoundary } from "../studio3d/boundary";
 import { modelKindFor } from "../studio3d/garment";
+import { hasWebGL, preferredMode, type StudioMode } from "../studio3d/support";
 
 const Viewer3D = dynamic(() => import("../studio3d/viewer"), {
   ssr: false,
@@ -19,6 +21,7 @@ const Viewer3D = dynamic(() => import("../studio3d/viewer"), {
 });
 import { getAsset, loadDraft, putAsset, saveDraft } from "./asset-store";
 import { LayerShape, StudioCanvas, isDark } from "./canvas";
+import { moveLayerToZone } from "./move";
 import { useHistory } from "./use-history";
 
 export interface StudioZoneProps { key: string; label: string; viewLabel: string; maxWidthMm: number; maxHeightMm: number; techniques: Technique[] }
@@ -56,7 +59,14 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const doc = history.value;
   const [zoneKey, setZoneKey] = useState(product.zones[0]?.key ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"edit" | "split" | "3d">("split");
+  // 2D by default on small screens (the editor stays in view, the 3D module loads only on demand) and without WebGL.
+  const [mode, setMode] = useState<StudioMode>("edit");
+  const [webgl, setWebgl] = useState(true);
+  useEffect(() => {
+    const ok = hasWebGL();
+    setWebgl(ok);
+    setMode(preferredMode(ok, window.innerWidth));
+  }, []);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [price, setPrice] = useState<Awaited<ReturnType<StudioProps["quote"]>> | null>(null);
@@ -133,24 +143,11 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const W = zone.maxWidthMm;
   const H = zone.maxHeightMm;
 
-  /** « Placer ici » : moves the selected element to another zone, centred, shrunk if it does not fit. */
+  /** « Placer ici » : moves the selected element to another zone (see moveLayerToZone). */
   const moveToZone = (layerId: string, targetKey: string) => {
     const target = product.zones.find((z) => z.key === targetKey);
-    const layer = surface.layers.find((l) => l.id === layerId);
-    if (!target || !layer || target.key === zone.key) return;
-    const f = Math.min(1, (target.maxWidthMm * 0.8) / Math.max(layer.widthMm, 1), (target.maxHeightMm * 0.8) / Math.max(layer.heightMm, 1));
-    const moved = {
-      ...layer, xMm: target.maxWidthMm / 2, yMm: target.maxHeightMm / 2, widthMm: layer.widthMm * f, heightMm: layer.heightMm * f,
-      ...(layer.type === "text" ? { sizeMm: Math.max(2, Math.round(layer.sizeMm * f * 10) / 10) } : {}),
-    } as Layer;
-    history.commit((d) => {
-      const without = { ...d, surfaces: d.surfaces.map((s) => (s.zoneKey === zone.key ? { ...s, layers: s.layers.filter((l) => l.id !== layerId) } : s)) };
-      const existing = without.surfaces.find((s) => s.zoneKey === target.key);
-      const surfaces = existing
-        ? without.surfaces.map((s) => (s.zoneKey === target.key ? { ...s, layers: [...s.layers, moved] } : s))
-        : [...without.surfaces, { zoneKey: target.key, technique: target.techniques[0] ?? "dtf", layers: [moved] }];
-      return { ...without, surfaces: surfaces.filter((s) => s.layers.length > 0) };
-    });
+    if (!target || target.key === zone.key) return;
+    history.commit((d) => moveLayerToZone(d, layerId, zone.key, { key: target.key, maxWidthMm: target.maxWidthMm, maxHeightMm: target.maxHeightMm, technique: target.techniques[0] ?? "dtf" }));
     setZoneKey(target.key);
   };
   const addText = () => addLayer({
@@ -274,6 +271,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
         <Link href={`/produits/${product.slug}`} className="text-sm text-muted underline">← Produit</Link>
         <b className="display on-light text-xl">{product.name}</b>
         {correction && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Correction · {correction.number}</span>}
+        {!webgl && <span className="text-xs text-muted">Vue 3D indisponible sur cet appareil : le studio fonctionne en 2D.</span>}
         <div className="flex items-center gap-1.5" role="group" aria-label="Couleur du produit">
           {product.colors.map((c) => (
             <button key={c.key} type="button" onClick={() => history.commit((d) => ({ ...d, colorKey: c.key }))} aria-pressed={c.key === color.key} aria-label={c.key}
@@ -286,8 +284,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           <button type="button" className={btn} onClick={history.redo} disabled={!history.canRedo} aria-label="Rétablir (Ctrl+Maj+Z)">↷ Rétablir</button>
           <div className="flex rounded-full bg-brun p-1 text-sm font-bold" role="group" aria-label="Mode">
             {(["edit", "split", "3d"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m}
-                className={`rounded-full px-4 py-1.5 ${mode === m ? "bg-ivoire text-brun" : "text-ivoire"}`}>{{ edit: "2D", split: "2D + 3D", "3d": "3D" }[m]}</button>
+              <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m} disabled={m !== "edit" && !webgl}
+                title={m !== "edit" && !webgl ? "La 3D n'est pas disponible sur cet appareil" : undefined}
+                className={`rounded-full px-4 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 ${mode === m ? "bg-ivoire text-brun" : "text-ivoire"}`}>{({ edit: "2D", split: "2D + 3D", "3d": "3D" } as const)[m]}</button>
             ))}
           </div>
         </div>
@@ -323,8 +322,10 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             {mode !== "edit" && (
               // Fixed height: the 3D canvas fills its box, so the box must not depend on the canvas (no resize loop).
               <div className={`relative overflow-hidden rounded-[24px] border border-line ${mode === "3d" ? "h-[70vh] min-h-[420px]" : "h-[380px] xl:h-[520px]"}`}>
-                <Viewer3D kind={modelKindFor(`${product.slug} ${product.categorySlug}`)} garmentHex={color.hex} surfaces={doc.surfaces}
-                  zones={product.zones} imageUrls={urls} activeZone={zone.key} />
+                <Viewer3DBoundary onFail={() => { setWebgl(false); setMode("edit"); }}>
+                  <Viewer3D kind={modelKindFor(`${product.slug} ${product.categorySlug}`)} garmentHex={color.hex} surfaces={doc.surfaces}
+                    zones={product.zones} imageUrls={urls} activeZone={zone.key} />
+                </Viewer3DBoundary>
               </div>
             )}
             {mode !== "3d" && (

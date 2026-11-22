@@ -2,6 +2,32 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E18 — À CORRIGER
+Commit examiné : 062f9eb (depuis 59ef8c7 ; f11a61d = verdict E14 et passage de E18 en cours), branche à jour avec `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (93, 16 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅
+Vérification visuelle : produit d'exemple branché temporairement dans `studio/[slug]/page.tsx` (fichier restauré, `git status` propre), `next start -p 3999`, Chromium + SwiftShader (bureau 1440 px et mobile 390 px), puis Chromium sans WebGL.
+Critères de l'étape :
+- [x] Modes « 2D », « 2D + 3D », « 3D » (`studio.tsx:378`, `:444-447`) ; mise à jour en direct mesurée : texte ajouté visible en 3D sur la capture prise 0,64 s après le clic (repeinte différée de 120 ms, `viewer.tsx:38-54`).
+- [~] React Three Fiber en module séparé (`next/dynamic`, `ssr: false`, `studio.tsx:363`) ✅ ; rendu à la demande (`frameloop="demand"`, `viewer.tsx:325`) ✅. **Repli 2D sans WebGL non automatique** : sans WebGL, le mode par défaut « 2D + 3D » garde un grand cadre vide « La vue 3D n'est pas disponible… », et en mode « 3D » l'éditeur 2D disparaît alors que le message affirme « L'aperçu 2D reste à jour » (`viewer.tsx:319-321`, `studio.tsx:478-488`, constaté sur mobile 390 px). Aucun repli si le module 3D ne se charge pas (réseau 4G) ou si le contexte WebGL échoue : l'erreur remonte à `app/error.tsx` et le studio entier est remplacé. → points 1 et 3.
+- [~] Calibration en mm (`garment.ts:61-75`, 6 tests) : devant à 7 cm sous l'encolure, poitrine gauche côté porteur, dos miroir lisible (vu en capture, texte à l'endroit de dos) ✅. **Manches** : le test ne vérifie qu'un carré de 50 mm ; avec une zone de manche courante (80–90 mm) les coins sortent du t-shirt et du polo (script : `tee manche_gauche … OUT`, `polo … OUT`) et le carré de 90 mm apparaît tronqué sur la manche en 3D. La vue « Zone : Manche » tourne la caméra de profil pur (`viewer.tsx:315`) : le vêtement est vu par la tranche, le marquage de manche est à peine visible. → point 2.
+- [x] Mug, gourde (cylindre, couture à l'arrière, `viewer.tsx:210-212`) et casquette (panneau avant, `viewer.tsx:246-249`) : texte visible face caméra (captures avec zones 200 × 80 et 100 × 55 mm).
+- [x] Couleur exacte, ombres des plis (couleurs de sommets), plis légers, maille, rotation/zoom, Face/Dos/Profils/Zone/Recentrer, fond blanc/ivoire (`viewer.tsx:329-341`).
+- [x] « Placer ici » : déplace l'élément, centré, réduit (vu : texte « Devant » → « Manche gauche », taille 36 → 13,2 mm) (`studio.tsx:394-412`, `:516-524`).
+- [x] Performances : canevas affiché en 0,35–0,43 s, 60 images/s mesurées (requestAnimationFrame) sous SwiftShader. Android réel en 4G : à rejouer en E11.
+- [ ] 🧑‍💼 Modèles d'artiste : en attente du porteur ; modèles provisoires étiquetés « (modèle provisoire) » conformément à D17. Non bloquant.
+- [x] Limiteur : `rate-limit.ts:34-42` (toute exception → `logError` + laisser passer), test « client cannot even be created ».
+Critères communs : C1 ✅ · C2 ✅ (aucun prix ni statut touché ; le repli `catch` du prix studio n'affiche qu'un message) · C3 ✅ (grep secrets vide hors docs/consigne ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ❌ (point 1 : message faux et cadre vide sans WebGL ; point 3) · C5 ✅ (calibration testée, mais voir point 2) · C6 ✅ (D17, ROADMAP, VISUALISATION_3D à jour ; 3 dépendances justifiées dans D17 ; commit poussé).
+Corrections à faire (par priorité) :
+1. Repli 2D automatique : détecter WebGL dans `studio.tsx` (au montage) et, s'il manque, forcer le mode « 2D » et masquer/désactiver « 2D + 3D » et « 3D » (avec une phrase courte expliquant pourquoi) ; ne plus jamais afficher le cadre vide ni masquer l'éditeur.
+2. Manches : agrandir la zone de manche des modèles t-shirt et polo (ou déplacer `sleeveCenter`) pour qu'un marquage de 90 × 90 mm tienne entièrement ; étendre le test « keeps every standard zone inside the garment » aux tailles courantes (manche 90 mm au moins, poitrine 100 mm, devant/dos 300 × 400) et aux clés françaises produites par `toKey` (`manche_gauche`, `poitrine_gauche`, `dos`, `nuque`). Pour la vue « Zone » d'une manche, utiliser un angle de trois quarts (≈ ±π/4) où le marquage est lisible, pas le profil pur.
+3. Entourer `Viewer3D` d'une limite d'erreur (error boundary) locale : échec de chargement du module ou du contexte WebGL → message français et retour au mode 2D, sans faire tomber le studio.
+Remarques non bloquantes :
+- Le mode par défaut « 2D + 3D » charge le module 3D (≈ 985 Ko, 258 Ko compressés) dès l'ouverture, y compris sur mobile où la 3D pousse l'éditeur sous la ligne de flottaison (capture 390 px) : envisager « 2D » par défaut sous `xl`, la 3D à la demande.
+- `toKey("Cœur")` donne `c_ur` : la règle `coeur` de `placeZone` ne s'applique jamais (le logo tombe au centre). Corriger `toKey` (œ → oe) ou la règle.
+- `moveToZone` (logique de « Placer ici ») n'est pas testé : l'extraire en fonction pure testée. Il réduit aussi à 80 % un élément qui tiendrait déjà.
+- Textures et géométries non libérées (`dispose`) au changement de modèle ; `preserveDrawingBuffer: true` coûte en performance si non nécessaire.
+Décision : reprendre E18
+
 ## 2026-11-22 — E14 — VALIDÉ
 Commit examiné : 59ef8c7 (troisième passage ; corrections après 242378e), branche à jour avec `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (86, 15 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (21 pages)

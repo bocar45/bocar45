@@ -19,6 +19,8 @@ export const isTechnique = (v: string): v is Technique => (TECHNIQUES as readonl
 /** "T-shirt col rond 180 g" → "t-shirt-col-rond-180-g" */
 export function slugify(input: string): string {
   return input
+    .replace(/œ/gi, "oe")
+    .replace(/æ/gi, "ae")
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()

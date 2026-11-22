@@ -6,6 +6,7 @@ describe("catalog helpers", () => {
     expect(slugify("T-shirt col rond 180 g")).toBe("t-shirt-col-rond-180-g");
     expect(slugify("  Mug céramique « Téranga » ")).toBe("mug-ceramique-teranga");
     expect(toKey("Poitrine gauche")).toBe("poitrine_gauche");
+    expect(toKey("Cœur")).toBe("coeur");
   });
 
   it("parses sizes in the usual order", () => {
