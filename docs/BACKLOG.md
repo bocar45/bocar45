@@ -6,6 +6,8 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
+**Ordre de travail actuel** : E14 → **E18** (studio 3D) → E18c → E15 → E16 → E17 → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
 - C2. Règles de `CLAUDE.md` respectées : argent en entiers via `Money`, prix calculés uniquement dans `packages/pricing`, transitions uniquement via `packages/workflow`, permissions vérifiées côté serveur, nouvelle table = RLS + tests d'accès, commandes figées (version + devis).
@@ -89,10 +91,32 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] Formulaire de demande (quantités, logo, date souhaitée).
 - [ ] Devis préparé par l'admin à partir du moteur de prix, valable 30 jours, lien de commande.
 
-## E18 — Visionneuse 3D « Produit » ⏳
-- [ ] React Three Fiber, chargement à la demande, repli 2D automatique.
-- [ ] Mug (enveloppe cylindrique) et t-shirt (zones UV calibrées en mm) ; rotation, zoom, vues rapides.
-- [ ] Premier rendu < 3 s en 4G, ≥ 30 i/s sur Android milieu de gamme.
+## E18 — Studio 3D en direct ⏳ (priorité avancée : juste après E14, demande du porteur)
+**Référence** : `design/reference-studio-3d-blankbuilder.jpg` (inspiration fonctionnelle, pas de copie d'interface ni de marque).
+- [ ] Écran partagé dans le studio : vue 3D en haut (ou à côté sur grand écran), édition 2D en dessous ; la 3D se met à jour en direct (< 500 ms après une modification).
+- [ ] React Three Fiber, chargement à la demande, repli 2D automatique si l'appareil ne suit pas.
+- [ ] T-shirt et hoodie : modèle posé (sans mannequin) dont les zones UV sont calibrées en millimètres sur nos zones de personnalisation (un logo à 7 cm sous le col apparaît à 7 cm ± 5 mm).
+- [ ] Mug (enveloppe cylindrique) et casquette (décalque sur le panneau avant).
+- [ ] Rendu du tissu : couleur du produit, ombres des plis (occlusion ambiante), léger froissé ; rotation, zoom, vues rapides face / dos / profil / zone sélectionnée ; bouton « recentrer ».
+- [ ] Emplacements prêts à l'emploi par produit (poitrine gauche, centre devant, haut du dos, manche, étiquette imprimée) en un clic.
+- [ ] Premier rendu < 3 s en 4G, ≥ 30 images/s sur Android milieu de gamme.
+- [ ] 🧑‍💼 Modèles 3D définitifs produits par un artiste (en attendant : modèles provisoires réalisés en interne, clairement signalés).
+
+## E18b — Impression intégrale par pièces de patron ⏳ (vente : 🧑‍💼 atelier capable requis)
+- [ ] Produit de référence « coupé-cousu » : pièces de patron avec dimensions réelles (devant, dos, manches, capuche, poche, bord-côtes, ceinture) et marges de couture.
+- [ ] Édition à plat de chaque pièce (vue « patron ») avec la 3D en direct ; option « continuer le motif par-dessus les coutures ».
+- [ ] Fichiers de production par pièce (PNG 300 dpi avec marges de couture et repères) + plan de coupe.
+- [ ] Contrôle de fabrication propre à la sublimation / impression textile (fond perdu, résolution, couleurs).
+- [ ] 🧑‍💼 Au moins un atelier partenaire capable (sublimation ou impression textile + coupe-couture) avant mise en vente.
+
+## E18c — Outils d'image du studio ⏳
+- [ ] Retrait d'une couleur de fond, inversion, recadrage.
+- [ ] Effet trame (« halftone ») pour l'impression d'images en sérigraphie / DTF.
+- [ ] Vectorisation d'un logo simple (aplats) pour broderie et sérigraphie.
+- [ ] Agrandissement sans perte (« upscale ») : avec l'étape IA (E22), quotas et suivi des coûts.
+
+## E18d — Modération des images importées ⏳ (avant le lancement public)
+- [ ] Déclaration de droits à l'import ; signalement ; file de modération admin ; refus motivé au BAT pour marques et personnages protégés.
 
 ## E19 — Humains photoréalistes (piste 3D) ⏳ 🧑‍💼
 - [ ] 🧑‍💼 Casting validé, studio de scan / artiste choisi, budget accordé (`VISUALISATION_3D.md`).
