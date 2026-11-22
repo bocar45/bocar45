@@ -3,6 +3,7 @@ import { hasPlatformRole, requirePlatformRole } from "@/lib/auth";
 import { ActionForm } from "@/components/action-form";
 import { Empty, Field, PageHeader, Section, StatusPill, inputClass } from "@/components/ui";
 import { activateRuleSet, createRuleSet } from "./actions";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 export const metadata = { title: "Règles de prix" };
 
@@ -16,6 +17,7 @@ export default async function RulesPage() {
   const active = data?.find((r) => r.status === "active");
   const base = (active?.rules ?? null) as PlatformRuleSet | null;
 
+  if (error) logError("price_rules_read_failed", error);
   return (
     <div className="grid gap-6">
       <PageHeader title="Règles de prix SAWWA" back={{ href: "/admin", label: "Administration" }} />
@@ -23,7 +25,7 @@ export default async function RulesPage() {
         Prix public TTC = coût atelier × (1 + marge), jamais moins que coût + marge minimale, puis TVA et arrondi au pas supérieur.
         Une version activée ne se modifie plus : on en crée une nouvelle. Les commandes passées gardent le prix calculé avec leur version.
       </p>
-      {error && <p role="alert" className="text-error">⚠ {error.message}</p>}
+      {error && <p role="alert" className="text-error">⚠ {READ_FAILED}</p>}
       {data?.length === 0 && <Empty>Aucune règle. Sans version active, aucun prix public ne peut être calculé.</Empty>}
       {data && data.length > 0 && (
         <div className="overflow-x-auto">

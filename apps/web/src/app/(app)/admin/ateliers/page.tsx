@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requirePlatformRole } from "@/lib/auth";
 import { decideVendor } from "./actions";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 export const metadata = { title: "Ateliers" };
 
@@ -14,10 +15,11 @@ export default async function VendorsAdmin() {
     .eq("kind", "vendor")
     .order("created_at", { ascending: false });
 
+  if (error) logError("vendors_read_failed", error);
   return (
     <div className="grid gap-6">
       <h1 className="font-display text-3xl">Ateliers</h1>
-      {error && <p role="alert" className="text-error">⚠ Lecture impossible : {error.message}</p>}
+      {error && <p role="alert" className="text-error">⚠ {READ_FAILED}</p>}
       {data && data.length === 0 && (
         <p className="text-muted">Aucune candidature pour l&apos;instant. Elles arrivent depuis la page « Devenir atelier partenaire ».</p>
       )}

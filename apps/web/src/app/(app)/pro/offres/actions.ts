@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { parseOfferForm, type OfferZone } from "@/lib/offer-form";
 import { requireActiveVendor } from "@/lib/vendor";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 export async function saveOffer(productId: string, fd: FormData) {
-  const { supabase, vendor, canManage, user } = await requireActiveVendor(`/pro/offres/${productId}`);
+  const { supabase, vendor, canManage } = await requireActiveVendor(`/pro/offres/${productId}`);
   if (!canManage) return { error: "Seuls le propriétaire ou un gérant de l'atelier peuvent modifier les offres." };
 
   const { data: product } = await supabase
@@ -27,13 +28,13 @@ export async function saveOffer(productId: string, fd: FormData) {
   // One transaction: offer, variants, capabilities and (if changed) a new grid version — all or nothing.
   const { data, error } = await supabase.rpc("save_vendor_offer", {
     p_vendor: vendor.id, p_product: productId, p_status: parsed.status, p_min_qty: parsed.minQty, p_lead_time: parsed.leadTimeDays,
-    p_variant_ids: parsed.variantIds, p_capabilities: parsed.capabilities, p_grid: parsed.grid, p_user: user.id,
+    p_variant_ids: parsed.variantIds, p_capabilities: parsed.capabilities, p_grid: parsed.grid,
   });
   if (error || !data?.[0]) {
     const msg = error?.message ?? "";
     if (msg.includes("larger than zone") || msg.includes("not allowed on zone")) return { error: "Une zone dépasse les dimensions ou la technique prévues par SAWWA." };
     if (error?.code === "42501") return { error: "Votre atelier n'est pas autorisé à modifier cette offre." };
-    console.error("save_vendor_offer failed", error);
+    logError("save_vendor_offer_failed", error, { vendorId: vendor.id, productId });
     return { error: "Enregistrement impossible pour le moment. Rien n'a été modifié ; réessayez." };
   }
   const r = data[0] as { grid_version: number; grid_changed: boolean };

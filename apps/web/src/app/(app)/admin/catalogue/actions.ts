@@ -6,12 +6,17 @@ import { isHexColor, isTechnique, parseSizes, publishBlockers, slugify, toKey, v
 import { audit } from "@/lib/audit";
 import { requirePlatformRole } from "@/lib/auth";
 import { int, optStr, str } from "@/lib/form";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 const guard = () => requirePlatformRole(["catalog"], "/admin/catalogue");
-const friendly = (msg: string) =>
-  msg.includes("duplicate key") ? "Cet élément existe déjà." :
-  msg.includes("foreign key") ? "Impossible : cet élément est utilisé par une offre d'atelier." :
-  msg.includes("not complete") ? "Le produit n'est pas complet." : msg;
+const friendly = (msg: string) => {
+  if (msg.includes("duplicate key")) return "Cet élément existe déjà.";
+  if (msg.includes("foreign key")) return "Impossible : cet élément est utilisé par une offre d'atelier.";
+  if (msg.includes("not complete")) return "Le produit n'est pas complet.";
+  if (msg.includes("belongs to another product")) return "Cette vue appartient à un autre produit.";
+  logError("catalog_write_failed", { message: msg });
+  return TRY_AGAIN;
+};
 
 export async function createProduct(fd: FormData) {
   const { supabase } = await guard();

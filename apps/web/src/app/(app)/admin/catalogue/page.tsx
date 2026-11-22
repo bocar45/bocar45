@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { hasPlatformRole, requirePlatformRole } from "@/lib/auth";
 import { Empty, PageHeader, StatusPill, fr } from "@/components/ui";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 export const metadata = { title: "Catalogue" };
 
@@ -11,12 +12,13 @@ export default async function CatalogPage() {
     .select("id, slug, name, status, updated_at, category:categories(name), variants:base_product_variants(count), zones(count)")
     .order("updated_at", { ascending: false });
   const canEdit = hasPlatformRole(memberships, ["catalog"]);
+  if (error) logError("catalog_read_failed", error);
   return (
     <div className="grid gap-6">
       <PageHeader title="Catalogue de référence" back={{ href: "/admin", label: "Administration" }}>
         {canEdit && <Link href="/admin/catalogue/nouveau" className="rounded-md bg-action px-4 py-2 font-bold text-on-action">Nouveau produit</Link>}
       </PageHeader>
-      {error && <p role="alert" className="text-error">⚠ Lecture impossible : {error.message}</p>}
+      {error && <p role="alert" className="text-error">⚠ {READ_FAILED}</p>}
       {data?.length === 0 && <Empty>Aucun produit. Créez le premier produit de référence (ex. « T-shirt col rond 180 g »).</Empty>}
       {data && data.length > 0 && (
         <div className="overflow-x-auto">

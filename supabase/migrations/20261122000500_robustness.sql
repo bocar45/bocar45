@@ -5,7 +5,7 @@
 -- La grille est construite et validée en TypeScript (packages/pricing) ; une nouvelle version n'est créée que si elle change.
 create function public.save_vendor_offer(
   p_vendor uuid, p_product uuid, p_status text, p_min_qty int, p_lead_time int,
-  p_variant_ids uuid[], p_capabilities jsonb, p_grid jsonb, p_user uuid
+  p_variant_ids uuid[], p_capabilities jsonb, p_grid jsonb
 ) returns table (offer_id uuid, grid_version int, grid_changed boolean)
 language plpgsql set search_path = '' as $$
 #variable_conflict use_column
@@ -30,14 +30,14 @@ begin
   if v_changed then
     v_version := coalesce(v_latest.version, 0) + 1;
     insert into public.vendor_price_grids (offer_id, version, currency, grid, created_by)
-    values (v_offer, v_version, 'XOF', jsonb_set(p_grid, '{version}', to_jsonb(v_version)), p_user);
+    values (v_offer, v_version, 'XOF', jsonb_set(p_grid, '{version}', to_jsonb(v_version)), auth.uid()); -- jamais fourni par le client
   else
     v_version := v_latest.version;
   end if;
   return query select v_offer, v_version, v_changed;
 end $$;
-revoke execute on function public.save_vendor_offer(uuid, uuid, text, int, int, uuid[], jsonb, jsonb, uuid) from public, anon;
-grant execute on function public.save_vendor_offer(uuid, uuid, text, int, int, uuid[], jsonb, jsonb, uuid) to authenticated;
+revoke execute on function public.save_vendor_offer(uuid, uuid, text, int, int, uuid[], jsonb, jsonb) from public, anon;
+grant execute on function public.save_vendor_offer(uuid, uuid, text, int, int, uuid[], jsonb, jsonb) to authenticated;
 
 -- ── Limitation de débit (fenêtres fixes) ──
 create table public.rate_limits (

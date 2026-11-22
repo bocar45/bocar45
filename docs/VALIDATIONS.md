@@ -2,6 +2,30 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E14 — À CORRIGER
+Commit examiné : 8e16463 (depuis 14fd680 ; 12839e8 = verdict E10 et retouches de documentation), branche à jour avec `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (85, 14 fichiers) · db ✅ (ALL RLS TESTS PASSED, section 13) · build ✅ (`/connexion`, `/api/production/[fulfillmentId]` construites)
+Limite : pas de Supabase réel ni de Docker. Envoi réel des SMS/e-mails, limites du stockage et retour `/auth/callback` non joués (à rejouer en E11).
+Critères de l'étape :
+- [x] Offre atelier en une transaction : `save_vendor_offer` (migration `20261122000500`, l. 6-38), sans `security definer` donc soumise aux règles d'accès de l'atelier, exécution retirée à `anon`. Nouvelle version seulement si la grille change (comparaison hors `version`, l. 29-30), conflit de numéro couvert par `unique (offer_id, version)`. Tests section 13a : champs, version 2 tamponnée, grille identique non versionnée, échec au milieu (capacité trop grande) → rien de modifié, autre atelier refusé (`insufficient_privilege`). Action : `pro/offres/actions.ts` appelle la fonction, messages français, erreur inconnue journalisée. Écart : point 2.
+- [x] Limitation de débit : `rate_limit_hit` (fenêtre fixe, compteur partagé en base, réservé à `service_role`, table sous RLS sans règle) ; tests 13b (client refusé, 3e appel refusé, clés indépendantes). Appliquée : envoi de code par IP puis par numéro/e-mail (`connexion/actions.ts:13,18,27`), prix par IP (`studio/[slug]/actions.ts:16`), enregistrements (l. 26), commandes (l. 57), corrections (l. 135), candidatures (`pro/candidature/actions.ts:11`), fichiers de production (`route.ts:63`, 429). Panne du compteur → requête acceptée et journalisée (test `rate-limit.test.ts`) ; plafond SMS du projet Supabase demandé en filet (`SETUP_SUPABASE_VERCEL.md:15`).
+- [x] Codes envoyés par le serveur : `sendLoginCode` (numéro normalisé, e-mail validé, `next` assaini, `emailRedirectTo` = `NEXT_PUBLIC_SITE_URL/auth/callback?suite=…`, cookie PKCE posé par le client serveur, échange dans `auth/callback/route.ts`). Vérification du code SMS toujours possible dans le navigateur (`login-form.tsx:44`). Messages sans texte technique.
+- [x] Fichiers : taille et types imposés par les buckets (test 13c) ; `toPrintableImage` décode et ré-encode toujours (PNG, JPEG qualité 100), faux fichier refusé (`print-images.test.ts` « refuses a file that is not an image »), 12 000 px par côté au plus, message 422 clair dans la route.
+- [x] Images du propriétaire seulement : `foreignImages` (`lib/design-ownership.ts`, dossier `design-assets/<user>/`, autre bucket et `..` refusés, testé) appliqué dans `saveDesign` (l. 31), `placeOrder` (l. 86) et `resubmitCorrection` (l. 152) ; seule source d'images de la route de production = `design-assets`.
+- [~] Erreurs journalisées : `instrumentation.ts` (`onRequestError`, une ligne JSON) couvre les erreurs non gérées. Mais les erreurs gérées des actions client ne sont ni journalisées ni masquées → point 1.
+- [ ] 🧑‍💼 Sentry : en attente du porteur (compte et clé) ; non bloquant.
+Critères communs : C1 ✅ · C2 ✅ (aucun calcul de prix ajouté, offre via la fonction SQL sous RLS, permissions serveur) · C3 ✅ (grep secrets vide hors docs/supabase/consigne ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ❌ (point 1) · C5 ✅ · C6 ✅ (BACKLOG, ROADMAP, DATABASE l. 106, SETUP à jour). Aucune nouvelle dépendance.
+Corrections à faire (par priorité) :
+1. Erreurs techniques montrées au client et non journalisées, dans des fichiers touchés par E14 (remarque E10 non traitée) : `studio/[slug]/actions.ts:37` et `:41` (`Enregistrement impossible : ${error.message}`), `:123` (`La commande n'a pas pu être créée : ${error?.message}` — l'échec le plus important du parcours, invisible dans les journaux), `pro/candidature/actions.ts:18`. Attendu : `console.error(JSON.stringify({ level: "error", event: …, message }))` (même format que `instrumentation.ts`) et message français générique ; un test ou une recherche montrant qu'aucune action client ne renvoie `error.message`.
+2. `save_vendor_offer` reçoit `p_user` du client et l'écrit dans `vendor_price_grids.created_by` (l. 33) : la fonction étant appelable par tout utilisateur connecté, un atelier peut attribuer une grille à quelqu'un d'autre. Utiliser `auth.uid()` dans la fonction (retirer le paramètre) et ajouter un test section 13a (`created_by` = l'utilisateur qui agit).
+Remarques non bloquantes :
+- `getStudioQuote` renvoie `reason: "min_qty"` quand la limite est atteinte (`actions.ts:16`) : prévoir une raison dédiée.
+- Adresse « unknown » (en-têtes absents) = un seul compteur partagé ; sans effet sur Vercel, à garder en tête hors Vercel.
+- 12 000 × 12 000 px ≈ 576 Mo décodés : vérifier la mémoire des fonctions Vercel ou abaisser la limite ; une image tronquée échoue au ré-encodage avec le message générique 500 (refusée quand même).
+- `emailRedirectTo` dépend de `NEXT_PUBLIC_SITE_URL` (et non plus de l'origine) : les liens d'un déploiement de prévisualisation renverront vers le site principal ; à documenter en E11 avec la liste des adresses de retour autorisées.
+- Pages client affichant `error.message` en lecture (`compte/creations/page.tsx:13`, `compte/commandes/page.tsx:15`) : même traitement que le point 1 au prochain passage.
+Décision : reprendre E14
+
 ## 2026-11-22 — E10 — VALIDÉ
 Commit examiné : 14fd680 (second passage ; corrections après 5d466ab, branche poussée sur `origin/claude/sawwa-audit-cto-r8vt01`)
 Contrôles : typecheck ✅ · tests ✅ (81, dont 7 dans `apps/web/src/lib/correction.test.ts`) · db ✅ (ALL RLS TESTS PASSED, sections 11 et 12) · build ✅ (`/studio/[slug]`, `/compte|/pro|/admin/commandes/[id]` construites)

@@ -403,13 +403,14 @@ select * from public.save_vendor_offer(
   (select id from public.organizations where name = 'Atelier Médina'), (select id from public.base_products where slug = 'tee-crew-180'),
   'active', 5, 3, array(select id from public.base_product_variants),
   (select jsonb_agg(jsonb_build_object('zone_id', id, 'technique', 'dtf', 'max_width_mm', 200, 'max_height_mm', 250, 'max_colors', null)) from public.zones where key = 'front_center'),
-  '{"version":0,"blanks":{"a":[{"minQty":1,"unitCost":2600}]}}', '00000000-0000-0000-0000-0000000000a1');
+  '{"version":0,"blanks":{"a":[{"minQty":1,"unitCost":2600}]}}');
 commit;
 do $$ begin
   if (select min_qty from public.vendor_offers) <> 5 then raise exception 'FAIL offer fields'; end if;
   if (select max(version) from public.vendor_price_grids) <> 2 then raise exception 'FAIL new grid version'; end if;
   if (select grid->>'version' from public.vendor_price_grids where version = 2) <> '2' then raise exception 'FAIL grid version stamped'; end if;
   if (select max_width_mm from public.vendor_zone_capabilities) <> 200 then raise exception 'FAIL capabilities replaced'; end if;
+  if (select created_by from public.vendor_price_grids where version = 2) <> '00000000-0000-0000-0000-0000000000a1' then raise exception 'FAIL grid author must be the signed-in user'; end if;
 end $$;
 -- same grid again: no new version
 begin;
@@ -418,7 +419,7 @@ do $$ begin
   if (select grid_changed from public.save_vendor_offer(
     (select id from public.organizations where name = 'Atelier Médina'), (select id from public.base_products where slug = 'tee-crew-180'),
     'active', 5, 3, array(select id from public.base_product_variants), '[]',
-    '{"version":7,"blanks":{"a":[{"minQty":1,"unitCost":2600}]}}', '00000000-0000-0000-0000-0000000000a1')) then raise exception 'FAIL unchanged grid versioned'; end if;
+    '{"version":7,"blanks":{"a":[{"minQty":1,"unitCost":2600}]}}')) then raise exception 'FAIL unchanged grid versioned'; end if;
 end $$;
 rollback;
 -- a failure in the middle leaves nothing half-saved (capability larger than the zone)
@@ -428,7 +429,7 @@ do $$ declare ok boolean := false; begin
   begin perform public.save_vendor_offer(
     (select id from public.organizations where name = 'Atelier Médina'), (select id from public.base_products where slug = 'tee-crew-180'),
     'draft', 1, 3, '{}', (select jsonb_agg(jsonb_build_object('zone_id', id, 'technique', 'dtf', 'max_width_mm', 900, 'max_height_mm', 250)) from public.zones),
-    '{"blanks":{"a":[{"minQty":1,"unitCost":1}]}}', null);
+    '{"blanks":{"a":[{"minQty":1,"unitCost":1}]}}');
   exception when check_violation then ok := true; end;
   if not ok then raise exception 'FAIL oversize capability accepted'; end if;
 end $$;
@@ -441,7 +442,7 @@ begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
 do $$ declare ok boolean := false; begin
   begin perform public.save_vendor_offer((select o.id from public.organizations o join public.vendor_offers v on v.vendor_id = o.id limit 1),
-    (select id from public.base_products where slug = 'tee-crew-180'), 'draft', 1, 3, '{}', '[]', '{}', null);
+    (select id from public.base_products where slug = 'tee-crew-180'), 'draft', 1, 3, '{}', '[]', '{}');
   exception when insufficient_privilege then ok := true; end;
   if not ok then raise exception 'FAIL other workshop saved an offer for A'; end if;
 end $$;

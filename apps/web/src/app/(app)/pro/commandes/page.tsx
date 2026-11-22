@@ -3,6 +3,7 @@ import { requireUser, vendorMembership } from "@/lib/auth";
 import { STATUS_LABEL } from "@/lib/fulfillment";
 import { redirect } from "next/navigation";
 import { Empty, PageHeader } from "@/components/ui";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 export const metadata = { title: "Commandes atelier" };
 
@@ -24,10 +25,11 @@ export default async function VendorOrders() {
     .eq("vendor_id", vendor.organization.id).order("sla_due_at", { ascending: true });
   const rows = (data ?? []) as unknown as { id: string; status: string; sla_due_at: string | null; items: { quantity: number; product: { name: { fr?: string } } }[] }[];
   const now = Date.now();
+  if (error) logError("vendor_orders_read_failed", error);
   return (
     <div className="grid gap-6">
       <PageHeader title="Commandes" back={{ href: "/pro", label: vendor.organization.name }} />
-      {error && <p role="alert" className="text-error">⚠ {error.message}</p>}
+      {error && <p role="alert" className="text-error">⚠ {READ_FAILED}</p>}
       {rows.length === 0 && <Empty>Aucune commande pour le moment. Elles apparaissent ici dès que SAWWA vous en affecte une.</Empty>}
       {GROUPS.map(([title, statuses]) => {
         const list = rows.filter((r) => statuses.includes(r.status));

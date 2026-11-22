@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { Empty, PageHeader, fr } from "@/components/ui";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 export const metadata = { title: "Mes créations" };
 
 export default async function MyDesigns() {
   const { supabase } = await requireUser("/compte/creations");
   const { data, error } = await supabase.from("designs").select("id, title, updated_at, product:base_products(slug, name)").order("updated_at", { ascending: false });
+  if (error) logError("designs_read_failed", error);
   return (
     <div className="grid gap-6">
       <PageHeader title="Mes créations" back={{ href: "/compte", label: "Mon compte" }} />
-      {error && <p role="alert" className="text-error">⚠ {error.message}</p>}
+      {error && <p role="alert" className="text-error">⚠ {READ_FAILED}</p>}
       {data?.length === 0 && <Empty>Aucune création enregistrée. Ouvrez le studio depuis une fiche produit et cliquez sur « Enregistrer dans mon compte ».</Empty>}
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {(data ?? []).map((d) => {

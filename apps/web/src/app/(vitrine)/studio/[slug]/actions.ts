@@ -11,9 +11,10 @@ import { bestQuote, sanitizeDecorations } from "@/lib/quoting";
 import { DELIVERY_OPTIONS, isDeliveryKey } from "@/lib/shipping";
 import { quoteStudio, type StudioDecoration } from "@/lib/studio-data";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 export async function getStudioQuote(slug: string, colorKey: string, quantity: number, decorations: StudioDecoration[]) {
-  if (!(await rateLimit("quotePerIp", await clientIp()))) return { ok: false as const, reason: "min_qty" as const, message: TOO_MANY };
+  if (!(await rateLimit("quotePerIp", await clientIp()))) return { ok: false as const, reason: "rate_limited" as const, message: TOO_MANY };
   return quoteStudio({ slug: String(slug), colorKey: String(colorKey), quantity: Number(quantity), decorations: Array.isArray(decorations) ? decorations : [] });
 }
 
@@ -34,11 +35,11 @@ export async function saveDesign(input: { id: string | null; slug: string; title
   const title = String(input.title ?? "").trim().slice(0, 80) || "Ma création";
   if (input.id) {
     const { error } = await supabase.from("designs").update({ title, document: parsed.value }).eq("id", input.id);
-    if (error) return { error: `Enregistrement impossible : ${error.message}` };
+    if (error) { logError("design_update_failed", error, { designId: input.id }); return { error: TRY_AGAIN }; }
     return { ok: true as const, id: input.id };
   }
   const { data, error } = await supabase.from("designs").insert({ owner_id: user.id, base_product_id: product.id, title, document: parsed.value }).select("id").single();
-  if (error || !data) return { error: `Enregistrement impossible : ${error?.message}` };
+  if (error || !data) { logError("design_insert_failed", error, { userId: user.id }); return { error: TRY_AGAIN }; }
   return { ok: true as const, id: data.id as string };
 }
 
@@ -120,7 +121,10 @@ export async function placeOrder(input: PlaceOrderInput) {
     p_quote: { ...q.snapshot, suggestedVendorId: best.vendorId, leadTimeDays: best.leadTimeDays, lines: q.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })), setupFee: q.setupFee.amount, delivery: input.delivery },
     p_address: { name, phone, district, landmark: String(input.address?.landmark ?? "").trim().slice(0, 160), city: String(input.address?.city ?? "Dakar").trim().slice(0, 60), delivery: input.delivery },
   });
-  if (error || !data?.[0]) return { error: `La commande n'a pas pu être créée : ${error?.message ?? "réessayez"}` };
+  if (error || !data?.[0]) {
+    logError("create_order_failed", error, { userId: user.id, designId: design.id });
+    return { error: "Votre commande n'a pas pu être enregistrée. Rien ne vous a été facturé ; réessayez dans un instant." };
+  }
   return { ok: true as const, orderId: data[0].order_id as string, number: data[0].order_number as string };
 }
 
@@ -193,7 +197,7 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
   });
   if (error) {
     if (error.message.includes("conflict")) return { error: "Cette commande vient de changer. Rechargez la page." };
-    console.error("resubmit_design failed", error);
+    logError("resubmit_design_failed", error, { orderId: order.id });
     return { error: "Le renvoi n'a pas pu être enregistré. Réessayez dans un instant ; si le problème continue, contactez l'équipe SAWWA." };
   }
   return { ok: true as const, surcharge: plan.surcharge };

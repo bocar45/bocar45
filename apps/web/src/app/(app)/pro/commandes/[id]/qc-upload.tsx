@@ -22,7 +22,7 @@ export function QcUpload({ vendorId, fulfillmentId, action }: { vendorId: string
               if (file.size > 15 * 1024 * 1024) { setError("Photo trop lourde (15 Mo maximum)."); continue; }
               const path = `${vendorId}/${fulfillmentId}/${crypto.randomUUID()}.${file.type.split("/")[1]}`;
               const { error: err } = await supabase.storage.from("qc-photos").upload(path, file, { contentType: file.type });
-              if (err) setError(`Envoi impossible : ${err.message}`); else uploaded.push(path);
+              if (err) setError(`La photo « ${file.name} » n'a pas pu être envoyée (JPG, PNG ou WebP, 15 Mo maximum). Vérifiez la connexion et réessayez.`); else uploaded.push(path);
             }
             setPaths((p) => [...p, ...uploaded]);
             setBusy(false);

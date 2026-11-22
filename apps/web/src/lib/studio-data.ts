@@ -45,7 +45,7 @@ export async function loadStudioProduct(slug: string): Promise<StudioProduct | n
 export type { DecorationInput as StudioDecoration } from "./quoting";
 export type StudioQuote =
   | { ok: true; unitPrice: number; total: number; quantity: number; leadTimeDays: number; depositDue: number | null; setupFee: number }
-  | { ok: false; reason: "not_configured" | "no_offer" | "not_offered" | "min_qty"; message: string };
+  | { ok: false; reason: "not_configured" | "no_offer" | "not_offered" | "min_qty" | "rate_limited"; message: string };
 
 /** Best public price for a design (studio). Only public TTC figures leave the server. */
 export async function quoteStudio(input: { slug: string; colorKey: string; quantity: number; decorations: DecorationInput[] }): Promise<StudioQuote> {

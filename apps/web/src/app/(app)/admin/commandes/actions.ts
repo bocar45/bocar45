@@ -7,6 +7,7 @@ import { runTransition } from "@/lib/fulfillment";
 import { str } from "@/lib/form";
 import { candidateVendors } from "@/lib/assignment";
 import { createServiceClient } from "@/lib/supabase/server";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 const refresh = (orderId: string) => { revalidatePath(`/admin/commandes/${orderId}`); revalidatePath("/admin/commandes"); };
 
@@ -15,7 +16,11 @@ export async function confirmPayment(orderId: string, fd: FormData) {
   const reference = str(fd, "reference");
   if (reference.length < 3) return { error: "Indiquez la référence du paiement (n° de transaction Wave/Orange Money ou virement)." };
   const { error } = await createServiceClient().rpc("mark_order_paid", { p_order: orderId, p_actor: user.id, p_reference: reference });
-  if (error) return { error: error.message.includes("not awaiting") ? "Cette commande n'attend plus de paiement." : error.message };
+  if (error) {
+    if (error.message.includes("not awaiting")) return { error: "Cette commande n'attend plus de paiement." };
+    logError("mark_order_paid_failed", error, { orderId });
+    return { error: TRY_AGAIN };
+  }
   await audit({ actorUserId: user.id, action: "order.payment_confirmed", entityType: "order", entityId: orderId, after: { reference } });
   refresh(orderId);
   return { ok: "Paiement confirmé. La commande peut être affectée à un atelier." };

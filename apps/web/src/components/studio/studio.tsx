@@ -175,7 +175,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
           const path = `${userId}/${uid()}${uid()}.${ext}`;
           const { error } = await supabase.storage.from("design-assets").upload(path, blob, { contentType: blob.type, upsert: false });
-          if (error) throw new Error(`Envoi de l'image impossible : ${error.message}`);
+          if (error) throw new Error(`L'image « ${l.name} » n'a pas pu être envoyée (format PNG, JPG ou WebP, 25 Mo maximum). Vérifiez votre connexion et réessayez.`);
           const src = `storage:design-assets/${path}`;
           newUrls[src] = urls[l.src] ?? "";
           next = { ...next, surfaces: next.surfaces.map((x) => ({ ...x, layers: x.layers.map((y) => (y.id === l.id ? { ...y, src } as Layer : y)) })) };

@@ -5,6 +5,7 @@ import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import { layerBox, unionBox, visibleLayers, type DesignDocument } from "@sawwa/design";
 import { buildProductionSheet, fontFiles, renderSurfaceSvg, setPngDpi } from "@sawwa/render";
 import { getSession, hasPlatformRole, vendorMembership } from "@/lib/auth";
+import { logError } from "@/lib/log";
 import { readDoc } from "@/lib/orders";
 import { UnprintableImageError, toPrintableImage } from "@/lib/print-images";
 import { TOO_MANY, rateLimit } from "@/lib/rate-limit";
@@ -31,7 +32,7 @@ async function embedImages(doc: DesignDocument) {
 }
 
 class ProductionError extends Error {
-  constructor(message: string, readonly status: number) { super(message); }
+  constructor(readonly userMessage: string, readonly status: number) { super(userMessage); }
 }
 
 /** Plain French message, readable when opened from a download link. */
@@ -50,9 +51,9 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ fulfill
   try {
     return await generate(request, (await ctx.params).fulfillmentId);
   } catch (e) {
-    if (e instanceof ProductionError) return fail(e.message, e.status);
-    if (e instanceof UnprintableImageError) return fail(`${e.message} Prévenez l'équipe SAWWA.`, 422);
-    console.error("production file failed", e);
+    if (e instanceof ProductionError) return fail(e.userMessage, e.status);
+    if (e instanceof UnprintableImageError) return fail(`${e.userMessage} Prévenez l'équipe SAWWA.`, 422);
+    logError("production_file_failed", e, { fulfillmentId: (await ctx.params).fulfillmentId });
     return fail("Le fichier n'a pas pu être généré. Réessayez dans un instant ; si le problème continue, prévenez l'équipe SAWWA.", 500);
   }
 }

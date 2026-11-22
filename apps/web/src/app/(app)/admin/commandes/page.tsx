@@ -3,6 +3,7 @@ import { requirePlatformRole } from "@/lib/auth";
 import { STATUS_LABEL } from "@/lib/fulfillment";
 import { fcfa } from "@/lib/orders";
 import { Empty, PageHeader } from "@/components/ui";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 export const metadata = { title: "Commandes" };
 
@@ -29,6 +30,7 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
   const counts = Object.fromEntries((Object.keys(TABS) as Tab[]).map((t) => [t, rows.filter((r) => TABS[t].match(r.payment_status, r.status)).length]));
   const shown = rows.filter((r) => TABS[tab].match(r.payment_status, r.status));
   const now = Date.now();
+  if (error) logError("orders_read_failed", error);
   return (
     <div className="grid gap-6">
       <PageHeader title="Commandes" back={{ href: "/admin", label: "Administration" }} />
@@ -38,7 +40,7 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
             className={`rounded-full px-4 py-2 text-sm font-bold ${t === tab ? "bg-brun text-ivoire" : "border border-line"}`}>{TABS[t].label} <span className="tabular-nums">{counts[t]}</span></Link>
         ))}
       </nav>
-      {error && <p role="alert" className="text-error">⚠ {error.message}</p>}
+      {error && <p role="alert" className="text-error">⚠ {READ_FAILED}</p>}
       {shown.length === 0 ? <Empty>Aucune commande dans cette vue.</Empty> : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">

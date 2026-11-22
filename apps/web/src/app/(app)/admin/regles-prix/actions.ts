@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { PlatformRuleSet } from "@sawwa/pricing";
 import { requirePlatformRole } from "@/lib/auth";
 import { int, percentToBps } from "@/lib/form";
+import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
 
 export async function createRuleSet(fd: FormData) {
   const { supabase } = await requirePlatformRole(["finance"], "/admin/regles-prix");
@@ -34,7 +35,7 @@ export async function createRuleSet(fd: FormData) {
     ...(depositThreshold !== null && depositPct !== null ? { deposit: { thresholdTotal: depositThreshold, bps: depositPct } } : {}),
   };
   const { error } = await supabase.from("price_rule_sets").insert({ version, currency: "XOF", rules, status: "draft" });
-  if (error) return { error: error.message };
+  if (error) { logError("price_rules_insert_failed", error); return { error: TRY_AGAIN }; }
   revalidatePath("/admin/regles-prix");
   return { ok: `Version ${version} créée en brouillon.` };
 }
@@ -42,7 +43,7 @@ export async function createRuleSet(fd: FormData) {
 export async function activateRuleSet(id: string) {
   const { supabase } = await requirePlatformRole(["finance"], "/admin/regles-prix");
   const { error } = await supabase.rpc("activate_price_rule_set", { p_id: id });
-  if (error) return { error: error.message };
+  if (error) { logError("price_rules_activate_failed", error, { id }); return { error: error.message.includes("only a draft") ? "Seul un brouillon peut être activé." : TRY_AGAIN }; }
   revalidatePath("/catalogue", "layout");
   revalidatePath("/produits/[slug]", "page");
   revalidatePath("/admin/regles-prix");

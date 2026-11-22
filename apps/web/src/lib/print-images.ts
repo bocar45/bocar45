@@ -1,8 +1,12 @@
 import sharp from "sharp";
 
-export class UnprintableImageError extends Error {}
+/** Raised with a message written for people (French, no technical detail). */
+export class UnprintableImageError extends Error {
+  get userMessage() { return this.message; }
+}
 
-const MAX_SIDE = 12000;
+// 8000 px per side ≈ 256 MB once decoded: fits a server function; far beyond 300 dpi needs for a 60 cm print.
+const MAX_SIDE = 8000;
 
 /**
  * Every image goes through a real decoder and is re-encoded before printing: this checks that the stored file is
