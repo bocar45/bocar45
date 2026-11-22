@@ -2,6 +2,24 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E17 (2e passage) — À CORRIGER
+Commit examiné : 1ba4942 (depuis 6e69136), `git status` propre, branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (130, 21 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0)
+Vérification navigateur : non refaite (pas de Supabase réel). Bout en bout sur un vrai projet : en attente du porteur (E11).
+Critères de l'étape :
+- [x] Formulaire `/devis`, « Mes devis », annulation : inchangés depuis le 1er passage ; `cancel_quote_request` refuse désormais une demande dont un devis est `accepted` (migration 8, testé section 16 « request cancelled while its quote is being ordered »).
+- [x] Chiffrage interne : `sendB2bQuote` n'écrit plus que `q.snapshot` dans `b2b_quotes` ; coût atelier et marge dans `b2b_quote_internals` (migration 8 : RLS, lecture ops/support/finance, insertion ops/support, `forbid_change` en update/delete). Tests section 16 : client ne lit pas `b2b_quote_internals` ni `margin`/`vendorCost` dans `snapshot` ; finance lit devis et internes, n'écrit pas de devis. `compte/devis/[id]/page.tsx:17` : colonnes explicites, sans `snapshot`. `unit_price = q.lines[0].unitPrice` (moteur de prix).
+- [x] Lien de commande, devis sans tailles : `repriceFrozen` (`lib/b2b.ts`) vérifie chaque taille réelle contre les variantes de la couleur présentes dans `grid.blanks` de la grille figée ; taille absente → `release_b2b_quote` + message français (`studio/[slug]/actions.ts`) ; prix recalculé avec les tailles réelles, montant du devis conservé et écart enregistré dans `quote_snapshot.b2bSizeMix` (sans coût atelier). D21 mis à jour. Trigger `guard_b2b_quote_link` (auteur figé, `order_id` posé une fois, par le serveur seulement) testé ; `link_b2b_quote` testé (lien, demande « ordered », plus libérable) ; suppression refusée testée.
+- [x] Migration 8 et section 16 : voir ci-dessus.
+Critères communs : C1 ✅ · C2 ✅ (entiers, prix via `packages/pricing`, aucune transition de commande ajoutée, nouvelle table avec RLS et tests) · C3 ✅ (grep secrets vide dans apps/packages ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ · C6 ❌ : `docs/DATABASE.md:106` (ligne de la migration 8) ne mentionne ni `b2b_quote_internals` ni le trigger `guard_b2b_quote_link` ; C6 exige `DATABASE.md` à jour à chaque migration.
+Corrections à faire (par priorité) :
+1. `docs/DATABASE.md` : ajouter `b2b_quote_internals` (coût atelier et marge, lecture ops/support/finance, insertion ops/support, append-only, jamais lisible par le client) et le verrou du lien `order_id`/`created_by` à la ligne de la migration 8.
+Remarques non bloquantes :
+- `sendB2bQuote` : si l'insertion dans `b2b_quote_internals` échoue, le devis est quand même envoyé, sans chiffres internes (seulement journalisé). Envisager une fonction SQL unique (devis + internes) ou un retour d'erreur.
+- Quand l'écart de tailles existe, `quote_snapshot.lines` garde les lignes figées (toute la quantité sur une variante) ; la vérité est dans `b2bSizeMix`. À indiquer aux lecteurs du devis figé (finance, atelier) quand ces écrans arriveront.
+- `repriceFrozen` sans test unitaire (taille manquante, écart de prix) ; les cas sont simples, mais un test protégerait la règle.
+Décision : reprendre E17 (correction documentaire seule ; pas besoin de relancer les contrôles de code si seul `docs/DATABASE.md` change)
+
 ## 2026-11-22 — E17 — À CORRIGER
 Commit examiné : 6e69136 (depuis 8c8e63e ; 5a401f7 = skills tiers, hors périmètre), `git status` propre, branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (130, 21 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0)

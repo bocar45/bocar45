@@ -86,7 +86,12 @@ export async function sendB2bQuote(input: QuoteBuildInput) {
   }).select("id").single();
   if (error) { logError("b2b_quote_insert_failed", error, { requestId: req.id }); return { error: TRY_AGAIN }; }
   const { error: eInt } = await supabase.from("b2b_quote_internals").insert({ quote_id: created.id, vendor_cost: q.vendorCost.amount, margin: q.margin.amount });
-  if (eInt) logError("b2b_quote_internals_failed", eInt, { quoteId: created.id });
+  if (eInt) {
+    // no quote without its internal figures: withdraw it and ask to retry
+    logError("b2b_quote_internals_failed", eInt, { quoteId: created.id });
+    await supabase.from("b2b_quotes").update({ status: "withdrawn" }).eq("id", created.id);
+    return { error: TRY_AGAIN };
+  }
   const { error: e2 } = await supabase.from("quote_requests").update({ status: "quoted" }).eq("id", req.id);
   if (e2) logError("quote_request_status_failed", e2, { requestId: req.id });
   await audit({ actorUserId: user.id, action: "b2b_quote.send", entityType: "quote_request", entityId: req.id, after: { quoteId: created.id, version, goodsTotal: q.goodsSubtotal.amount } });
