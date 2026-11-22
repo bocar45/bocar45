@@ -39,13 +39,13 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Accès réservé à l'atelier affecté (actif) et à l'équipe ops ; refusé avant affectation.
 - [x] Tests du rendu SVG et du PDF.
 
-## E10 — Correction de la création par le client 🔎
+## E10 — Correction de la création par le client ✅
 **But** : après « correction demandée », le client corrige dans le studio et renvoie au BAT.
-- [ ] Depuis la commande, « Corriger ma création » ouvre le studio sur la version commandée.
-- [ ] Le renvoi crée une **nouvelle version figée**, rattachée à la commande, et passe l'ordre en « BAT en cours » (`resubmit_design`).
-- [ ] Le prix est recalculé : identique ou inférieur → accepté ; supérieur → affichage de la différence et confirmation explicite (paiement complémentaire géré par la finance en pilote).
-- [ ] L'ancienne version reste consultable dans l'historique ; l'atelier voit le numéro de BAT.
-- [ ] Contrôles de fabrication refaits côté serveur ; tests SQL et TypeScript.
+- [x] Depuis la commande, « Corriger ma création » ouvre le studio sur la version commandée.
+- [x] Le renvoi crée une **nouvelle version figée**, rattachée à la commande, et passe l'ordre en « BAT en cours » (`resubmit_design`).
+- [x] Le prix est recalculé : identique ou inférieur → accepté ; supérieur → affichage de la différence et confirmation explicite (paiement complémentaire géré par la finance en pilote).
+- [x] L'ancienne version reste consultable dans l'historique ; l'atelier voit le numéro de BAT.
+- [x] Contrôles de fabrication refaits côté serveur ; tests SQL et TypeScript.
 
 ## E11 — Mise en service Supabase + Vercel et test de bout en bout réel 🧑‍💼
 **But** : le site tourne sur de vrais services, testé avec de vrais comptes.
@@ -67,7 +67,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] Webhook signé et **idempotent** (rejouer 3 fois = un seul paiement), `mark_order_paid` automatique.
 - [ ] Remboursement déclenché par l'annulation ; aucune donnée de carte chez SAWWA.
 
-## E14 — Robustesse ⏳
+## E14 — Robustesse 🛠️ en cours
 - [ ] Enregistrement d'une offre atelier en une seule transaction (fonction SQL).
 - [ ] Limitation de débit : calcul de prix, envoi de code SMS, envois de fichiers.
 - [ ] Taille et type des fichiers vérifiés côté serveur (Storage) ; images ré-encodées.

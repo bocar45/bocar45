@@ -382,7 +382,6 @@ do $$ begin
 end $$;
 rollback;
 -- finance sees the versions and the surcharge to collect
-insert into auth.users (id, phone) values ('00000000-0000-0000-0000-0000000000f2', '+221770000011');
 begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000f1');
 do $$ begin

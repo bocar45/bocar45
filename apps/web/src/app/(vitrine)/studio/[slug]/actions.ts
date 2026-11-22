@@ -182,6 +182,10 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
     p_decorations: decorations, p_surcharge: plan.surcharge, p_state: next.state,
     p_quote: frozenQuote, p_vendor_cost: q.vendorCost.amount,
   });
-  if (error) return { error: error.message.includes("conflict") ? "Cette commande vient de changer. Rechargez la page." : `Renvoi impossible : ${error.message}` };
+  if (error) {
+    if (error.message.includes("conflict")) return { error: "Cette commande vient de changer. Rechargez la page." };
+    console.error("resubmit_design failed", error);
+    return { error: "Le renvoi n'a pas pu être enregistré. Réessayez dans un instant ; si le problème continue, contactez l'équipe SAWWA." };
+  }
   return { ok: true as const, surcharge: plan.surcharge };
 }

@@ -2,6 +2,31 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E10 — VALIDÉ
+Commit examiné : 14fd680 (second passage ; corrections après 5d466ab, branche poussée sur `origin/claude/sawwa-audit-cto-r8vt01`)
+Contrôles : typecheck ✅ · tests ✅ (81, dont 7 dans `apps/web/src/lib/correction.test.ts`) · db ✅ (ALL RLS TESTS PASSED, sections 11 et 12) · build ✅ (`/studio/[slug]`, `/compte|/pro|/admin/commandes/[id]` construites)
+Limite : pas de Supabase réel ni de Docker, écrans non joués avec connexion (à rejouer en E11). Base vérifiée par `pnpm db:test`, logique par les tests et la lecture du code.
+Points du passage précédent :
+1. [x] Atelier affecté : `actions.ts:152-158` refuse sans atelier affecté puis chiffre la version commandée et la version corrigée avec `vendorId: f.vendor_id` (`bestQuote` filtre les offres de cet atelier, `quoting.ts:39`). `planCorrection` (`correction.ts:31-38`) refuse si l'atelier ne sait pas produire, avec message clair. D16 précise la base (atelier affecté + règles du jour, montant convenu en repli). Tests : `correction.test.ts` « refuses a correction the assigned workshop cannot make », « charges only the effect of a bigger print », « charges nothing … whatever the original price was », repli sur le montant convenu.
+2. [x] Premier renvoi avec image : `saveToAccount` renvoie `{ id, doc: next }` (`studio.tsx:158,189`), document envoyé = `saved.doc` (`studio.tsx:402-405`), contenant les chemins `storage:` ; le contrôle serveur `onDeviceImages` ne bloque donc plus le premier clic.
+3. [x] Devis figé : colonne `order_item_versions.quote jsonb not null` (migration l. 9), remplie à la commande (l. 47, `p_quote`) et au renvoi (l. 84-85) avec snapshot de `packages/pricing` (règles, grille, atelier), montants entiers, comparaison et supplément (`actions.ts:162-167`) ; `vendor_cost` mis à jour (l. 74). Tests SQL : `FAIL correction quote not frozen`, `FAIL first version quote not frozen`, `FAIL vendor cost not updated`.
+4. [x] Finance : `versions_read` inclut `finance` (migration l. 117) et `order_item_versions_read` aussi (l. 111) ; test section 12 « finance sees the versions and the surcharge » (2 versions, supplément 1500). `loadVersions` ignore une version illisible (`orders.ts:34-36`), page admin robuste à `version` null (`admin/commandes/[id]/page.tsx:29,82`). Badge « Supplément » dans la liste admin (`admin/commandes/page.tsx:41,55`).
+Remarques du passage précédent : pastilles de couleur désactivées en correction ✅ (`studio.tsx:249`) ; coût atelier tranché dans D16 ✅ ; brouillon local du mode correction toujours jamais restauré (non bloquant).
+Critères de l'étape :
+- [x] « Corriger ma création » ouvre le studio sur la version commandée (constat inchangé : `compte/commandes/[id]/page.tsx` → `studio/[slug]/page.tsx`).
+- [x] Nouvelle version figée, rattachée, ordre en « BAT en cours » via `resubmit_design` (atomique, contrôle optimiste, état calculé par `transition()` de `packages/workflow`, réservée à `service_role`) ; tests SQL section 12.
+- [x] Prix recalculé avec l'atelier affecté dans `packages/pricing` ; égal/inférieur accepté sans remboursement, supérieur = accord sur le montant exact (tests `correction.test.ts`).
+- [x] Ancienne version consultable : client, atelier affecté, ops/support et désormais finance (tests SQL) ; autre atelier refusé ; n° de BAT sur la fiche atelier.
+- [x] Contrôles de fabrication refaits côté serveur (préflight, bloquants, accord sur remarques, décorations filtrées, couleur fixe, faisabilité chez l'atelier affecté) ; tests SQL et TypeScript.
+Critères communs : C1 ✅ · C2 ✅ (entiers, prix via `packages/pricing`, transition via `packages/workflow`, contrôle utilisateur + `customer_id` dans la fonction SQL, RLS + tests, version et devis figés) · C3 ✅ (grep secrets vide hors docs/supabase/consigne ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ (réserve ci-dessous) · C5 ✅ · C6 ✅ (D16 à jour, commit poussé ; réserve ci-dessous). Aucune nouvelle dépendance.
+Remarques non bloquantes (à traiter au prochain commit qui touche ces fichiers) :
+- `docs/DATABASE.md:105` ne mentionne ni la colonne `quote` (devis figé par version) ni la lecture des versions par la finance.
+- `studio/[slug]/actions.ts:185` montre au client `Renvoi impossible : ${error.message}` (texte technique Postgres) : journaliser côté serveur et afficher un message français générique.
+- `rls.test.sql:385` insère un utilisateur `…f2` jamais utilisé (le test agit avec `…f1`).
+- Brouillon local du mode correction jamais restauré (`studio.tsx:69-74`).
+Corrections à faire (par priorité) : aucune.
+Décision : passer à E14 (Robustesse). E11 attend le porteur 🧑‍💼 (projets Supabase eu-west-3 et Vercel cdg1, fournisseur SMS, variables selon `docs/SETUP_SUPABASE_VERCEL.md`) ; E12 et E13 attendent un choix de fournisseur 🧑‍💼. Dans E14, le branchement de Sentry (compte, clé) est à faire avec l'accord du porteur ; le reste est faisable sans lui.
+
 ## 2026-11-22 — E10 — À CORRIGER
 Commit examiné : 5d466ab (depuis d5b20f3 ; 3f78024 et 875a4ab = documentation seulement), branche poussée sur `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (77, dont 3 dans `apps/web/src/lib/correction.test.ts`) · db ✅ (ALL RLS TESTS PASSED, section 12) · build ✅ (`/studio/[slug]`, `/compte|/pro|/admin/commandes/[id]` construites)
