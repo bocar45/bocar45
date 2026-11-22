@@ -1,5 +1,6 @@
 import "server-only";
 import { headers } from "next/headers";
+import { logError } from "./log";
 import { createServiceClient } from "./supabase/server";
 
 /** Limits per key and window. Tuned for the pilot; adjust here. */
@@ -30,12 +31,15 @@ export async function clientIp(): Promise<string> {
  */
 export async function rateLimit(name: LimitName, subject: string): Promise<boolean> {
   const { limit, windowSeconds } = LIMITS[name];
-  const { data, error } = await createServiceClient().rpc("rate_limit_hit", { p_key: `${name}:${subject}`, p_limit: limit, p_window_seconds: windowSeconds });
-  if (error) {
-    console.error(JSON.stringify({ level: "error", event: "rate_limit_unavailable", name, message: error.message }));
+  try {
+    const { data, error } = await createServiceClient().rpc("rate_limit_hit", { p_key: `${name}:${subject}`, p_limit: limit, p_window_seconds: windowSeconds });
+    if (error) throw error;
+    return data === true;
+  } catch (e) {
+    // Any failure of the counter (database down, configuration missing, network) lets the request through.
+    logError("rate_limit_unavailable", e, { name });
     return true;
   }
-  return data === true;
 }
 
 export const TOO_MANY = "Trop de tentatives en peu de temps. Patientez quelques minutes puis réessayez.";

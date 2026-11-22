@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
-vi.mock("./supabase/server", () => ({ createServiceClient: () => ({ rpc: async () => ({ data: null, error: { message: "down" } }) }) }));
+let mode: "error" | "throw" = "error";
+vi.mock("./supabase/server", () => ({
+  createServiceClient: () => {
+    if (mode === "throw") throw new Error("Supabase n'est pas configuré");
+    return { rpc: async () => ({ data: null, error: { message: "down" } }) };
+  },
+}));
 
 describe("rate limit helpers", async () => {
   const { clientIpFrom, rateLimit } = await import("./rate-limit");
@@ -15,5 +21,11 @@ describe("rate limit helpers", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(await rateLimit("quotePerIp", "1.2.3.4")).toBe(true);
     expect(log).toHaveBeenCalled();
+  });
+  it("lets requests through when the database client cannot even be created", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mode = "throw";
+    expect(await rateLimit("quotePerIp", "1.2.3.4")).toBe(true);
+    mode = "error";
   });
 });

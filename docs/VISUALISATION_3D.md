@@ -2,6 +2,9 @@
 
 Demande du 22/11/2026 : le studio reste en **2D pour l'édition** ; un mode **« Voir en 3D »** permet de tourner, zoomer, et de voir le produit **porté par un mannequin homme ou femme qui bouge**. Ce document remplace la position plus prudente de la décision D6.
 
+## 0. État (22/11/2026)
+E18 livrée avec des **modèles provisoires générés par le code** (D17) : t-shirt, polo, hoodie, tote, mug, gourde, casquette, calibrés en millimètres (`apps/web/src/components/studio3d/`). Les modèles d'artiste et les mannequins photoréalistes viendront remplacer ces modèles en respectant le même placement des zones (`placeZone`).
+
 ## 1. Principe : éditer en 2D, visualiser en 3D
 Éditer directement sur un modèle 3D est lent, imprécis (on ne place pas un logo à 2 mm près sur une surface courbe en tournant une caméra) et inutilisable sur téléphone. Tous les grands outils de personnalisation font ainsi : **édition 2D précise, aperçu 3D vivant**.
 

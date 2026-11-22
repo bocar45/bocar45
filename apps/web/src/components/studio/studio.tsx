@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -10,7 +11,12 @@ import {
 } from "@sawwa/design";
 import { DELIVERY_OPTIONS, type DeliveryKey } from "@/lib/shipping";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
-import { ProductArt, artKindFor } from "../product-art";
+import { modelKindFor } from "../studio3d/garment";
+
+const Viewer3D = dynamic(() => import("../studio3d/viewer"), {
+  ssr: false,
+  loading: () => <p className="grid h-full place-items-center text-sm text-muted">Chargement de la vue 3D…</p>,
+});
 import { getAsset, loadDraft, putAsset, saveDraft } from "./asset-store";
 import { LayerShape, StudioCanvas, isDark } from "./canvas";
 import { useHistory } from "./use-history";
@@ -50,7 +56,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const doc = history.value;
   const [zoneKey, setZoneKey] = useState(product.zones[0]?.key ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [mode, setMode] = useState<"edit" | "split" | "3d">("split");
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [price, setPrice] = useState<Awaited<ReturnType<StudioProps["quote"]>> | null>(null);
@@ -108,7 +114,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const addLayer = (layer: Layer) => {
     history.commit((d) => updateSurface(d, (s) => ({ ...s, layers: [...s.layers, layer] })));
     setSelectedId(layer.id);
-    setMode("edit");
+    if (mode === "3d") setMode("split");
   };
   const removeLayer = (id: string) => {
     history.commit((d) => updateSurface(d, (s) => ({ ...s, layers: s.layers.filter((l) => l.id !== id) })));
@@ -126,6 +132,27 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
 
   const W = zone.maxWidthMm;
   const H = zone.maxHeightMm;
+
+  /** « Placer ici » : moves the selected element to another zone, centred, shrunk if it does not fit. */
+  const moveToZone = (layerId: string, targetKey: string) => {
+    const target = product.zones.find((z) => z.key === targetKey);
+    const layer = surface.layers.find((l) => l.id === layerId);
+    if (!target || !layer || target.key === zone.key) return;
+    const f = Math.min(1, (target.maxWidthMm * 0.8) / Math.max(layer.widthMm, 1), (target.maxHeightMm * 0.8) / Math.max(layer.heightMm, 1));
+    const moved = {
+      ...layer, xMm: target.maxWidthMm / 2, yMm: target.maxHeightMm / 2, widthMm: layer.widthMm * f, heightMm: layer.heightMm * f,
+      ...(layer.type === "text" ? { sizeMm: Math.max(2, Math.round(layer.sizeMm * f * 10) / 10) } : {}),
+    } as Layer;
+    history.commit((d) => {
+      const without = { ...d, surfaces: d.surfaces.map((s) => (s.zoneKey === zone.key ? { ...s, layers: s.layers.filter((l) => l.id !== layerId) } : s)) };
+      const existing = without.surfaces.find((s) => s.zoneKey === target.key);
+      const surfaces = existing
+        ? without.surfaces.map((s) => (s.zoneKey === target.key ? { ...s, layers: [...s.layers, moved] } : s))
+        : [...without.surfaces, { zoneKey: target.key, technique: target.techniques[0] ?? "dtf", layers: [moved] }];
+      return { ...without, surfaces: surfaces.filter((s) => s.layers.length > 0) };
+    });
+    setZoneKey(target.key);
+  };
   const addText = () => addLayer({
     id: uid(), type: "text", text: "Votre texte", font: "manrope", sizeMm: Math.round(Math.min(40, Math.max(10, H * 0.09))),
     fill: ink, xMm: W / 2, yMm: H * 0.3, rotation: 0, widthMm: W * 0.5, heightMm: 20,
@@ -227,14 +254,18 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
 
   useEffect(() => {
     if (decorations.length === 0) { setPrice(null); return; }
-    const t = setTimeout(() => startPricing(async () => setPrice(await quote(product.slug, doc.colorKey, quantity, decorations))), 450);
+    const t = setTimeout(() => startPricing(async () => {
+      try {
+        setPrice(await quote(product.slug, doc.colorKey, quantity, decorations));
+      } catch {
+        // A failing price must never take the studio down: the creation stays editable.
+        setPrice({ ok: false, message: "Prix indisponible pour le moment. Votre création est conservée ; réessayez dans un instant." });
+      }
+    }), 450);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [decoKey, quantity, doc.colorKey]);
 
-  const surfaceContent = (s: Surface) => s.layers.filter((l) => !l.hidden).map((l) => (
-    <g key={l.id} transform={`translate(${l.xMm} ${l.yMm}) rotate(${l.rotation})`}><LayerShape layer={l} url={l.type === "image" ? urls[l.src] : undefined} /></g>
-  ));
 
   return (
     <div className="grid min-h-[calc(100dvh-64px)] grid-rows-[auto_1fr] bg-sable/40">
@@ -254,9 +285,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           <button type="button" className={btn} onClick={history.undo} disabled={!history.canUndo} aria-label="Annuler (Ctrl+Z)">↶ Annuler</button>
           <button type="button" className={btn} onClick={history.redo} disabled={!history.canRedo} aria-label="Rétablir (Ctrl+Maj+Z)">↷ Rétablir</button>
           <div className="flex rounded-full bg-brun p-1 text-sm font-bold" role="group" aria-label="Mode">
-            {(["edit", "preview"] as const).map((m) => (
+            {(["edit", "split", "3d"] as const).map((m) => (
               <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m}
-                className={`rounded-full px-4 py-1.5 ${mode === m ? "bg-ivoire text-brun" : "text-ivoire"}`}>{m === "edit" ? "Éditer" : "Aperçu"}</button>
+                className={`rounded-full px-4 py-1.5 ${mode === m ? "bg-ivoire text-brun" : "text-ivoire"}`}>{{ edit: "2D", split: "2D + 3D", "3d": "3D" }[m]}</button>
             ))}
           </div>
         </div>
@@ -288,33 +319,35 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               );
             })}
           </div>
-          <div className="relative min-h-[420px] overflow-hidden rounded-[24px] border border-line bg-ivoire">
-            {mode === "edit" ? (
-              <div className="absolute inset-0 p-4">
-                <StudioCanvas
-                  surface={surface}
-                  zone={{ maxWidthMm: W, maxHeightMm: H, label: zone.label }}
-                  garmentColor={color.hex}
-                  selectedId={selectedId}
-                  issueLayerIds={new Set(zoneIssues.filter((i) => i.severity === "error" && i.layerId).map((i) => i.layerId!))}
-                  imageUrls={urls}
-                  onSelect={setSelectedId}
-                  onPreview={(id, patch) => history.preview(patchLayer(id, patch))}
-                  onCommit={() => history.commit((d) => d)}
-                  onMeasure={(id, w, h) => history.silent(patchLayer(id, { widthMm: Math.round(w * 10) / 10, heightMm: Math.round(h * 10) / 10 }))}
-                />
-              </div>
-            ) : (
-              <div className="trame absolute inset-0 grid place-items-center bg-terra p-6">
-                <ProductArt kind={artKindFor(`${product.slug} ${product.categorySlug}`)} color={color.hex} className="h-full max-h-[560px] w-auto drop-shadow-2xl"
-                  design={surface.layers.length ? { widthMm: W, heightMm: H, content: surfaceContent(surface) } : undefined} withPrint={false}
-                  label={`Aperçu de ${product.name}, zone ${zone.label}`} />
-                <span className="absolute bottom-4 left-4 rounded-full bg-ivoire px-3 py-1 text-xs font-bold text-brun">Aperçu illustré · la vue 3D avec mannequins arrive ensuite</span>
+          <div className={`grid gap-3 ${mode === "split" ? "xl:grid-cols-2" : ""}`}>
+            {mode !== "edit" && (
+              // Fixed height: the 3D canvas fills its box, so the box must not depend on the canvas (no resize loop).
+              <div className={`relative overflow-hidden rounded-[24px] border border-line ${mode === "3d" ? "h-[70vh] min-h-[420px]" : "h-[380px] xl:h-[520px]"}`}>
+                <Viewer3D kind={modelKindFor(`${product.slug} ${product.categorySlug}`)} garmentHex={color.hex} surfaces={doc.surfaces}
+                  zones={product.zones} imageUrls={urls} activeZone={zone.key} />
               </div>
             )}
-            {surface.layers.length === 0 && mode === "edit" && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-6 grid place-items-center">
-                <p className="rounded-full bg-brun/85 px-4 py-2 text-sm font-semibold text-ivoire">Ajoutez un texte, une image ou une forme avec les outils</p>
+            {mode !== "3d" && (
+              <div className="relative h-[460px] overflow-hidden rounded-[24px] border border-line bg-ivoire xl:h-[520px]">
+                <div className="absolute inset-0 p-4">
+                  <StudioCanvas
+                    surface={surface}
+                    zone={{ maxWidthMm: W, maxHeightMm: H, label: zone.label }}
+                    garmentColor={color.hex}
+                    selectedId={selectedId}
+                    issueLayerIds={new Set(zoneIssues.filter((i) => i.severity === "error" && i.layerId).map((i) => i.layerId!))}
+                    imageUrls={urls}
+                    onSelect={setSelectedId}
+                    onPreview={(id, patch) => history.preview(patchLayer(id, patch))}
+                    onCommit={() => history.commit((d) => d)}
+                    onMeasure={(id, w, h) => history.silent(patchLayer(id, { widthMm: Math.round(w * 10) / 10, heightMm: Math.round(h * 10) / 10 }))}
+                  />
+                </div>
+                {surface.layers.length === 0 && (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-6 grid place-items-center">
+                    <p className="rounded-full bg-brun/85 px-4 py-2 text-sm font-semibold text-ivoire">Ajoutez un texte, une image ou une forme avec les outils</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -333,6 +366,15 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             </div>
           </Panel>
 
+          {selected && product.zones.length > 1 && (
+            <Panel title="Placer ici en un clic">
+              <div className="flex flex-wrap gap-2">
+                {product.zones.filter((z) => z.key !== zone.key).map((z) => (
+                  <button key={z.key} type="button" className={btn} onClick={() => moveToZone(selected.id, z.key)}>{z.label}</button>
+                ))}
+              </div>
+            </Panel>
+          )}
           {selected ? (
             <Properties key={selected.id} layer={selected} zone={{ W, H }} onChange={(patch) => commitPatch(selected.id, patch)}
               onDelete={() => removeLayer(selected.id)} onDuplicate={() => duplicate(selected)} onReorder={(dir) => reorder(selected.id, dir)} onDone={() => setSelectedId(null)} />

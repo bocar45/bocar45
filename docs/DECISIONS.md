@@ -111,3 +111,9 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - Une correction qui coûte **plus** exige l'accord explicite du client sur le montant exact du supplément ; le supplément est enregistré et signalé à la finance (encaissement manuel pendant le pilote).
 - La couleur et la répartition par tailles ne changent pas pendant une correction (ce serait une nouvelle commande).
 - Chaque version garde son **devis figé** (`order_item_versions.quote`) ; le coût atelier de l'ordre est mis à jour avec celui de la version corrigée.
+
+## D17 🟢 3D : modèles provisoires générés par le code, contrat de calibration fixe (décision CTO, 22/11/2026)
+- **Problème** : la 3D en direct est demandée maintenant ; les modèles d'artiste (et les mannequins photoréalistes) demandent un budget et plusieurs semaines.
+- **Choix** : vêtements modélisés à partir de leur patron en millimètres (contour réel, panneaux « gonflés », plis légers), mug/gourde/casquette en géométrie simple. Le dessin du studio est peint sur la texture à 2 px/mm avec les vraies polices.
+- **Contrat stable** : `placeZone()` (où chaque zone se trouve sur le vêtement) et `uvFor()` sont testés ; les modèles d'artiste devront respecter les mêmes positions, ce qui les rend interchangeables sans toucher au studio.
+- **Dépendances** : three 0.187.0, @react-three/fiber 9.8.2, @react-three/drei 10.7.9 (chargées seulement quand la 3D s'ouvre).
