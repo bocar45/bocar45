@@ -108,10 +108,18 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
             </ul>
             {f.vendor_cost != null && <p className="text-sm">Montant atelier pour cette commande : <b className="tabular-nums">{f.vendor_cost.toLocaleString("fr-FR")} FCFA HT</b></p>}
           </Section>
+          <Section title="Fichiers de production" id="production">
+            <ul className="grid gap-2 text-sm">
+              <li><a className="btn btn-brun !py-2 text-sm" href={`/api/production/${f.id}?format=pdf`}>Fiche de production (PDF)</a></li>
+              {item.decorations.map((d) => (
+                <li key={d.zoneKey}><a className="underline" href={`/api/production/${f.id}?format=png&zone=${encodeURIComponent(d.zoneKey)}`}>Fichier d&apos;impression · {item.product.zones.find((z) => z.key === d.zoneKey)?.anchor?.label ?? d.zoneKey} (PNG transparent 300 dpi, taille réelle)</a></li>
+              ))}
+            </ul>
+          </Section>
           {images.length > 0 && (
             <Section title="Fichiers originaux" id="files">
               <ul className="grid gap-2 text-sm">{images.map((i) => <li key={i.url}><a href={i.url} className="underline" target="_blank" rel="noreferrer">{i.name}</a> <span className="text-muted">· {i.px}</span></li>)}</ul>
-              <p className="text-xs text-muted">Liens valables 1 heure. Le fichier d&apos;impression 300 dpi et la fiche PDF arrivent à la prochaine étape.</p>
+              <p className="text-xs text-muted">Images importées par le client, en pleine résolution. Liens valables 1 heure.</p>
             </Section>
           )}
           <Section title="Historique" id="history">

@@ -1,0 +1,11 @@
+{
+  "name": "@sawwa/render",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@sawwa/design": "workspace:*",
+    "pdf-lib": "1.17.1"
+  }
+}

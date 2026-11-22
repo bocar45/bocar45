@@ -20,7 +20,9 @@
     "@sawwa/catalog": "workspace:*",
     "@sawwa/pricing": "workspace:*",
     "@sawwa/design": "workspace:*",
-    "@sawwa/workflow": "workspace:*"
+    "@sawwa/workflow": "workspace:*",
+    "@sawwa/render": "workspace:*",
+    "@resvg/resvg-js": "2.6.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.5",
