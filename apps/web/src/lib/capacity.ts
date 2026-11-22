@@ -21,7 +21,7 @@ const addDays = (d: string, n: number) => { const t = new Date(`${d}T12:00:00Z`)
 const isSunday = (d: string) => new Date(`${d}T12:00:00Z`).getUTCDay() === 0;
 const closedOn = (d: string, closures: Closure[]) => closures.find((c) => c.starts_on <= d && d <= c.ends_on);
 
-/** The date after `n` open days counted from tomorrow (closures skipped only when `withClosures`). */
+/** The date after `n` open days counted from tomorrow (Sundays and the given closures skipped). */
 function afterOpenDays(today: string, n: number, closures: Closure[]): string {
   let d = today, left = Math.max(1, n);
   while (left > 0) { d = addDays(d, 1); if (!isSunday(d) && !closedOn(d, closures)) left--; }

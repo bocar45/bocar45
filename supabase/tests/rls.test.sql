@@ -944,6 +944,8 @@ do $$ declare ok boolean := false; n int; begin
   if app.vendor_role((select id from public.organizations where name = 'Atelier Médina')) <> 'operator' then raise exception 'FAIL operator membership'; end if;
   if not exists (select 1 from public.fulfillments) then raise exception 'FAIL operator cannot see the workshop orders'; end if;
   if exists (select 1 from public.vendor_ledger) or exists (select 1 from public.payouts) then raise exception 'FAIL operator reads the money'; end if;
+  if exists (select 1 from public.vendor_offers) or exists (select 1 from public.vendor_price_grids) or exists (select 1 from public.vendor_zone_capabilities) or exists (select 1 from public.vendor_offer_variants)
+    then raise exception 'FAIL operator reads the offers and price grids'; end if;
   begin perform public.invite_vendor_member((select id from public.organizations where name = 'Atelier Médina'), '+221770000011', 'operator');
   exception when insufficient_privilege then ok := true; end;
   if not ok then raise exception 'FAIL operator invited someone'; end if;
@@ -960,11 +962,21 @@ begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
 do $$ declare ok boolean := false; begin
   if (select count(*) from public.vendor_team((select id from public.organizations where name = 'Atelier Médina'))) <> 2 then raise exception 'FAIL owner cannot list the team'; end if;
+  if not exists (select 1 from public.vendor_offers) or not exists (select 1 from public.vendor_price_grids) then raise exception 'FAIL owner cannot read own offers'; end if;
   perform public.set_vendor_member((select id from public.organizations where name = 'Atelier Médina'), '00000000-0000-0000-0000-0000000000d1', 'manager');
   if (select role from public.memberships where user_id = '00000000-0000-0000-0000-0000000000d1') <> 'manager' then raise exception 'FAIL role change'; end if;
   begin perform public.set_vendor_member((select id from public.organizations where name = 'Atelier Médina'), '00000000-0000-0000-0000-0000000000a1', null);
   exception when check_violation then ok := true; end;
   if not ok then raise exception 'FAIL last owner removed'; end if;
+end $$;
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000d1'); -- now a manager
+do $$ declare ok boolean := false; begin
+  begin perform public.invite_vendor_member((select id from public.organizations where name = 'Atelier Médina'), '+221770000012', 'manager');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL manager invited a manager'; end if;
+  perform public.invite_vendor_member((select id from public.organizations where name = 'Atelier Médina'), '+221770000012', 'operator');
 end $$;
 rollback;
 

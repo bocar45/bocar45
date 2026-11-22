@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireActiveVendor } from "@/lib/vendor";
 import { Empty, PageHeader, StatusPill, fr } from "@/components/ui";
@@ -6,7 +7,8 @@ import { READ_FAILED, logError } from "@/lib/log";
 export const metadata = { title: "Mes offres" };
 
 export default async function OffersPage() {
-  const { supabase, vendor } = await requireActiveVendor("/pro/offres");
+  const { supabase, vendor, canManage } = await requireActiveVendor("/pro/offres");
+  if (!canManage) redirect("/pro"); // prices: owner and managers only (RLS too)
   const [{ data: products, error }, { data: offers }] = await Promise.all([
     supabase.from("base_products").select("id, name, category:categories(name)").eq("status", "active").order("updated_at", { ascending: false }),
     supabase.from("vendor_offers").select("base_product_id, status, lead_time_days").eq("vendor_id", vendor.id),

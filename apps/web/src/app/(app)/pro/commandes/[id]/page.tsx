@@ -32,12 +32,17 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
   const { supabase, memberships } = await requireUser(`/pro/commandes/${id}`);
   const vendor = vendorMembership(memberships);
   if (!vendor || vendor.organization.status !== "active") redirect("/pro");
+  // E21: the amount paid to the workshop is for the owner and managers, not operators
+  const canSeeAmount = vendor.role === "owner" || vendor.role === "manager";
   // RLS: only the assigned workshop can read this fulfillment and its items.
   const { data: f } = await supabase
     .from("fulfillments")
-    .select("id, status, sla_due_at, vendor_cost, proof_round, carrier, tracking_number, order_id, items:order_items(id, design_version_id, color_key, sizes, quantity, decorations, roster, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), events:status_events(event, payload, at)")
+    .select("id, status, sla_due_at, proof_round, carrier, tracking_number, order_id, items:order_items(id, design_version_id, color_key, sizes, quantity, decorations, roster, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), events:status_events(event, payload, at)")
     .eq("id", id).eq("vendor_id", vendor.organization.id).maybeSingle();
   if (!f) notFound();
+  const vendorAmount = canSeeAmount
+    ? ((await supabase.from("fulfillments").select("vendor_cost").eq("id", f.id).maybeSingle()).data?.vendor_cost as number | null | undefined) ?? null
+    : null;
   const item = (f.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: (ZoneRow & { anchor: { label?: string; note?: string } | null })[] } }[])[0];
   if (!item) notFound();
   const doc = readDoc(item.version.document);
@@ -116,7 +121,7 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
                 );
               })}
             </ul>
-            {f.vendor_cost != null && <p className="text-sm">Montant atelier pour cette commande : <b className="tabular-nums">{f.vendor_cost.toLocaleString("fr-FR")} FCFA HT</b></p>}
+            {vendorAmount != null && <p className="text-sm">Montant atelier pour cette commande : <b className="tabular-nums">{vendorAmount.toLocaleString("fr-FR")} FCFA HT</b></p>}
           </Section>
           <Section title="Fichiers de production" id="production">
             <ul className="grid gap-2 text-sm">

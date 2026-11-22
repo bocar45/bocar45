@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { TECHNIQUE_LABEL, isTechnique, type Technique } from "@sawwa/catalog";
 import { DEFAULT_BREAKPOINTS, tierCost, type Tier, type VendorPriceGrid } from "@sawwa/pricing";
 import { offerField } from "@/lib/offer-form";
@@ -24,6 +24,7 @@ function rowValues(tiers: readonly Tier[] | undefined) {
 export default async function OfferEditor({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
   const { supabase, vendor, canManage } = await requireActiveVendor(`/pro/offres/${productId}`);
+  if (!canManage) redirect("/pro"); // prices: owner and managers only (RLS too)
   const { data: product } = await supabase
     .from("base_products")
     .select("id, name, status, variants:base_product_variants(id, color_key, color_hex, size), zones(id, key, max_width_mm, max_height_mm, allowed_techniques, anchor)")

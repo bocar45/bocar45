@@ -2,6 +2,26 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E21 — À CORRIGER
+Commit examiné : 2609e7d (depuis f013e48), `git status` propre, branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (142, 24 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.
+Vérification navigateur : non faite (pages dépendantes de la base, pas de Supabase réel).
+Critères de l'étape :
+- [x] Capacité et fermetures à l'affectation : `capacityCheck` pur (lun–sam, fermetures sautées pour le travail mais pas pour la promesse, fermetures enchaînées, capacité non déclarée → délai) testé (`lib/capacity.test.ts`, 5 tests) ; charge en cours + commande ÷ capacité (`lib/assignment.ts`, statuts actifs) ; tri disponibles d'abord puis marge (`assignment.ts`, `rank`) ; affectation à un atelier fermé refusée côté serveur (`admin/commandes/actions.ts:35`) ; marge via `splitGross` de `@sawwa/domain` au taux du jeu de règles figé. `vendor_closures` : RLS + tests (autre atelier ne lit pas, opérateur n'écrit pas).
+- [ ] Plusieurs utilisateurs par atelier : invitation par téléphone 7 j, acceptation par le bon numéro (format sans +), un compte = un atelier, propriétaire/gérant/opérateur, au moins un propriétaire, opérateur sans équipe ni disponibilités ni grand livre/versements : tout cela est en place et testé (section 19). **Écart** : le critère « l'opérateur ne voit ni l'argent ni les offres » n'est pas tenu.
+  - `/pro/offres` et `/pro/offres/[productId]` n'ont aucun contrôle de rôle (`offres/page.tsx:9`, `offres/[productId]/page.tsx:26`) : l'opérateur y accède par URL et voit la grille de prix de l'atelier (seule l'enregistrement est refusé, `offres/actions.ts:10`).
+  - `/pro/commandes/[id]/page.tsx:119` affiche à l'opérateur « Montant atelier pour cette commande : … FCFA HT » (`vendor_cost`).
+  - En base, D24 affirme « les droits sont dans la base (RLS…) », mais `offers_read` et `grids_read` (migration core :343, :367) restent ouverts à `app.is_member`, donc à l'opérateur ; `fulfillments.vendor_cost` lui est lisible aussi. Aucun test SQL ne vérifie qu'un opérateur ne lit pas offres/grilles.
+  → correction attendue : rediriger l'opérateur hors de `/pro/offres*` et masquer `vendor_cost` pour lui ; restreindre `offers_read` / `offer_variants_read` / `grids_read` (et capacités de zone si jugé « offre ») à `is_org_manager` pour les membres d'atelier, en vérifiant que la page commande de l'opérateur n'en dépend pas ; pour `vendor_cost`, ne pas le sélectionner pour l'opérateur (ou privilège de colonne / vue) ; ajouter les cas « opérateur ne lit ni offres ni grilles » dans la section 19.
+Critères communs : C1 ✅ · C2 ❌ (montants en entiers, marge via `domain`, transitions via `runTransition`, table neuve avec RLS ; mais permission opérateur non appliquée côté serveur pour offres et montant atelier, point 1) · C3 ✅ (grep secrets vide dans apps/packages/supabase ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ (messages en français, états vides) · C5 ❌ (pas de test d'accès opérateur aux offres/grilles) · C6 ✅ (D24, DATABASE, ROADMAP, BACKLOG 🔎 ; poussé ; aucune nouvelle dépendance).
+Corrections à faire (par priorité) :
+1. Opérateur : interdire la lecture des offres et grilles (pages `/pro/offres*` + politiques RLS) et masquer le montant atelier de `/pro/commandes/[id]` ; tests SQL dans la section 19.
+Remarques non bloquantes :
+- `accept_vendor_invitation` ne revérifie pas que l'atelier est encore actif (`my_vendor_invitations` le filtre, pas l'acceptation directe par id).
+- Commentaire obsolète dans `lib/capacity.ts` (« closures skipped only when `withClosures` ») : le paramètre n'existe pas.
+- Pas de test SQL d'un gérant qui tenterait d'inviter un gérant (refus présent dans `invite_vendor_member`).
+Décision : reprendre E21
+
 ## 2026-11-22 — E20 (2e passage) — VALIDÉ
 Commit examiné : cab0fc6 (depuis 77f6f85), `git status` propre, branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (137, 23 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.

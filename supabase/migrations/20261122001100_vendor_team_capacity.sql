@@ -77,6 +77,9 @@ begin
   where i.id = p_invitation and '+' || ltrim(u.phone, '+') = i.phone and i.accepted_at is null and i.revoked_at is null and i.expires_at > now()
   for update of i;
   if not found then raise exception 'invitation not found or expired' using errcode = '42501'; end if;
+  if not exists (select 1 from public.organizations o where o.id = v.vendor_id and o.status = 'active') then
+    raise exception 'workshop not active' using errcode = '42501';
+  end if;
   if exists (select 1 from public.memberships m join public.organizations o on o.id = m.organization_id where m.user_id = auth.uid() and o.kind = 'vendor') then
     raise exception 'already member of a workshop' using errcode = 'check_violation'; -- un compte = un atelier
   end if;
@@ -119,3 +122,20 @@ create policy ledger_read on public.vendor_ledger for select to authenticated
 drop policy payouts_read on public.payouts;
 create policy payouts_read on public.payouts for select to authenticated
   using (app.is_org_manager(vendor_id) or app.has_platform_role('{finance,ops}'));
+
+-- Les offres et grilles de prix de l'atelier : propriétaire et gérants seulement (l'opérateur produit, il ne fixe pas les prix).
+drop policy offers_read on public.vendor_offers;
+create policy offers_read on public.vendor_offers for select to authenticated
+  using (app.is_org_manager(vendor_id) or app.has_platform_role('{ops,vendor_manager,catalog}'));
+drop policy offer_variants_read on public.vendor_offer_variants;
+create policy offer_variants_read on public.vendor_offer_variants for select to authenticated
+  using (exists (select 1 from public.vendor_offers o where o.id = offer_id
+                 and (app.is_org_manager(o.vendor_id) or app.has_platform_role('{ops,vendor_manager,catalog}'))));
+drop policy capabilities_read on public.vendor_zone_capabilities;
+create policy capabilities_read on public.vendor_zone_capabilities for select to authenticated
+  using (exists (select 1 from public.vendor_offers o where o.id = offer_id
+                 and (app.is_org_manager(o.vendor_id) or app.has_platform_role('{ops,vendor_manager,catalog}'))));
+drop policy grids_read on public.vendor_price_grids;
+create policy grids_read on public.vendor_price_grids for select to authenticated
+  using (exists (select 1 from public.vendor_offers o where o.id = offer_id
+                 and (app.is_org_manager(o.vendor_id) or app.has_platform_role('{ops,vendor_manager,finance}'))));
