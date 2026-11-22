@@ -103,6 +103,14 @@ begin
   if not found then raise exception 'dispute not open' using errcode = 'check_violation'; end if;
   select total into v_total from public.orders where id = v_order;
   if coalesce(p_refund, 0) > v_total then raise exception 'refund exceeds order total' using errcode = 'check_violation'; end if;
+  -- une décision cohérente : rien à payer ni à pénaliser si le litige n'est pas retenu ; un montant seulement pour un remboursement partiel
+  if p_status not in ('resolved', 'rejected') or p_resolution not in ('reprint', 'partial_refund', 'full_refund', 'none')
+     or (p_status = 'rejected' and (p_resolution <> 'none' or p_vendor_liable or coalesce(p_refund, 0) > 0 or coalesce(p_penalty, 0) > 0))
+     or (p_resolution = 'partial_refund' and coalesce(p_refund, 0) <= 0)
+     or (p_resolution in ('reprint', 'none', 'full_refund') and coalesce(p_refund, 0) > 0)
+     or (p_vendor_liable and coalesce(p_penalty, 0) <= 0) or (not p_vendor_liable and coalesce(p_penalty, 0) > 0) then
+    raise exception 'inconsistent dispute decision' using errcode = 'check_violation';
+  end if;
   update public.disputes set status = p_status, resolution = p_resolution,
     refund_amount = case when p_resolution = 'full_refund' then v_total else p_refund end, vendor_liable = p_vendor_liable,
     penalty_amount = p_penalty, resolution_note = p_note, resolved_by = p_actor, resolved_at = now()
@@ -126,7 +134,8 @@ alter table public.disputes enable row level security;
 create policy ledger_read on public.vendor_ledger for select to authenticated
   using (app.is_member(vendor_id) or app.has_platform_role('{finance,ops}'));
 create policy ledger_adjust on public.vendor_ledger for insert to authenticated
-  with check (type = 'adjustment' and created_by = auth.uid() and app.has_platform_role('{finance}'));
+  with check (type = 'adjustment' and created_by = auth.uid() and fulfillment_id is null and at > now() - interval '5 minutes'
+    and app.has_platform_role('{finance}')); -- pas d'écriture antidatée ni rattachée à une commande quelconque
 create policy payouts_read on public.payouts for select to authenticated
   using (app.is_member(vendor_id) or app.has_platform_role('{finance,ops}'));
 -- Litiges : le client ouvre et lit les siens ; l'équipe lit tout ; l'atelier affecté lit ceux de ses commandes.

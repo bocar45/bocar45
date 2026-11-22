@@ -841,10 +841,23 @@ do $$ declare ok boolean := false; begin
   if (select sum(amount) from public.vendor_ledger) <> (select vendor_cost from public.fulfillments where id = (select fulfillment_id from public.vendor_ledger where type = 'earning')) - 5000 then raise exception 'FAIL balance after payout'; end if;
 end $$;
 reset role;
--- finance adjusts, ops cannot
+-- finance adjusts (not backdated, not tied to an order); a workshop cannot
 begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000f1');
 insert into public.vendor_ledger (vendor_id, type, amount, note, created_by) select vendor_id, 'adjustment', 500, 'Frais de transport remboursés', auth.uid() from public.vendor_ledger limit 1;
+do $$ declare ok boolean := false; begin
+  begin insert into public.vendor_ledger (vendor_id, type, amount, note, created_by, at) select vendor_id, 'adjustment', 500, 'Antidaté', auth.uid(), now() - interval '90 days' from public.vendor_ledger limit 1;
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL backdated adjustment'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ declare ok boolean := false; begin
+  begin insert into public.vendor_ledger (vendor_id, type, amount, note, created_by) select vendor_id, 'adjustment', 50000, 'Je me paie', auth.uid() from public.vendor_ledger limit 1;
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL workshop adjusted its own ledger'; end if;
+end $$;
 rollback;
 -- disputes
 begin;
@@ -880,6 +893,18 @@ do $$ declare ok boolean := false; begin
   begin perform public.resolve_dispute((select id from public.disputes limit 1), 'resolved', 'partial_refund', 99999999, true, 3000, 'trop', '00000000-0000-0000-0000-00000000000a');
   exception when check_violation then ok := true; end;
   if not ok then raise exception 'FAIL refund above order total'; end if;
+  ok := false;
+  begin perform public.resolve_dispute((select id from public.disputes limit 1), 'rejected', 'none', 0, true, 3000, 'Non retenu mais pénalité', '00000000-0000-0000-0000-00000000000a');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL penalty on a rejected dispute'; end if;
+  ok := false;
+  begin perform public.resolve_dispute((select id from public.disputes limit 1), 'resolved', 'none', 5000, false, null, 'Aucune compensation mais remboursé', '00000000-0000-0000-0000-00000000000a');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL refund recorded without a refund decision'; end if;
+  ok := false;
+  begin perform public.resolve_dispute((select id from public.disputes limit 1), 'resolved', 'partial_refund', 0, false, null, 'Partiel sans montant', '00000000-0000-0000-0000-00000000000a');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL partial refund without amount'; end if;
   perform public.resolve_dispute((select id from public.disputes limit 1), 'resolved', 'reprint', 0, true, 3000, 'Défaut prouvé par la photo de contrôle', '00000000-0000-0000-0000-00000000000a');
   if (select amount from public.vendor_ledger where type = 'penalty') <> -3000 then raise exception 'FAIL penalty not in the ledger'; end if;
   ok := false;

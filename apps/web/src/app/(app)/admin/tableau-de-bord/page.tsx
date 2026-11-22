@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
-import { requirePlatformRole } from "@/lib/auth";
+import { hasPlatformRole, requirePlatformRole } from "@/lib/auth";
 import { computeKpis, pct, type OrderRow } from "@/lib/dashboard";
 import { READ_FAILED, logError } from "@/lib/log";
 import { fcfa } from "@/lib/orders";
@@ -9,29 +9,34 @@ export const metadata = { title: "Tableau de bord" };
 const PERIODS = { "7": "7 jours", "30": "30 jours", "90": "90 jours", "365": "12 mois" } as const;
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ jours?: string }> }) {
-  const { supabase } = await requirePlatformRole(["ops", "finance"], "/admin/tableau-de-bord");
+  const { supabase, memberships } = await requirePlatformRole(["ops", "finance"], "/admin/tableau-de-bord");
+  const canModerate = hasPlatformRole(memberships, ["ops", "support"]);
   const { jours } = await searchParams;
   const days = jours && jours in PERIODS ? Number(jours) : 30;
   const since = new Date(Date.now() - days * 86400000).toISOString();
-  const [{ data, error }, { count: openDisputes }, { count: openReports }] = await Promise.all([
-    supabase.from("orders").select("total, tax, shipping, payment_status, created_at, fulfillments(status, vendor_cost, sla_due_at, proof_round), events:status_events(event, at)")
+  const [{ data, error }, { count: openDisputes }, { count: openReports }, { data: ruleSets }] = await Promise.all([
+    supabase.from("orders").select("total, tax, shipping, payment_status, created_at, quote_snapshot, fulfillments(status, vendor_cost, sla_due_at, proof_round), events:status_events(event, at)")
       .gte("created_at", since).limit(5000),
     supabase.from("disputes").select("id", { count: "exact", head: true }).eq("status", "open"),
     supabase.from("content_reports").select("id", { count: "exact", head: true }).eq("status", "open"),
+    supabase.from("price_rule_sets").select("version, rules"),
   ]);
   if (error) logError("dashboard_read_failed", error);
-  const k = computeKpis((data ?? []) as unknown as OrderRow[]);
+  // each order is split with the VAT rate of the rule set it was priced with (frozen in its quote)
+  const vatOf = new Map((ruleSets ?? []).map((r) => [r.version as number, (r.rules as { vatBps: number }).vatBps]));
+  const rows = (data ?? []).map((o) => ({ ...o, vatBps: vatOf.get((o.quote_snapshot as { ruleSetVersion?: number } | null)?.ruleSetVersion ?? -1) ?? 1800 })) as unknown as OrderRow[];
+  const k = computeKpis(rows);
   const tiles: [string, string, string?][] = [
     ["Chiffre d'affaires TTC (payé)", fcfa(k.revenue), `${k.paidOrders} commande${k.paidOrders > 1 ? "s" : ""} payée${k.paidOrders > 1 ? "s" : ""} sur ${k.orders}`],
     ["Chiffre d'affaires HT hors livraison", fcfa(k.revenueExclTax)],
     ["Coût ateliers (HT)", fcfa(k.vendorCost)],
-    ["Marge brute", fcfa(k.grossMargin), `Taux : ${pct(k.marginRate)}`],
+    ["Marge brute", fcfa(k.grossMargin), `Taux : ${pct(k.marginRate)}${k.unassignedPaid ? ` · ${k.unassignedPaid} commande(s) payée(s) sans atelier : marge provisoire` : ""}`],
     ["Expédiées dans le délai", pct(k.onTimeRate), `${k.onTime} sur ${k.shipped} expédiée${k.shipped > 1 ? "s" : ""}`],
     ["Commandes en retard (en cours)", String(k.lateOpen)],
     ["Délai moyen commande → expédition", k.avgLeadHours === null ? "—" : `${Math.round(k.avgLeadHours / 24 * 10) / 10} j`],
     ["Taux de BAT refusés", pct(k.proofRefusalRate), `${k.proofsRefused} sur ${k.proofs} décisions · objectif < 10 %`],
     ["Litiges ouverts", String(openDisputes ?? 0)],
-    ["Signalements à modérer", String(openReports ?? 0)],
+    ...(canModerate ? [["Signalements à modérer", String(openReports ?? 0)] as [string, string]] : []),
   ];
   return (
     <div className="grid gap-6">
