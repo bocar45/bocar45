@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → E18b → E24a → E24b → **E24c** → E24d (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → E18b → E24a → E24b → E24c → **E24d** (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -167,8 +167,11 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Constat corrigé : un fichier 300 dpi d'une grande pièce prenait 1,46 Go → résolution choisie selon un budget de pixels (300 dpi habituel, 150–200 dpi pour les grandes pièces, jamais moins de 150), annoncée sur la fiche et dans le nom du fichier. Décision D28.
 - [ ] 🧑‍💼 Charge avec la vraie base (après E11).
 
-## E24c — Référencement ⏳
-- [ ] Métadonnées par page (titre, description, Open Graph), plan du site, robots.txt, données structurées produit, pages légales provisoires (à faire relire, 🧑‍💼).
+## E24c — Référencement 🔎
+- [x] Métadonnées : adresse canonique du site (`NEXT_PUBLIC_SITE_URL`), titres et descriptions, Open Graph et carte de partage, fiches produit avec adresse canonique.
+- [x] `robots.txt` (espaces compte, atelier, admin, API et connexion exclus) et en-tête « noindex » sur tous ces espaces ; plan du site dynamique (pages, catégories, produits, modèles publiés).
+- [x] Données structurées : Organisation (accueil), Produit avec fourchette de prix publique en FCFA (fiches), protégées contre l'injection (testé).
+- [x] Pages légales provisoires (mentions légales, CGV, confidentialité) rédigées d'après le fonctionnement réel, signalées « version provisoire » avec les éléments à compléter ; liens en pied de page. 🧑‍💼 Relecture par un juriste, informations de l'entreprise et déclaration CDP avant ouverture.
 
 ## E24d — Version anglaise ⏳
 - [ ] Interface FR/EN (pages publiques, studio, compte), sélection de langue, textes de la base (catalogue `name.fr` / `name.en`).

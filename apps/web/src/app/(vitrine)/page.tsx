@@ -1,3 +1,4 @@
+import { jsonLd, organizationJsonLd, siteUrl } from "@/lib/seo";
 import Link from "next/link";
 import { ProductArt, type ArtKind } from "@/components/product-art";
 
@@ -19,6 +20,8 @@ const STEPS = [
 
 export default function Home() {
   return (
+    <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd(siteUrl())) }} />
     <>
       {/* Hero */}
       <section className="trame relative overflow-hidden bg-brun text-ivoire">
@@ -143,6 +146,7 @@ export default function Home() {
           <Link href="/pro/candidature" className="btn btn-brun w-fit">Devenir atelier partenaire</Link>
         </div>
       </section>
+    </>
     </>
   );
 }

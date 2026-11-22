@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { jsonLd, productJsonLd, siteUrl } from "@/lib/seo";
 import { TECHNIQUE_LABEL } from "@sawwa/catalog";
 import { artKindFor } from "@/components/product-art";
 import { ProductShowcase } from "@/components/product-showcase";
@@ -20,9 +21,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const { product } = await findProduct(slug);
   if (!product) return { title: "Produit" };
+  const description = product.price ? `${product.name} personnalisé dès ${fcfa(product.price.fromUnitPrice)}. Fabriqué à Dakar.` : product.description;
   return {
-    title: product.name,
-    description: product.price ? `${product.name} personnalisé dès ${fcfa(product.price.fromUnitPrice)}. Fabriqué à Dakar.` : product.description,
+    title: product.name, description,
+    alternates: { canonical: `/produits/${product.slug}` },
+    openGraph: { type: "website", title: `${product.name} · SAWWA`, description, url: `/produits/${product.slug}` },
   };
 }
 
@@ -33,6 +36,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const p = product.price;
 
   return (
+    <>
+    {/* E24c: structured data for search engines (public price range, never workshop costs) */}
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(productJsonLd(product, `${siteUrl()}/produits/${product.slug}`)) }} />
     <div className="mx-auto max-w-7xl px-4 py-10">
       <nav aria-label="Fil d'Ariane" className="mb-6 text-sm text-muted">
         <Link href="/catalogue" className="underline">Catalogue</Link> <span aria-hidden="true">/</span>{" "}
@@ -100,5 +106,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
       </div>
     </div>
+    </>
   );
 }

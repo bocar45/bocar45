@@ -33,7 +33,7 @@ export function SiteFooter() {
         </div>
         <FooterCol title="Créer" links={[["Catalogue", "/catalogue"], ["Modèles prêts à personnaliser", "/modeles"], ["Vêtements", "/catalogue/vetements"], ["Cadeaux photo", "/catalogue/cadeaux-photo"], ["Objets", "/catalogue/objets"]]} />
         <FooterCol title="Organisations" links={[["Équipes & entreprises", "/catalogue#equipes"], ["Devenir atelier partenaire", "/pro/candidature"], ["Espace atelier", "/pro"]]} />
-        <FooterCol title="SAWWA" links={[["Mon compte", "/compte"], ["Connexion", "/connexion"]]} />
+        <FooterCol title="SAWWA" links={[["Mon compte", "/compte"], ["Connexion", "/connexion"], ["Demander un devis", "/devis"], ["Conditions de vente", "/cgv"], ["Confidentialité", "/confidentialite"], ["Mentions légales", "/mentions-legales"]]} />
       </div>
       <div className="border-t border-ivoire/10">
         <p className="mx-auto max-w-7xl px-4 py-5 text-xs text-ivoire/50">Fabriqué avec des ateliers partenaires à Dakar · Paiement Wave, Orange Money et carte</p>

@@ -47,3 +47,4 @@ Une fois le projet créé : `npx supabase gen types typescript --project-id <ré
 
 ## Important : variables au moment du build
 La politique de sécurité du site (CSP, E24a) autorise Supabase à partir de `NEXT_PUBLIC_SUPABASE_URL` **lue au build**. Sur Vercel, cette variable doit être définie pour l'environnement de build (Production et Preview), sinon le navigateur bloquera les appels à Supabase. Après l'avoir ajoutée ou modifiée, relancer un déploiement.
+`NEXT_PUBLIC_SITE_URL` (adresse définitive du site, ex. `https://www.<domaine>`) doit aussi être défini au build : il sert aux adresses canoniques, au plan du site, aux liens de partage et aux e-mails de connexion.
