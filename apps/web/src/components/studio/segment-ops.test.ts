@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { pixels } from "./image-ops";
-import { applyMask, u2netInput } from "./segment-ops";
+import { applyMask, hasSubject, u2netInput } from "./segment-ops";
 
 describe("automatic background removal (E22)", () => {
   it("normalises the model input channel by channel (NCHW)", () => {
@@ -25,5 +25,9 @@ describe("automatic background removal (E22)", () => {
     expect(alpha(4, 4)).toBe(255);
     expect(Array.from(out.data.slice((3 * 8 + 3) * 4, (3 * 8 + 3) * 4 + 3))).toEqual([200, 100, 50]);
     expect(Array.from(img.data.slice(3, 4))).toEqual([255]); // original untouched
+  });
+  it("reports no subject when the model is not confident anywhere", () => {
+    expect(hasSubject(new Float32Array([0.01, 0.2, 0.3]))).toBe(false);
+    expect(hasSubject(new Float32Array([0.01, 0.9]))).toBe(true);
   });
 });

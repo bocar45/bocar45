@@ -2,6 +2,29 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E22 (partie gratuite : détourage) — À CORRIGER
+Commit examiné : a0330bf (depuis cf8e4b0), branche à jour avec `origin`, **mais `git status` non propre : `.gitignore` modifié et non commité**
+Contrôles : typecheck ✅ · tests ✅ (144, 25 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0, « onnxruntime-web files copied to public/ort »). Tout relancé.
+Vérification navigateur : non refaite (mesure de l'auteur : 800×600 → 2,8 s, coin transparent, centre opaque).
+Critères de l'étape :
+- [x] Détourage dans le navigateur, sans service externe : `segment.ts` charge `onnxruntime-web/wasm` à la demande, `wasmPaths = "/ort/"`, modèle `/models/u2netp.onnx`, 1 fil, session en cache et remise à zéro en cas d'échec ; aucun appel réseau tiers.
+- [x] Modèle servi par SAWWA, licence et empreinte : `public/models/README.md` + `LICENSE-U2NET` ; SHA-256 recalculé `309c8469…4ddd8`, identique au README.
+- [x] Parties pures testées : `segment-ops.test.ts` (normalisation NCHW, masque agrandi, sujet conservé, fond effacé, couleurs et original intacts).
+- [x] Résultat recadré, taille réelle et position conservées, annulable : `image-tools.tsx:93-101` réutilise `crop` + `croppedGeometry` + `replacePixels` comme les outils E18c validés.
+- [x] Erreurs claires en français, état de chargement dédié, taille du téléchargement annoncée (`image-tools.tsx:95-102`, `:184`).
+- [x] Moteur copié à la construction (`scripts/copy-ort.mjs`, `prebuild`/`predev`), vérifié dans le journal de build.
+- [ ] Moteur non versionné : **à HEAD, le motif `.gitignore` commité est `public/ort/`** ; comme il contient une barre oblique, Git l'ancre à la racine du dépôt et il **n'ignore pas** `apps/web/public/ort/`. Après tout `pnpm build`/`dev`, le `.wasm` de 15 Mo réapparaît en fichier non suivi et sera recommité au prochain `git add -A`. Le bon motif `apps/web/public/ort/` existe dans la copie de travail mais n'est ni commité ni poussé (`git diff .gitignore`).
+  → correction attendue : commiter et pousser `.gitignore` avec `apps/web/public/ort/` (vérifier `git check-ignore -v apps/web/public/ort/ort-wasm-simd-threaded.wasm` après un build).
+- 🧑‍💼 Génération de motifs : en attente du budget du porteur. Agrandissement : reporté (accepté, documenté dans BACKLOG E22).
+Critères communs : C1 ✅ · C2 ✅ (ni argent, ni prix, ni statut touchés) · C3 ✅ (grep secrets : seulement des commentaires/grants `service_role` dans les migrations ; pas de `SAWWA_PREVIEW_FIXTURE` ; bouton réellement branché) · C4 ✅ · C5 ✅ · C6 ❌ (D25, ROADMAP, BACKLOG 🔎 à jour, nouvelle dépendance justifiée dans D25 ; mais correctif `.gitignore` non commité, état du dépôt poussé incorrect).
+Corrections à faire (par priorité) :
+1. Commiter et pousser le `.gitignore` corrigé (`apps/web/public/ort/`).
+Remarques non bloquantes :
+- Le `.wasm` de 15 Mo reste dans l'historique (d139b9e) : réécriture à décider par le porteur, pas exigée.
+- `applyMask` normalise min-max : sur une image sans sujet net, le bruit du masque est étiré à 0..1, donc le message « Aucun sujet trouvé » ne se déclenchera presque jamais ; envisager un seuil sur le maximum brut (la sortie d0 est déjà une sigmoïde 0..1).
+- Réordonnancement alphabétique de `apps/web/package.json` (sans effet fonctionnel).
+Décision : reprendre E22 (un commit), puis passer à E18b
+
 ## 2026-11-22 — E21 (2e passage) — VALIDÉ
 Commit examiné : 05a6581 (depuis 2609e7d), `git status` propre, branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (142) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.

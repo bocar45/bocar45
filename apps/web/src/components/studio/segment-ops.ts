@@ -39,3 +39,9 @@ export function applyMask(img: Pixels, mask: Float32Array, mw: number, mh: numbe
   }
   return out;
 }
+
+/** The model gives probabilities (0..1): no confident pixel means no clear subject (avoid stretching noise). */
+export function hasSubject(mask: Float32Array, threshold = 0.5): boolean {
+  for (const v of mask) if (v >= threshold) return true;
+  return false;
+}

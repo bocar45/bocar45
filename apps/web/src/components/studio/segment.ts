@@ -2,7 +2,7 @@
 
 import type { InferenceSession } from "onnxruntime-web/wasm";
 import { pixels, type Pixels } from "./image-ops";
-import { U2NET_SIZE, applyMask, u2netInput } from "./segment-ops";
+import { U2NET_SIZE, applyMask, hasSubject, u2netInput } from "./segment-ops";
 
 /**
  * E22 — automatic background removal in the browser (U²-Net small, ONNX Runtime WebAssembly). Engine and model are
@@ -33,10 +33,11 @@ function resized(img: Pixels, w: number, h: number): Pixels {
   return pixels(w, h, ctx.getImageData(0, 0, w, h).data);
 }
 
-export async function removeBackgroundAI(img: Pixels): Promise<Pixels> {
+/** The photo with its background made transparent, or null when the model finds no clear subject. */
+export async function removeBackgroundAI(img: Pixels): Promise<Pixels | null> {
   const { ort, s } = await load();
   const input = new ort.Tensor("float32", u2netInput(resized(img, U2NET_SIZE, U2NET_SIZE)), [1, 3, U2NET_SIZE, U2NET_SIZE]);
   const result = await s.run({ [s.inputNames[0]!]: input });
   const mask = result[s.outputNames[0]!]!.data as Float32Array; // d0: the fused, finest saliency map
-  return applyMask(img, mask, U2NET_SIZE, U2NET_SIZE);
+  return hasSubject(mask) ? applyMask(img, mask, U2NET_SIZE, U2NET_SIZE) : null;
 }

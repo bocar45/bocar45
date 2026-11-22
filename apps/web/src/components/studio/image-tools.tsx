@@ -93,10 +93,10 @@ export function ImageTools({ layer, url, onReplace, onUrl }: {
         <button type="button" className={`${btn} w-fit`} disabled={!!busy} onClick={() => run("ia", async (px) => {
           let ai: typeof import("./segment");
           try { ai = await import("./segment"); } catch { throw new ToolError("Le détourage automatique n'a pas pu se charger (connexion). Réessayez."); }
-          let out: Pixels;
+          let out: Pixels | null;
           try { out = await ai.removeBackgroundAI(px); } catch { throw new ToolError("Le détourage automatique n'a pas pu se charger (connexion ou appareil trop ancien). Essayez « Retirer le fond »."); }
-          const b = opaqueBounds(out);
-          if (!b) throw new ToolError("Aucun sujet trouvé sur cette image : essayez « Retirer le fond ».");
+          const b = out ? opaqueBounds(out) : null;
+          if (!out || !b) throw new ToolError("Aucun sujet net trouvé sur cette image : essayez « Retirer le fond ».");
           await replacePixels(crop(out, b), `${base}-detoure.png`, croppedGeometry(layer, px.width, px.height, b));
         })}>✨ Détourer la photo (automatique)</button>
         <p className="text-xs text-muted">Pour une photo (personne, objet) : le sujet est détecté sur votre appareil, l&apos;image n&apos;est envoyée nulle part. Environ 8 Mo à télécharger la première fois.</p>
