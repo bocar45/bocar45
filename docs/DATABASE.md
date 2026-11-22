@@ -95,3 +95,11 @@ Un client B2B (association, entreprise) est une `organization` de type `customer
 - `invoices.number` unique par série, attribué dans une transaction.
 - `vendor_ledger` : insertion seule ; le solde est une somme.
 - RLS sur `fulfillments`, `fulfillment_items`, `proofs`, `messages`, `vendor_*` : `vendor_id = current_setting('app.vendor_id')` pour le rôle applicatif « pro ».
+
+## 10. Implémentation Supabase (migrations)
+| Migration | Contenu |
+|---|---|
+| `20261122000100_core.sql` | Identité, organisations, rôles, catalogue, ateliers, offres, grilles, règles de prix, audit, RLS |
+| `20261122000200_catalog_offers_rules.sql` | Publication contrôlée d'un produit, zone ↔ vue du même produit, offres réservées aux ateliers **actifs**, capacité ≤ zone de référence et technique autorisée, activation des règles de prix (`activate_price_rule_set`, rôle finance, audit), versions activées figées |
+Tests : `pnpm db:test` (Postgres local jetable, sans Docker).
+

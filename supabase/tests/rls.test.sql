@@ -49,7 +49,7 @@ rollback;
 begin;
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
 insert into public.base_products (category_id, slug, name, status)
-select id, 'tee-crew-180', '{"fr":"T-shirt col rond 180 g"}', 'active' from public.categories where slug = 'vetements';
+select id, 'tee-crew-180', '{"fr":"T-shirt col rond 180 g"}', 'draft' from public.categories where slug = 'vetements';
 insert into public.base_products (category_id, slug, name, status)
 select id, 'hoodie-draft', '{"fr":"Hoodie (brouillon)"}', 'draft' from public.categories where slug = 'vetements';
 insert into public.product_views (base_product_id, key) select id, 'front' from public.base_products where slug = 'tee-crew-180';
@@ -57,7 +57,17 @@ insert into public.zones (base_product_id, view_id, key, max_width_mm, max_heigh
 select p.id, v.id, 'front_center', 300, 400, '{dtg,dtf}' from public.base_products p join public.product_views v on v.base_product_id = p.id where p.slug = 'tee-crew-180';
 insert into public.base_product_variants (base_product_id, color_key, color_hex, size)
 select id, 'ivory', '#F2E9D8', 'M' from public.base_products where slug = 'tee-crew-180';
+update public.base_products set status = 'active' where slug = 'tee-crew-180';
 commit;
+-- 4b. An incomplete product cannot be published
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
+do $$ declare ok boolean := false; begin
+  begin update public.base_products set status = 'active' where slug = 'hoodie-draft';
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL incomplete product published'; end if;
+end $$;
+rollback;
 begin;
 select pg_temp.act_as(null);
 do $$ begin
@@ -78,14 +88,48 @@ do $$ begin
 end $$;
 rollback;
 
--- 6. Workshop A creates its offer and price grid; B cannot see them nor create offers for A
+-- 6a. A pending workshop cannot create offers
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ declare ok boolean := false; begin
+  begin
+    insert into public.vendor_offers (vendor_id, base_product_id)
+    select o.id, p.id from public.organizations o, public.base_products p where p.slug = 'tee-crew-180';
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL pending workshop created an offer'; end if;
+end $$;
+rollback;
+update public.organizations set status = 'active' where name = 'Atelier Médina';
+
+-- 6. Active workshop A creates its offer and price grid; B cannot see them nor create offers for A
 begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
 insert into public.vendor_offers (vendor_id, base_product_id, status)
 select o.id, p.id, 'active' from public.organizations o, public.base_products p where p.slug = 'tee-crew-180';
 insert into public.vendor_price_grids (offer_id, version, grid)
 select id, 1, '{"blanks":{}}' from public.vendor_offers;
+insert into public.vendor_offer_variants (offer_id, variant_id)
+select o.id, v.id from public.vendor_offers o join public.base_product_variants v on v.base_product_id = o.base_product_id;
+insert into public.vendor_zone_capabilities (offer_id, zone_id, technique, max_width_mm, max_height_mm)
+select o.id, z.id, 'dtf', 280, 350 from public.vendor_offers o join public.zones z on z.base_product_id = o.base_product_id;
 commit;
+-- 6b. A capability cannot exceed the reference zone nor use a technique the zone refuses
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ declare ok boolean := false; begin
+  begin
+    insert into public.vendor_zone_capabilities (offer_id, zone_id, technique, max_width_mm, max_height_mm)
+    select o.id, z.id, 'dtg', 500, 350 from public.vendor_offers o join public.zones z on z.base_product_id = o.base_product_id;
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL oversize capability'; end if;
+  ok := false;
+  begin
+    insert into public.vendor_zone_capabilities (offer_id, zone_id, technique, max_width_mm, max_height_mm)
+    select o.id, z.id, 'embroidery', 80, 80 from public.vendor_offers o join public.zones z on z.base_product_id = o.base_product_id;
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL technique not allowed on zone'; end if;
+end $$;
+rollback;
 begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
 do $$ declare a_id uuid; begin
@@ -131,8 +175,8 @@ begin;
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 do $$ begin
   if (select count(*) from public.organizations where kind = 'vendor') <> 2 then raise exception 'FAIL admin vendor list'; end if;
-  update public.organizations set status = 'active' where name = 'Atelier Médina';
-  if not exists (select 1 from public.organizations where name = 'Atelier Médina' and status = 'active') then raise exception 'FAIL admin activation'; end if;
+  update public.organizations set status = 'active' where name = 'Brod''Est';
+  if not exists (select 1 from public.organizations where name = 'Brod''Est' and status = 'active') then raise exception 'FAIL admin activation'; end if;
 end $$;
 rollback;
 
@@ -144,5 +188,37 @@ do $$ begin
   exception when insufficient_privilege then null; end;
 end $$;
 rollback;
+
+-- 10. Price rules: only finance activates; one active version; activated rules are frozen
+insert into auth.users (id, phone) values ('00000000-0000-0000-0000-0000000000f1', '+221770000009');
+insert into public.memberships (user_id, organization_id, role)
+select '00000000-0000-0000-0000-0000000000f1', id, 'finance' from public.organizations where kind = 'platform';
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000f1');
+insert into public.price_rule_sets (id, version, rules) values
+  ('00000000-0000-0000-0000-000000000101', 1, '{"defaultMarginBps":3500}');
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
+do $$ declare ok boolean := false; begin
+  begin perform public.activate_price_rule_set('00000000-0000-0000-0000-000000000101');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL catalog activated price rules'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000f1');
+select public.activate_price_rule_set('00000000-0000-0000-0000-000000000101');
+insert into public.price_rule_sets (id, version, rules) values ('00000000-0000-0000-0000-000000000102', 2, '{"defaultMarginBps":4000}');
+select public.activate_price_rule_set('00000000-0000-0000-0000-000000000102');
+commit;
+do $$ declare ok boolean := false; begin
+  if (select count(*) from public.price_rule_sets where status = 'active') <> 1 then raise exception 'FAIL several active rule sets'; end if;
+  if (select version from public.price_rule_sets where status = 'active') <> 2 then raise exception 'FAIL wrong active version'; end if;
+  if (select count(*) from public.audit_log where action = 'price_rules.activate') <> 2 then raise exception 'FAIL activation not audited'; end if;
+  begin update public.price_rule_sets set rules = '{}' where version = 2;
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL active rules edited'; end if;
+end $$;
 
 select 'ALL RLS TESTS PASSED' as result;

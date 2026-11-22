@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePlatformRole } from "@/lib/auth";
 import { decideVendor } from "./actions";
 
@@ -31,7 +32,7 @@ export default async function VendorsAdmin() {
             <tbody>
               {data.map((o) => (
                 <tr key={o.id} className="border-b border-line">
-                  <td className="p-2 font-semibold">{o.name}</td>
+                  <td className="p-2 font-semibold"><Link className="underline" href={`/admin/ateliers/${o.id}`}>{o.name}</Link></td>
                   <td className="p-2 tabular-nums">{o.ninea ?? "—"}</td>
                   <td className="p-2">{LABEL[o.status as keyof typeof LABEL]}</td>
                   <td className="p-2 tabular-nums">{new Date(o.created_at).toLocaleDateString("fr-SN")}</td>

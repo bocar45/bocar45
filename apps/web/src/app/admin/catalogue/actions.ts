@@ -1,0 +1,145 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { isHexColor, isTechnique, parseSizes, publishBlockers, slugify, toKey, validateZone } from "@sawwa/catalog";
+import { audit } from "@/lib/audit";
+import { requirePlatformRole } from "@/lib/auth";
+import { int, optStr, str } from "@/lib/form";
+
+const guard = () => requirePlatformRole(["catalog"], "/admin/catalogue");
+const friendly = (msg: string) =>
+  msg.includes("duplicate key") ? "Cet élément existe déjà." :
+  msg.includes("foreign key") ? "Impossible : cet élément est utilisé par une offre d'atelier." :
+  msg.includes("not complete") ? "Le produit n'est pas complet." : msg;
+
+export async function createProduct(fd: FormData) {
+  const { supabase } = await guard();
+  const name = str(fd, "name");
+  const categoryId = str(fd, "category_id");
+  if (name.length < 3) return { error: "Indiquez un nom d'au moins 3 caractères." };
+  if (!categoryId) return { error: "Choisissez une catégorie." };
+  const attributes = { material: optStr(fd, "material"), weight_gsm: int(fd, "weight_gsm") };
+  if (Number.isNaN(attributes.weight_gsm)) return { error: "Grammage : nombre entier (g/m²)." };
+  const { data, error } = await supabase
+    .from("base_products")
+    .insert({
+      category_id: categoryId,
+      slug: slugify(str(fd, "slug") || name),
+      name: { fr: name },
+      description: { fr: str(fd, "description") },
+      attributes,
+      status: "draft",
+    })
+    .select("id")
+    .single();
+  if (error) return { error: friendly(error.message) };
+  redirect(`/admin/catalogue/${data.id}`);
+}
+
+export async function updateProduct(id: string, fd: FormData) {
+  const { supabase } = await guard();
+  const name = str(fd, "name");
+  if (name.length < 3) return { error: "Indiquez un nom d'au moins 3 caractères." };
+  const weight = int(fd, "weight_gsm");
+  if (Number.isNaN(weight)) return { error: "Grammage : nombre entier (g/m²)." };
+  const { error } = await supabase
+    .from("base_products")
+    .update({ name: { fr: name }, description: { fr: str(fd, "description") }, attributes: { material: optStr(fd, "material"), weight_gsm: weight } })
+    .eq("id", id);
+  if (error) return { error: friendly(error.message) };
+  revalidatePath(`/admin/catalogue/${id}`);
+  return { ok: "Enregistré." };
+}
+
+export async function setProductStatus(id: string, status: "draft" | "active" | "archived") {
+  const { supabase, user } = await guard();
+  const { data: p } = await supabase
+    .from("base_products")
+    .select("status, name, variants:base_product_variants(count), views:product_views(count), zones(id, allowed_techniques)")
+    .eq("id", id)
+    .single();
+  if (!p) return { error: "Produit introuvable." };
+  if (status === "active") {
+    const zones = (p.zones ?? []) as { allowed_techniques: string[] }[];
+    const blockers = publishBlockers({
+      name: String((p.name as { fr?: string })?.fr ?? ""),
+      variants: (p.variants as unknown as { count: number }[])[0]?.count ?? 0,
+      views: (p.views as unknown as { count: number }[])[0]?.count ?? 0,
+      zones: zones.length,
+      zonesWithoutTechnique: zones.filter((z) => z.allowed_techniques.length === 0).length,
+    });
+    if (blockers.length) return { error: blockers.join("\n") };
+  }
+  const { error } = await supabase.from("base_products").update({ status }).eq("id", id);
+  if (error) return { error: friendly(error.message) };
+  await audit({ actorUserId: user.id, action: `product.${status}`, entityType: "base_product", entityId: id, before: { status: p.status }, after: { status } });
+  revalidatePath(`/admin/catalogue/${id}`);
+  return { ok: status === "active" ? "Produit publié." : "Statut mis à jour." };
+}
+
+export async function addColor(productId: string, fd: FormData) {
+  const { supabase } = await guard();
+  const label = str(fd, "color_label");
+  const hex = str(fd, "color_hex").toUpperCase();
+  const sizes = parseSizes(str(fd, "sizes"));
+  if (!label) return { error: "Nommez la couleur (ex. Ivoire)." };
+  if (!isHexColor(hex)) return { error: "Code couleur au format #RRGGBB." };
+  if (sizes.length === 0) return { error: "Indiquez au moins une taille (ex. S, M, L, XL ou « Unique »)." };
+  const rows = sizes.map((size) => ({ base_product_id: productId, color_key: toKey(label), color_hex: hex, size }));
+  const { error } = await supabase.from("base_product_variants").upsert(rows, { onConflict: "base_product_id,color_key,size", ignoreDuplicates: true });
+  if (error) return { error: friendly(error.message) };
+  revalidatePath(`/admin/catalogue/${productId}`);
+  return { ok: `${label} : ${sizes.join(", ")} ajoutées.` };
+}
+
+export async function deleteVariant(productId: string, variantId: string) {
+  const { supabase } = await guard();
+  const { error } = await supabase.from("base_product_variants").delete().eq("id", variantId);
+  if (error) return { error: friendly(error.message) };
+  revalidatePath(`/admin/catalogue/${productId}`);
+}
+
+export async function addView(productId: string, fd: FormData) {
+  const { supabase } = await guard();
+  const label = str(fd, "view_label");
+  if (!label) return { error: "Nommez la vue (ex. Devant)." };
+  const { error } = await supabase.from("product_views").insert({ base_product_id: productId, key: toKey(label), mockup_assets: { label } });
+  if (error) return { error: friendly(error.message) };
+  revalidatePath(`/admin/catalogue/${productId}`);
+  return { ok: "Vue ajoutée." };
+}
+
+export async function addZone(productId: string, fd: FormData) {
+  const { supabase } = await guard();
+  const label = str(fd, "zone_label");
+  const zone = {
+    key: toKey(label),
+    maxWidthMm: int(fd, "max_width_mm") ?? Number.NaN,
+    maxHeightMm: int(fd, "max_height_mm") ?? Number.NaN,
+    techniques: fd.getAll("techniques").map(String).filter(isTechnique),
+  };
+  const errors = validateZone(zone);
+  if (!label) errors.unshift("Nommez la zone (ex. Poitrine gauche).");
+  if (errors.length) return { error: errors.join("\n") };
+  const anchorNote = str(fd, "anchor");
+  const { error } = await supabase.from("zones").insert({
+    base_product_id: productId,
+    view_id: str(fd, "view_id"),
+    key: zone.key,
+    max_width_mm: zone.maxWidthMm,
+    max_height_mm: zone.maxHeightMm,
+    allowed_techniques: zone.techniques,
+    anchor: { label, note: anchorNote || null },
+  });
+  if (error) return { error: friendly(error.message) };
+  revalidatePath(`/admin/catalogue/${productId}`);
+  return { ok: "Zone ajoutée." };
+}
+
+export async function deleteZone(productId: string, zoneId: string) {
+  const { supabase } = await guard();
+  const { error } = await supabase.from("zones").delete().eq("id", zoneId);
+  if (error) return { error: friendly(error.message) };
+  revalidatePath(`/admin/catalogue/${productId}`);
+}

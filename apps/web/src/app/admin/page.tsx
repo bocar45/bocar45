@@ -1,26 +1,32 @@
 import Link from "next/link";
-import { requirePlatformRole } from "@/lib/auth";
+import { hasPlatformRole, requirePlatformRole } from "@/lib/auth";
 
 export const metadata = { title: "Administration" };
 
 export default async function AdminHome() {
-  const { supabase } = await requirePlatformRole(["ops", "vendor_manager", "catalog", "support", "finance"], "/admin");
-  const { count, error } = await supabase
-    .from("organizations")
-    .select("id", { count: "exact", head: true })
-    .eq("kind", "vendor")
-    .eq("status", "pending");
+  const { supabase, memberships } = await requirePlatformRole(["ops", "vendor_manager", "catalog", "support", "finance"], "/admin");
+  const can = (r: Parameters<typeof hasPlatformRole>[1]) => hasPlatformRole(memberships, r);
+  const [pending, products, rules] = await Promise.all([
+    supabase.from("organizations").select("id", { count: "exact", head: true }).eq("kind", "vendor").eq("status", "pending"),
+    supabase.from("base_products").select("id", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("price_rule_sets").select("version").eq("status", "active").maybeSingle(),
+  ]);
+  const tiles = [
+    can(["ops", "vendor_manager"]) && { href: "/admin/ateliers", label: "Candidatures d'ateliers à traiter", value: String(pending.count ?? 0) },
+    can(["catalog", "ops", "vendor_manager"]) && { href: "/admin/catalogue", label: "Produits publiés", value: String(products.count ?? 0) },
+    can(["finance", "ops", "catalog"]) && { href: "/admin/regles-prix", label: "Règles de prix actives", value: rules.data ? `v${rules.data.version}` : "aucune" },
+  ].filter(Boolean) as { href: string; label: string; value: string }[];
   return (
     <div className="grid gap-6">
       <h1 className="font-display text-3xl">Administration</h1>
-      {error ? (
-        <p role="alert" className="text-error">⚠ Lecture impossible : {error.message}</p>
-      ) : (
-        <Link href="/admin/ateliers" className="w-fit rounded-lg border border-line bg-surface p-4">
-          <span className="block text-sm text-muted">Candidatures d&apos;ateliers à traiter</span>
-          <b className="text-2xl tabular-nums">{count ?? 0}</b>
-        </Link>
-      )}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {tiles.map((t) => (
+          <Link key={t.href} href={t.href} className="grid gap-1 rounded-lg border border-line bg-surface p-4">
+            <span className="text-sm text-muted">{t.label}</span>
+            <b className="text-2xl tabular-nums">{t.value}</b>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

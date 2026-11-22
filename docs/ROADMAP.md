@@ -30,7 +30,11 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Phase 2 (début) — monorepo, CI, `domain` (Money XOF), `pricing` (moteur de prix), `workflow` (machine à états) avec tests
 - [x] Phase 2 — Supabase + Vercel choisis (D8b) ; migration 1 (identité, rôles, catalogue, ateliers, règles de prix, audit) avec RLS testée (`pnpm db:test`)
 - [x] Phase 2 — application Next.js : connexion par téléphone + code (e-mail en secours), compte, candidature atelier, validation des ateliers par l'admin avec journal d'audit
-- [ ] Phase 2 — créer les projets Supabase/Vercel (porteur), admin catalogue (produits, vues, zones), offres et grilles de prix des ateliers, types générés
+- [x] Phase 2 — admin catalogue : produits, couleurs/tailles, vues, zones (techniques, dimensions), publication contrôlée (app + trigger SQL), audit
+- [x] Phase 2 — règles de prix SAWWA versionnées (finance), activation tracée, versions activées figées
+- [x] Phase 2 — espace atelier : offres (variantes, zones × techniques, grille de prix par palier, frais fixes), grille versionnée immuable ; réservé aux ateliers actifs (RLS)
+- [x] Phase 2 — fiche atelier admin : simulation des prix publics par le moteur de prix
+- [ ] Phase 2 — créer les projets Supabase/Vercel (porteur), types générés, enregistrement d'offre atomique (RPC), test des écrans de bout en bout sur un vrai projet Supabase
 
 ## Critères d'acceptation par jalon
 **Phase 1**
