@@ -124,7 +124,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Chaque opération crée une nouvelle image (l'original n'est pas modifié) et s'annule.
 - [ ] Agrandissement sans perte (« upscale ») : reporté à l'étape IA (E22), comme prévu.
 
-## E18d — Modération des images importées 🔎 (avant le lancement public)
+## E18d — Modération des images importées ✅ (avant le lancement public)
 - [x] Déclaration de droits avant le premier import d'image (studio, photo d'un modèle, logo d'une demande de devis) ; date enregistrée sur la création (`designs.rights_declared_at`) ; enregistrement et commande refusés sans déclaration si la création contient des images importées. Décision D22.
 - [x] Signalement : un atelier depuis la fiche de production, toute personne connectée depuis un modèle (`/signaler`) ; la base vérifie que la personne voit bien le contenu.
 - [x] File de modération `/admin/moderation` (ops, support) : retenir (modèle retiré de la galerie, ou production de la commande mise en pause) ou classer sans suite, avec décision écrite et journal d'audit ; alerte au-delà de 48 h.

@@ -2,6 +2,22 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E18d (2e passage) — VALIDÉ
+Commit examiné : 510e4ac (depuis 987d89c), `git status` propre, branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (131) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.
+Vérification navigateur : non refaite (pas de Supabase réel) ; l'auteur indique avoir testé deux comptes sur le même navigateur. Bout en bout réel : en attente du porteur (E11).
+Critères de l'étape :
+- [x] Déclaration de droits rattachée au compte : clé `sawwa:droits-images:<userId>` (`studio.tsx:66`), rien de lu ni d'écrit sans connexion (`:81-85`, `:517`) ; `saveToAccount` ouvre la fenêtre si la création contient des images importées sans accord de ce compte, puis enregistre avec `rightsDeclared` uniquement après cet accord (`:252-257`, `:280`). Un 2e compte n'hérite plus de l'accord du 1er. Contrôles serveur inchangés (enregistrement, commande, logo du devis).
+- [x] Signalements, file de modération, refus motivés au BAT : acquis au 1er passage, inchangés.
+- [x] Remarques du 1er passage traitées : l'ancienne création sans déclaration ouvre désormais la fenêtre à l'enregistrement ; trigger `app.guard_report_resolution` (décision unique depuis `open`, contenu du signalement figé) testé (réouverture refusée, réécriture refusée) ; test « un atelier ne lit pas la file » ajouté (section 17).
+Critères communs : C1 ✅ · C2 ✅ · C3 ✅ (grep secrets vide dans apps/packages ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ · C6 ✅ (D22, DATABASE, ROADMAP ; poussé ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- Le trigger a été ajouté dans la migration 9 existante au lieu d'une nouvelle migration : acceptable tant qu'aucune base réelle n'a appliqué la migration 9 (E11 pas encore fait). Après cette date, ne plus modifier une migration publiée.
+- Quand la fenêtre s'ouvre depuis « Commander », la commande s'arrête après l'accord et l'enregistrement : le client doit cliquer de nouveau sur « Commander ». À fluidifier plus tard.
+- Toujours ouvert : le client n'est pas prévenu automatiquement quand un signalement sur sa commande est retenu (à faire avec les notifications) ; aucun test SQL pour le rôle `support`.
+Décision : passer à E20
+
 ## 2026-11-22 — E18d — À CORRIGER
 Commit examiné : 987d89c (depuis 887f845, wip 05e25f4 inclus), `git status` propre, branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (131, 21 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0, routes `/admin/moderation` et `/signaler` présentes)
