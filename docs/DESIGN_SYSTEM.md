@@ -11,10 +11,10 @@ Visualisation : `design/maquettes.html` (palette, typographie, trame, maquettes 
 | Petite taille | Lisible en favicon 16×16 px et en broderie 15 mm (≈ 1 500 points). Pas de traits < 1 mm à 15 mm de large. |
 | Broderie | ≤ 2 couleurs, pas de dégradé, pas de zones fines entrelacées serrées (le fil ne peut pas passer « dessous »). Un entrelacement S/W doit être traduit par des **coupures nettes** (gaps ≥ 0,8 mm à 15 mm). |
 | Monochrome | Fonctionne en un aplat, positif et négatif. |
-| Grille | Construit sur une grille géométrique (cercle + diagonales à 45°/60°) : c'est là que l'écho à la géométrie arabe est le plus élégant — par la construction, pas par l'ornement. |
+| Fidélité | Le plein-délié calligraphique du S et l'envol du W sont préservés (consigne du porteur). |
 | Unicité | Vérifier l'antériorité (INPI/EUIPO/WIPO, classes 25, 35, 40, 42) avant tout investissement marketing. → **Décision D10.** |
 
-**Mot SAWWA** : 5 lettres, deux W consécutifs → risque d'un bloc visuel dense. Recommandations : capitales, interlettrage positif (+4 à +8 %), W à **pointes tronquées ou arrondies** pour éviter l'effet « dents de scie », A sans barre ou avec barre basse en écho au chevron du W. Dessiner le mot sur mesure à partir d'une base géométrique (Jost / Futura) plutôt que de taper une police.
+**Mot SAWWA** : on conserve le dessin du logo fourni (A sans barre avec losange, W pointus). Seul ajustement possible : un interlettrage légèrement ouvert pour les petites tailles.
 
 Déclinaisons à produire : principale, horizontale, verticale, symbole seul, mono, clair/sombre, **version brodable**, favicon 16/32, icône d'app (fond terracotta, symbole ivoire).
 

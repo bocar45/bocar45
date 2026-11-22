@@ -23,7 +23,8 @@ L'aperçu 3D est un **panneau à côté du canvas** sur desktop (mise à jour en
 |---|---|
 | Rotation libre | Glisser pour tourner, pincer pour zoomer, limites d'angle pour rester flatteur |
 | Vues rapides | Face · Dos · Profil gauche · Profil droit · Zoom sur la zone sélectionnée |
-| Mannequin | **Homme / Femme** ; **teinte de peau** (5 choix — indispensable pour une marque qui s'adresse à l'Afrique et à l'international) ; taille portée (S/M/L/XL : le vêtement est mis à l'échelle) |
+| Mannequins | **De vrais êtres humains numériques, photoréalistes** (pas de mannequin de vitrine, pas de dessin). Un **casting** de 8 personnes au lancement : homme et femme, peau très foncée, brune, métisse, claire ; traits africains, arabes, européens ; coiffures variées (locks, tresses, cheveux crépus, ras, lisses), et une femme voilée en option. Voir §3 « Casting » |
+| Taille portée | S/M/L/XL : le vêtement est ajusté sur le corps |
 | Animations | Pose neutre · Tour sur soi-même · Marche · Bras croisés (mise en valeur du devant) · Mouvement de dos |
 | Rotation automatique | Tour lent en boucle à l'ouverture (« turntable »), désactivée si l'utilisateur interagit ou si `prefers-reduced-motion` |
 | Couleur du produit | Changement instantané de la couleur du vêtement dans la vue 3D |
@@ -31,11 +32,37 @@ L'aperçu 3D est un **panneau à côté du canvas** sur desktop (mise à jour en
 | Repli | Appareil trop faible ou 3D indisponible → mockups photo 2D, sans message d'erreur |
 
 ## 3. Comment c'est construit
-### Avatars
-- **2 morphologies de base** (homme, femme), riggées sur un squelette standard humanoïde (compatible avec les bibliothèques d'animations type Mixamo).
-- Source : avatar acheté sous **licence autorisant le temps réel sur le web** et la modification (ex. Character Creator / marketplaces 3D), ou réalisé par un artiste. ⚠️ MetaHuman est exclu : sa licence limite l'usage au moteur Unreal.
-- Peau : une texture neutre + teinte paramétrée (shader), donc 5 teintes sans multiplier les fichiers.
-- Visage stylisé et discret (style « mannequin de boutique haut de gamme ») : plus élégant, plus léger, évite l'effet « vallée de l'étrange », et ne représente personne en particulier.
+### Humains numériques photoréalistes
+**Exigence (22/11/2026)** : de vraies personnes, réalistes, de toutes les origines, pas un mannequin stylisé.
+
+**Casting de lancement (8 personnes)**
+| # | Personne | Peau | Coiffure |
+|---|---|---|---|
+| 1 | Femme d'Afrique de l'Ouest | très foncée | tresses |
+| 2 | Homme d'Afrique de l'Ouest | très foncée | coupe courte |
+| 3 | Femme | brune | cheveux crépus naturels |
+| 4 | Homme | brun | locks |
+| 5 | Femme d'origine arabe / maghrébine | mate | cheveux longs ; variante voilée |
+| 6 | Homme d'origine arabe / maghrébine | mate | barbe courte |
+| 7 | Femme | claire | cheveux lisses |
+| 8 | Homme | clair | cheveux courts |
+Plus tard : enfants, morphologies plus rondes, seniors.
+
+**D'où viennent ces personnes** (par ordre de préférence)
+1. **Scans 3D de vrais modèles**, payés et sous contrat de cession de droits (photogrammétrie en studio, à Dakar et/ou en France). C'est le meilleur réalisme, c'est éthique, et cela raconte une histoire de marque (« les visages SAWWA »).
+2. **Humains numériques sous licence** issus de bibliothèques de scans professionnelles, avec licence autorisant le temps réel sur le web et la modification. Vérifier la diversité réelle du catalogue.
+3. **Création par un artiste** (Character Creator, ZBrush) à partir de photos de référence de modèles consentants.
+⚠️ Exclus : MetaHuman (licence limitée au moteur Unreal), visages générés qui ressembleraient à une personne réelle sans son accord, et toute caricature ethnique. Chaque personne du casting est validée par toi.
+
+**Comment on garde des coûts raisonnables** : les 8 personnes partagent **2 corps de base** (homme, femme) ; ce qui change, ce sont la tête, la peau, les cheveux et les mains. Ainsi **un vêtement modélisé pour le corps femme va sur les 4 femmes**, sans refaire le vêtement 4 fois.
+
+**Réalisme dans le navigateur**
+- Peau avec diffusion sous la surface (aspect de vraie peau, pas de plastique), carte de pores, éclairage studio en HDRI.
+- Cheveux en mèches texturées (technique standard des jeux vidéo), pas de cheveux simulés.
+- Poids : ≈ 6–10 Mo par personne en haute qualité, chargés au clic et mis en cache ; version allégée automatique sur téléphone d'entrée de gamme.
+
+**Rendu « photo studio » (complément)**
+Le temps réel du navigateur est très bon mais pas parfait. Pour les fiches produits, le partage et les campagnes, un **serveur de rendu** (Blender Cycles sur GPU) produit des **photos et courtes vidéos d'un réalisme photographique** de la création portée par la personne choisie : quelques secondes de calcul, ≈ 0,02–0,10 € par image. Le client tourne la vue en temps réel, puis télécharge une « photo » de qualité studio.
 
 ### Vêtements
 - Modélisés dans un outil de patronage 3D (CLO 3D / Marvelous Designer) **à partir des vraies mesures du produit de référence** (tableau des tailles de l'atelier).
@@ -69,12 +96,14 @@ Pas de simulation textile en temps réel dans le navigateur : trop lourde pour l
 ## 4. Coût de production des assets (devis à confirmer en phase 1)
 | Lot | Contenu | Estimation |
 |---|---|---|
-| Avatars | Homme + femme, rig, 5 animations, shader de peau | 2 000 – 5 000 € |
-| Vêtements niveau A | T-shirt H, T-shirt F, hoodie (×2 morphologies), polo H/F | 6 × 800 – 2 000 € = 5 000 – 12 000 € |
+| Humains photoréalistes | 2 corps de base riggés + 8 têtes/peaux/coiffures (scans de modèles rémunérés ou licences), 5 animations | 15 000 – 35 000 € |
+| Vêtements niveau A | T-shirt H, T-shirt F, hoodie (×2 corps), polo H/F — partagés par tout le casting | 6 × 800 – 2 000 € = 5 000 – 12 000 € |
 | Simulation niveau B | 2 animations vitrines × 2 vêtements × 2 morphologies | 2 000 – 5 000 € |
 | Objets | Mug, gourde, casquette, tote bag | 4 × 300 – 900 € |
-| **Total premier lot** | | **≈ 10 000 – 25 000 €** |
-Coût de fonctionnement : quasi nul (rendu dans le navigateur du client ; fichiers servis depuis le CDN sans frais de sortie).
+| Serveur de rendu photo | Mise en place (scènes, éclairages) | 2 000 – 4 000 € |
+| **Total premier lot** | | **≈ 25 000 – 60 000 €** |
+| Variante économique | 4 personnes au lieu de 8 (une par grande origine, H/F alternés), extension ensuite | ≈ 15 000 – 30 000 € |
+Coût de fonctionnement : quasi nul pour la 3D temps réel; rendu photo studio à la demande (rendu dans le navigateur du client ; fichiers servis depuis le CDN sans frais de sortie).
 
 Chaque nouveau vêtement ajouté plus tard coûte un modèle par morphologie. C'est pourquoi le catalogue « porté en 3D » doit rester concentré sur les best-sellers ; les autres produits ont le mode « Produit » ou les mockups photo.
 
@@ -82,15 +111,16 @@ Chaque nouveau vêtement ajouté plus tard coûte un modèle par morphologie. C'
 La production des assets 3D est longue (6–10 semaines avec un artiste) mais **indépendante du code**. Elle démarre donc **dès la phase 1**, en parallèle :
 | Phase | 3D |
 |---|---|
-| 1 | Cahier des charges 3D, choix de l'artiste/studio, achat des avatars, mesures produits des ateliers pilotes |
+| 1 | Cahier des charges 3D, **casting** (validation des 8 profils), choix du studio de scan/artiste, contrats de cession de droits, mesures produits des ateliers pilotes |
 | 3 (tranche verticale) | Visionneuse 3D intégrée au studio : mug + t-shirt en mode « Produit » ; architecture texture atlas et UV en place |
-| 5 | **Mannequins homme/femme** avec t-shirt et hoodie, animations niveau A, choix teinte de peau et taille |
+| 5 | **Humains photoréalistes** (casting complet) avec t-shirt et hoodie, animations niveau A, choix de la personne et de la taille, rendu photo studio |
 | 7 | Animations vitrines niveau B, broderie en relief, casquette, vidéo partageable |
 
 ## 6. Critères d'acceptation
 - [ ] Un logo placé à 7 cm sous le col dans le studio apparaît à 7 cm ± 5 mm sur le modèle 3D (contrôle avec une mire).
 - [ ] Le changement de design se reflète dans la vue 3D en < 500 ms.
-- [ ] Changement homme/femme, teinte, taille, animation sans rechargement de page.
+- [ ] Changement de personne, taille et animation sans rechargement de page.
+- [ ] Test de réalisme : sur 10 personnes, la majorité juge la vue « réaliste » ; validation du casting par le porteur du projet et par des personnes des communautés représentées.
 - [ ] Android milieu de gamme : ≥ 30 i/s, premier rendu < 3 s en 4G.
 - [ ] Repli 2D automatique testé sur un appareil sans WebGL2.
 - [ ] Mesure : taux d'ouverture de la 3D et effet sur la conversion (test A/B).

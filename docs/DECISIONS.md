@@ -39,8 +39,8 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 
 ## D6b 🟡 3D complète en visualisation, mannequin homme/femme
 - **Demande** (22/11/2026) : édition en 2D, visualisation en 3D (rotation, zoom), mannequin homme ou femme qui porte et fait bouger le vêtement.
-- **Recommandation** : visionneuse 3D intégrée au studio (mode « Produit » + mode « Porté »), 2 avatars riggés, 5 teintes de peau, tailles, 5 animations ; vêtements skinnés d'abord, simulation textile pré-calculée pour les animations vitrines. Production des assets en **piste parallèle dès la phase 1**. Détail : `VISUALISATION_3D.md`.
-- **Coût** : ≈ 10–25 k€ pour le premier lot d'assets ; coût de fonctionnement quasi nul.
+- **Recommandation** : visionneuse 3D intégrée au studio (mode « Produit » + mode « Porté »), **humains numériques photoréalistes** (casting de 8 personnes de toutes origines : africaines, arabes, métisses, claires ; 2 corps de base partagés), tailles, 5 animations, rendu photo studio côté serveur ; vêtements skinnés d'abord, simulation textile pré-calculée pour les animations vitrines. Production des assets en **piste parallèle dès la phase 1**. Détail : `VISUALISATION_3D.md`.
+- **Coût** : ≈ 25–60 k€ pour le premier lot (≈ 15–30 k€ en variante 4 personnes) ; fonctionnement quasi nul.
 - **Avis CTO** : faisable et différenciant si l'on limite le « porté » aux best-sellers (t-shirt, hoodie, polo) et que l'on garde un repli 2D.
 
 ## D7 🟡 Périmètre IA V1
@@ -59,9 +59,9 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 ## D10 🟡 Identité : ajustements proposés
 - Ajout d'une couleur **indigo** fonctionnelle et de teintes d'accessibilité (terracotta-700, olive-700, sable-700).
 - Typographies : Fraunces (titres éditoriaux) + Manrope (interface), ou alternative tout-géométrique Jost + Manrope.
-- Mot SAWWA dessiné sur mesure (W tronqués).
+- Mot SAWWA conservé tel que dessiné dans le logo fourni.
 - Recherche d'antériorité de marque avant dépenses marketing.
-- Logo reçu le 22/11/2026 et audité (`LOGO_AUDIT.md`) : garder S-ruban + W + losange, redessiner en vectoriel, aplats, retirer le motif intérieur du logo principal, système à 3 niveaux.
+- Logo reçu le 22/11/2026 et audité (`LOGO_AUDIT.md`). **Consigne du porteur : ne pas dénaturer le logo ni le SW, préserver la touche calligraphique arabe.** → vectorisation fidèle ; simplifications réservées aux versions techniques (broderie, icône).
 - Palette alignée sur le logo : terracotta #B5562A (action #93421D, blanc 6,9:1), brun de marque #2A1A12, ajout **ocre #B07A2A** (décoratif).
 
 ## D11 🟡 Ordre de développement

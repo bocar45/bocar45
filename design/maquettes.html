@@ -145,7 +145,16 @@ td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-n
 .lv-art{aspect-ratio:3/2;border-radius:8px;background:var(--ivoire);display:grid;place-items:center;overflow:hidden}
 .lv-art img{width:100%;height:100%;object-fit:cover}
 .lv-art svg{width:60%;height:auto}
-.lv-art svg [stroke="var(--fg)"]{stroke:#2A1A12}
+.crop-sym{width:100%;height:100%;background:url("logo-reference-v0.webp") no-repeat;background-size:200%;background-position:51% 24%}
+.icon-sq{width:58%;aspect-ratio:1;border-radius:22%;overflow:hidden;background:#F8E9D7;border:1px solid var(--line)}
+.icon-sq .crop-sym{background-size:220%;background-position:51% 10%}
+.cast{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.person{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:6px;background:var(--surface);min-width:0}
+.person.on{border-color:var(--action);box-shadow:0 0 0 1px var(--action)}
+.portrait{aspect-ratio:3/4;border-radius:7px;display:grid;place-items:end start;padding:6px;font:600 10.5px var(--f-ui);color:#fff}
+.person b{font-size:12.5px}.person span{font-size:11.5px;color:var(--muted)}
+.stage-ph{width:min(100%,360px);aspect-ratio:3/4;border-radius:12px;border:1.5px dashed var(--line);display:grid;place-items:center;text-align:center;padding:24px;gap:8px;align-content:center;background:color-mix(in srgb,var(--surface) 70%,transparent)}
+@media (max-width:900px){.cast{grid-template-columns:repeat(2,1fr)}}
 .v3d{display:grid;grid-template-columns:1fr 280px;min-height:500px}
 .v3d-stage{position:relative;background:radial-gradient(120% 90% at 50% 30%,var(--surface) 0%,var(--surface-2) 70%);display:grid;place-items:center;padding:24px;min-width:0}
 .v3d-stage svg{width:100%;max-width:300px;height:auto}
@@ -213,14 +222,14 @@ td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-n
 </header>
 
 <section class="sec" aria-labelledby="logo">
-  <div class="sec-head"><span class="eyebrow">Logo</span><h2 id="logo">Garder l'idée, simplifier le dessin</h2>
-  <p class="muted">Le S en ruban, le W anguleux et le losange ocre forment une bonne base. Pour la broderie, le favicon et le monochrome, le logo doit passer en aplats, perdre le motif intérieur et épaissir ses pointes. Trois niveaux : Signature, Principal, Icône.</p></div>
+  <div class="sec-head"><span class="eyebrow">Logo</span><h2 id="logo">Le logo d'origine, vectorisé fidèlement</h2>
+  <p class="muted">Le plein-délié calligraphique du S, l'envol du W, le losange-point et le motif sont conservés. Seules les versions techniques (broderie, icône) sont allégées, parce que le fil et les petits écrans ne peuvent pas tout reproduire.</p></div>
   <div class="logo-levels">
-    <div class="lv"><div class="lv-art"><img src="logo-reference-v0.webp" alt="Version Signature : logo complet avec motif"></div><b>Signature</b><span class="note">Symbole complet, motif simplifié. Packaging, enseigne, grand format.</span></div>
-    <div class="lv"><div class="lv-art"><svg viewBox="0 0 120 90" aria-hidden="true"><path d="M58 18c-14-8-34-4-38 8-4 13 14 18 26 22 12 4 18 10 12 18-6 8-22 8-32 2" fill="none" stroke="var(--terra)" stroke-width="9" stroke-linecap="round"/><path d="M52 34 L66 76 L80 44 L92 76 L108 22" fill="none" stroke="var(--fg)" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><rect x="56" y="3" width="8" height="8" fill="var(--ocre)" transform="rotate(45 60 7)"/></svg></div><b>Principal (croquis d'intention)</b><span class="note">Aplats, un seul losange, pointes épaissies. Site, réseaux, étiquettes.</span></div>
-    <div class="lv"><div class="lv-art"><svg viewBox="0 0 90 90" aria-hidden="true"><rect x="5" y="5" width="80" height="80" rx="18" fill="var(--terra)"/><path d="M44 26c-9-5-21-3-23 5-2 8 9 11 16 13 8 3 11 7 7 12-4 5-14 5-20 1" fill="none" stroke="#F2E9D8" stroke-width="6" stroke-linecap="round"/><path d="M40 36 L48 62 L56 42 L63 62 L72 30" fill="none" stroke="#F2E9D8" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg></div><b>Icône</b><span class="note">Une couleur, carré. Favicon, app, broderie ≤ 20 mm. Le losange seul sous 24 px.</span></div>
+    <div class="lv"><div class="lv-art"><img src="logo-reference-v0.webp" alt="Logo SAWWA principal : symbole S calligraphique et W, losanges ocre, mot SAWWA"></div><b>Principale</b><span class="note">Logo complet, fidèle, en aplats. Site, documents, packaging.</span></div>
+    <div class="lv"><div class="lv-art crop-sym" role="img" aria-label="Symbole S et W seul, avec le losange-point"></div><b>Symbole</b><span class="note">S + W + losange-point, sans le mot. Réseaux sociaux, étiquettes, broderie (motif retiré sous 40 mm).</span></div>
+    <div class="lv"><div class="lv-art"><div class="icon-sq"><div class="crop-sym" role="img" aria-label="Symbole recentré dans un carré pour l'icône"></div></div></div><b>Icône</b><span class="note">Le même symbole recentré dans un carré. Favicon, application ; losange seul sous 24 px.</span></div>
   </div>
-  <p class="note">Les croquis « Principal » et « Icône » montrent l'intention de simplification. Le dessin final sera fait par un designer, en vectoriel.</p>
+  <p class="note">Visuels tirés de l'image d'origine. La version vectorielle sera superposée à l'original pour contrôler qu'aucune forme ne change.</p>
 </section>
 
 <section class="sec" aria-labelledby="pal">
@@ -349,44 +358,33 @@ td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-n
 </section>
 
 <section class="sec" aria-labelledby="m2b">
-  <div class="sec-head"><span class="eyebrow">Maquette 2b · Voir en 3D</span><h2 id="m2b">Le mannequin porte la création et bouge</h2>
-  <p class="muted">On édite en 2D, on vérifie en 3D. Rotation au doigt, vues rapides, mannequin homme ou femme, cinq teintes de peau, taille portée et animations. La vue se met à jour pendant l'édition.</p></div>
+  <div class="sec-head"><span class="eyebrow">Maquette 2b · Voir en 3D</span><h2 id="m2b">De vraies personnes portent la création</h2>
+  <p class="muted">Des humains numériques photoréalistes, issus de scans de modèles rémunérés : femmes et hommes d'Afrique de l'Ouest, d'origine arabe, métisses, à peau claire. On choisit la personne, la taille et le mouvement, on tourne autour, et on télécharge une photo de qualité studio.</p></div>
   <div class="screen">
     <div class="bar"><i></i><i></i><i></i><span>sawwa.com/studio/tee-crew-180 · Voir en 3D</span></div>
     <div class="v3d">
       <div class="v3d-stage">
-        <div class="hud tl"><span class="chip-btn on">Porté</span><span class="chip-btn">Produit seul</span></div>
-        <svg viewBox="0 0 240 380" aria-label="Mannequin femme portant le t-shirt personnalisé, vue de trois quarts">
-          <ellipse cx="120" cy="368" rx="70" ry="8" fill="#000" opacity=".12"/>
-          <g fill="#8D5A3B">
-            <ellipse cx="120" cy="40" rx="20" ry="24"/>
-            <rect x="111" y="60" width="18" height="16" rx="6"/>
-            <path d="M72 96 Q60 150 64 196 L76 196 Q78 150 88 110 Z"/>
-            <path d="M168 96 Q180 150 176 196 L164 196 Q162 150 152 110 Z"/>
-            <path d="M96 214 L92 356 L110 356 L118 236 L122 236 L130 356 L148 356 L144 214 Z" fill="#3A3E4A"/>
-          </g>
-          <path d="M90 74 Q120 88 150 74 L178 96 L166 130 L154 124 L156 222 L84 222 L86 124 L74 130 L62 96 Z" fill="#F2E9D8" stroke="#D9CBB2" stroke-width="1.5"/>
-          <path d="M90 74 Q120 88 150 74" fill="none" stroke="#D9CBB2" stroke-width="2.5"/>
-          <path d="M104 150 Q120 156 138 148" fill="none" stroke="#E4D7C0" stroke-width="2"/>
-          <text x="120" y="122" text-anchor="middle" font-family="Fraunces,Georgia,serif" font-size="15" fill="#2A1A12">Teranga</text>
-          <text x="120" y="134" text-anchor="middle" font-family="Manrope,sans-serif" font-weight="800" font-size="5.5" letter-spacing="1.6" fill="#93421D">FOOTBALL CLUB</text>
-          <g transform="translate(120 162)"><circle r="12" fill="none" stroke="#2A1A12" stroke-width="2"/><path d="M-7 4 L-3.5 -5 L0 3 L3.5 -5 L7 4" fill="none" stroke="#B5562A" stroke-width="2"/></g>
-          <path d="M200 190 a80 22 0 1 1 -160 0" fill="none" stroke="var(--action)" stroke-width="1.5" stroke-dasharray="4 4"/>
-          <path d="M40 190 l-5 -6 m5 6 l7 -3" stroke="var(--action)" stroke-width="1.5" fill="none"/>
-        </svg>
+        <div class="hud tl"><span class="chip-btn on">Porté</span><span class="chip-btn">Produit seul</span><span class="chip-btn">Photo studio</span></div>
+        <div class="stage-ph">
+          <b style="font-size:15px">Vue 3D photoréaliste</b>
+          <span class="note">Aïssatou porte le t-shirt « Teranga FC », taille M, animation « Tour sur soi ». Ce cadre accueillera le rendu réel une fois les modèles scannés (piste 3D, phases 1 à 5). Aucun dessin ne remplace une vraie personne ici.</span>
+        </div>
         <div class="hud bl"><span class="chip-btn on">Face</span><span class="chip-btn">Dos</span><span class="chip-btn">Profil G</span><span class="chip-btn">Profil D</span><span class="chip-btn">Zoom zone</span></div>
       </div>
       <aside class="st-panel">
-        <div class="check"><h4>Mannequin</h4><div class="tabs"><span>Homme</span><span class="on">Femme</span></div></div>
-        <div class="check"><h4>Teinte de peau</h4><div class="skins"><i style="background:#F1C9A5"></i><i style="background:#D9A27A"></i><i style="background:#B07A55"></i><i class="on" style="background:#8D5A3B"></i><i style="background:#5C3A26"></i></div></div>
         <div class="check"><h4>Taille portée</h4><div class="tabs"><span>S</span><span class="on">M</span><span>L</span><span>XL</span></div></div>
-        <div class="check"><h4>Animation</h4><div class="tabs"><span>Pose</span><span class="on">Tour sur soi</span><span>Marche</span><span>Bras croisés</span></div></div>
+        <div class="check"><h4>Mouvement</h4><div class="tabs"><span>Pose</span><span class="on">Tour sur soi</span><span>Marche</span><span>Bras croisés</span></div></div>
         <div class="check"><h4>Couleur du t-shirt</h4><div class="skins"><i class="on" style="background:#F2E9D8;border-color:#D9CBB2"></i><i style="background:#2A1A12"></i><i style="background:#B5562A"></i><i style="background:#525944"></i><i style="background:#2F4B7C"></i></div></div>
+        <span class="btn btn-primary" style="justify-content:center">Télécharger la photo studio</span>
         <span class="btn btn-ghost" style="justify-content:center">Revenir à l'édition 2D</span>
-        <p class="note">Appareil trop faible : bascule automatique sur les mockups photo.</p>
       </aside>
     </div>
+    <div style="padding:16px;border-top:1px solid var(--line);display:grid;gap:10px">
+      <h4 style="margin:0;font:700 11px var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">Choisir la personne · casting de lancement</h4>
+      <div class="cast"><div class="person on"><div class="portrait" style="background:linear-gradient(160deg,#4A2E1F,color-mix(in srgb,#4A2E1F 70%,#000))">Portrait 3D à produire</div><b>Aïssatou</b><span>Femme · peau très foncée · tresses</span></div><div class="person"><div class="portrait" style="background:linear-gradient(160deg,#3E271A,color-mix(in srgb,#3E271A 70%,#000))">Portrait 3D à produire</div><b>Mamadou</b><span>Homme · peau très foncée · coupe courte</span></div><div class="person"><div class="portrait" style="background:linear-gradient(160deg,#7A4B30,color-mix(in srgb,#7A4B30 70%,#000))">Portrait 3D à produire</div><b>Nadia</b><span>Femme · peau brune · cheveux crépus</span></div><div class="person"><div class="portrait" style="background:linear-gradient(160deg,#6B4128,color-mix(in srgb,#6B4128 70%,#000))">Portrait 3D à produire</div><b>Kofi</b><span>Homme · peau brune · locks</span></div><div class="person"><div class="portrait" style="background:linear-gradient(160deg,#A9785A,color-mix(in srgb,#A9785A 70%,#000))">Portrait 3D à produire</div><b>Yasmine</b><span>Femme · peau mate · variante voilée</span></div><div class="person"><div class="portrait" style="background:linear-gradient(160deg,#9C6C4E,color-mix(in srgb,#9C6C4E 70%,#000))">Portrait 3D à produire</div><b>Karim</b><span>Homme · peau mate · barbe courte</span></div><div class="person"><div class="portrait" style="background:linear-gradient(160deg,#D9B49A,color-mix(in srgb,#D9B49A 70%,#000))">Portrait 3D à produire</div><b>Claire</b><span>Femme · peau claire · cheveux lisses</span></div><div class="person"><div class="portrait" style="background:linear-gradient(160deg,#CFA88C,color-mix(in srgb,#CFA88C 70%,#000))">Portrait 3D à produire</div><b>Thomas</b><span>Homme · peau claire · cheveux courts</span></div></div>
+    </div>
   </div>
+  <p class="note">Prénoms et profils proposés pour le casting, à valider. Les portraits seront ceux de vrais modèles consentants, scannés en studio.</p>
 </section>
 
 <section class="sec" aria-labelledby="m2c">
@@ -497,7 +495,7 @@ td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-n
 <section class="sec cap" aria-labelledby="next">
   <span class="eyebrow">Suite</span>
   <h2 id="next">Ce qu'il faut pour passer en phase 1</h2>
-  <p>L'arbitrage des décisions D1 à D13, deux ateliers pilotes prêts à partager leurs grilles de prix, et un designer pour redessiner le logo en vectoriel. En parallèle, le lancement de la piste 3D (artiste, avatars homme et femme). Les maquettes cliquables complètes des parcours clés seront produites en phase 1.</p>
+  <p>L'arbitrage des décisions D1 à D13, deux ateliers pilotes prêts à partager leurs grilles de prix, et un designer pour vectoriser fidèlement le logo. En parallèle, le lancement de la piste 3D : validation du casting et choix du studio de scan. Les maquettes cliquables complètes des parcours clés seront produites en phase 1.</p>
 </section>
 
 </div>
