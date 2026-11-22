@@ -30,14 +30,14 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 
 ---
 
-## E09 — Fichiers de production 🔎
+## E09 — Fichiers de production ✅
 **But** : l'atelier télécharge des fichiers prêts à imprimer, fidèles au studio.
-- [ ] PNG transparent par zone, taille réelle de la zone, 300 dpi (ex. 30 × 40 cm → 3543 × 4724 px).
-- [ ] Polices identiques au studio (instances fixes à la bonne graisse, licence OFL jointe), italique réelle quand elle existe.
-- [ ] Images originales en pleine résolution, jamais les aperçus.
-- [ ] Fiche PDF A4 : référence, produit, couleur, quantités par taille, une page par zone (technique, taille et position du marquage en cm, repère, couleurs, aperçu).
-- [ ] Accès réservé à l'atelier affecté (actif) et à l'équipe ops ; refusé avant affectation.
-- [ ] Tests du rendu SVG et du PDF.
+- [x] PNG transparent par zone, taille réelle de la zone, 300 dpi (ex. 30 × 40 cm → 3543 × 4724 px).
+- [x] Polices identiques au studio (instances fixes à la bonne graisse, licence OFL jointe), italique réelle quand elle existe.
+- [x] Images originales en pleine résolution, jamais les aperçus.
+- [x] Fiche PDF A4 : référence, produit, couleur, quantités par taille, une page par zone (technique, taille et position du marquage en cm, repère, couleurs, aperçu).
+- [x] Accès réservé à l'atelier affecté (actif) et à l'équipe ops ; refusé avant affectation.
+- [x] Tests du rendu SVG et du PDF.
 
 ## E10 — Correction de la création par le client ⏳
 **But** : après « correction demandée », le client corrige dans le studio et renvoie au BAT.

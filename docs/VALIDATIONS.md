@@ -2,6 +2,27 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E09 — VALIDÉ
+Commit examiné : d5b20f3 (second passage ; corrections après e4a8528, branche poussée sur `origin/claude/sawwa-audit-cto-r8vt01`)
+Contrôles : typecheck ✅ · tests ✅ (74, dont 8 dans `packages/render/src/render.test.ts` et 2 dans `apps/web/src/lib/print-images.test.ts`) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (route `/api/production/[fulfillmentId]` construite ; `sharp`, libvips et `@resvg/resvg-js` présents dans `route.js.nft.json`)
+Limite : pas de Supabase réel ni de Docker, la route n'a pas été appelée de bout en bout (à rejouer en E11). Accès et erreurs vérifiés en lisant le code ; rendu vérifié par un script Node qui enchaîne les mêmes appels que la route (`toPrintableImage` → `renderSurfaceSvg` → resvg avec les polices du dépôt → `setPngDpi` ; puis `buildProductionSheet`), sortie contrôlée avec PIL.
+Points du passage précédent :
+1. [x] WebP : `apps/web/src/lib/print-images.ts:7-11` convertit en PNG sans perte (sharp) tout format autre que PNG/JPEG, appelé dans `route.ts:26`. Test `print-images.test.ts:9-27` (pixel central WebP = #2F4B7C, opaque). Script : zone 300 × 400 mm avec trois images PNG, JPEG et WebP → pixels (192,57,43,255), (39,174,97,255), (47,75,124,255) ; fond transparent (0,0,0,0).
+2. [x] 300 dpi écrits : `packages/render/src/png.ts:26-53` insère `pHYs` après IHDR (remplace un existant), appliqué en `route.ts:87`. Test `render.test.ts:57-71`. Script : chunks IHDR/pHYs/IDAT/IEND, CRC valides, pHYs = 11811 × 11811 px/m unité mètre, PIL `dpi` = (300, 300), taille 3543 × 4724 px.
+3. [x] Erreurs rattrapées : `route.ts:49-55` enveloppe tout le traitement ; `ProductionError` pour image introuvable (502) ; toute autre exception (image corrompue, rendu, PDF) → 500 avec message français, journalisée côté serveur ; 401/403/404/409/400/500 en texte clair français (`route.ts:60-85`). Pas de test de la route (non exécutable ici), vérifié par lecture.
+4. [x] `docs/ROADMAP.md:44` : ligne E09 cochée. Dépendances justifiées en une ligne chacune dans le message de d5b20f3 (`@resvg/resvg-js`, `pdf-lib`, `sharp` 0.35.5, version exacte, déclarée dans `serverExternalPackages`).
+Critères de l'étape :
+- [x] PNG transparent par zone, taille réelle, 300 dpi (preuve : script ci-dessus, `render.test.ts`, `png.ts`).
+- [x] Polices identiques au studio (constat inchangé du passage précédent ; paramètres opsz/SOFT/WONK désormais documentés dans `packages/render/fonts/README.md:7-9`).
+- [x] Images originales en pleine résolution, WebP compris (preuve : point 1 ; conversion sans redimensionnement, test 64 × 64 → 64 × 64).
+- [x] Fiche PDF A4 (constat inchangé) ; `safe()` garde désormais « œ » et « € » (`sheet.ts:33`) : texte extrait du PDF généré = « Sweat cœur à 15 000 € ».
+- [x] Accès réservé à l'atelier affecté actif et à ops, refus avant affectation (`route.ts:60-73`, logique inchangée).
+- [x] Tests du rendu SVG, du PDF, de la résolution et de la conversion d'images.
+Critères communs : C1 ✅ · C2 ✅ (ni argent ni transition ; contrôle d'accès serveur avant le client service) · C3 ✅ (aucun secret : grep vide hors docs, `.env.example` avec clés vides ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ · C6 ✅ (ROADMAP à jour, commit poussé).
+Remarques non bloquantes : le test « keeps PNG and JPEG untouched » ne vérifie que le PNG ; la gestion d'erreurs de la route n'a pas de test automatisé (à couvrir lors du test de bout en bout E11).
+Corrections à faire (par priorité) : aucune.
+Décision : passer à E10
+
 ## 2026-11-22 — E09 — À CORRIGER
 Commit examiné : e4a8528 (livraison E09 : f385a15)
 Contrôles : typecheck ✅ · tests ✅ (70, dont 6 dans `packages/render/src/render.test.ts`) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (route `ƒ /api/production/[fulfillmentId]`)
