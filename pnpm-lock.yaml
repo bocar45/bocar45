@@ -117,6 +117,10 @@ importers:
       pdf-lib:
         specifier: 1.17.1
         version: 1.17.1
+    devDependencies:
+      '@resvg/resvg-js':
+        specifier: 2.6.2
+        version: 2.6.2
 
   packages/workflow: {}
 

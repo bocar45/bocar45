@@ -109,3 +109,32 @@ describe("vector layers in production files", () => {
     expect(svg).toContain('x="-40" y="-20" width="80" height="40"');
   });
 });
+
+describe("all-over pattern pieces (E18b)", async () => {
+  const { createRequire } = await import("node:module");
+  const { Resvg } = createRequire(import.meta.url)("@resvg/resvg-js") as typeof import("@resvg/resvg-js");
+  const { patternZones } = await import("@sawwa/design");
+  const pieces = patternZones("tee");
+  const front = pieces.find((p) => p.key === "piece_devant")!, back = pieces.find((p) => p.key === "piece_dos")!;
+  const allOver = { motif: "damier" as const, colors: ["#2A1A12", "#C9923E"] as [string, string], tileMm: 40 };
+  const raster = (z: typeof front) => {
+    const { svg } = renderSurfaceSvg({ zoneKey: z.key, technique: "sublimation", layers: [] }, z, { dpi: 25.4, images: {}, allOver }); // 1 px = 1 mm
+    const img = new Resvg(svg).render();
+    const px = img.pixels; // copy once
+    return { w: img.width, at: (x: number, y: number) => Array.from(px.slice((y * img.width + x) * 4, (y * img.width + x) * 4 + 4)) };
+  };
+  it("prints the motif inside the piece and nothing outside the bleed line", () => {
+    const f = raster(front);
+    expect(f.at(Math.round(front.maxWidthMm / 2), 10)[3]).toBe(0); // in the neckline: outside the piece
+    expect(f.at(Math.round(front.maxWidthMm / 2), 400)[3]).toBe(255);
+  });
+  it("continues the motif across the side seam: same garment point, same colour on front and back", () => {
+    const f = raster(front), b = raster(back);
+    for (const gy of [300, 455, 610]) {
+      const gx = 250; // near the side seam, garment frame
+      const fx = Math.round(gx - front.pattern.body!.x), fy = Math.round(gy - front.pattern.body!.y);
+      const bx = Math.round(gx - back.pattern.body!.x), by = Math.round(gy - back.pattern.body!.y);
+      expect(f.at(fx, fy)).toEqual(b.at(bx, by));
+    }
+  });
+});

@@ -77,3 +77,21 @@ describe("reference patterns (E18b)", async () => {
     expect(m.lengthMm).toBeLessThan(3000);
   });
 });
+
+describe("all-over pricing and checks (E18b)", async () => {
+  const { patternZones, decorationsFor, checkSurface } = await import("./index.ts");
+  const zones = patternZones("tee").map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm, pattern: z.pattern }));
+  it("prices every piece in full with the continuous motif, sleeves twice", () => {
+    const d = { ...emptyDocument("tee-aop", "blanc"), allOver: { motif: "bandes" as const, colors: ["#B5562A", "#F2E9D8"] as [string, string], tileMm: 60 } };
+    const deco = decorationsFor(d, zones);
+    expect(deco.map((x) => x.zoneKey)).toEqual(["piece_devant", "piece_dos", "piece_manche", "piece_manche", "piece_col"]);
+    expect(deco[0]).toMatchObject({ technique: "sublimation", widthMm: zones[0]!.maxWidthMm, colors: 1 });
+    expect(decorationsFor(emptyDocument("tee-aop", "blanc"), zones)).toEqual([]);
+  });
+  it("adds the all-over checks to the general ones for a piece", () => {
+    const z = zones[0]!;
+    const s = { zoneKey: z.key, technique: "sublimation", layers: [{ id: "t", type: "shape" as const, shape: "circle" as const, fill: "#000000", xMm: 280, yMm: 300, rotation: 0, widthMm: 50, heightMm: 50 }] };
+    expect(checkSurface(s, z).map((i) => i.code)).toContain("PIECE_NOT_COVERED");
+    expect(checkSurface(s, { maxWidthMm: 300, maxHeightMm: 400 }).map((i) => i.code)).not.toContain("PIECE_NOT_COVERED");
+  });
+});

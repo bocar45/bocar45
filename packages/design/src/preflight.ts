@@ -1,3 +1,4 @@
+import { patternPreflight, type AllOver, type PatternSpec } from "./pattern.ts";
 import type { Surface } from "./document.ts";
 import { effectiveDpi, layerBox, solidColors, visibleLayers } from "./geometry.ts";
 
@@ -64,3 +65,9 @@ export function preflight(surface: Surface, zone: { maxWidthMm: number; maxHeigh
 }
 
 export const blocking = (issues: Issue[]) => issues.some((i) => i.severity === "error");
+
+/** All checks of one surface: the general ones, plus the all-over checks for a pattern piece (E18b). */
+export function checkSurface(surface: Surface, zone: { maxWidthMm: number; maxHeightMm: number; pattern?: PatternSpec | null }, allOver?: AllOver | null): Issue[] {
+  const base = preflight(surface, zone);
+  return zone.pattern ? [...base, ...patternPreflight(surface, zone.pattern, zone, allOver ?? undefined)] : base;
+}
