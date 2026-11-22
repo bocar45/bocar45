@@ -45,6 +45,7 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Phase 4/5 (E10) — correction de la création par le client : studio ouvert sur la version commandée, nouvelle version figée, renvoi au BAT atomique, prix recalculé (supplément explicitement accepté, jamais de baisse remboursée), historique des versions pour le client, l'atelier et l'admin
 - [x] E14 — robustesse : offre atelier en une transaction, limitation de débit (SMS, prix, commandes, fichiers), contrôle et ré-encodage des fichiers, images limitées à celles du client, erreurs journalisées
 - [x] E18 — studio 3D en direct (2D + 3D), modèles provisoires calibrés en mm (D17), emplacements en un clic
+- [x] E18d — modération : déclaration de droits à l'import, signalements, file de modération, refus motivés au BAT (D22)
 - [x] E17 — devis B2B : demande en ligne, chiffrage par l'équipe avec le moteur de prix, prix ferme 30 jours, commande au prix du devis (D21)
 - [x] E16 — commandes d'équipe : nom et numéro par pièce, liste collée depuis un tableur, contrôle en direct, fichier d'impression par pièce et liste à cocher pour l'atelier (D20)
 - [x] E15 — modèles prêts à personnaliser : galerie par occasion, assistant photo + texte dans le studio, création et publication par l'équipe catalogue (D19)

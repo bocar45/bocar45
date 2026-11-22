@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → **E18d** → E20 → E21 → E22 (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → **E20** → E21 → E22 (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -124,8 +124,12 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Chaque opération crée une nouvelle image (l'original n'est pas modifié) et s'annule.
 - [ ] Agrandissement sans perte (« upscale ») : reporté à l'étape IA (E22), comme prévu.
 
-## E18d — Modération des images importées ⏳ (avant le lancement public)
-- [ ] Déclaration de droits à l'import ; signalement ; file de modération admin ; refus motivé au BAT pour marques et personnages protégés.
+## E18d — Modération des images importées 🔎 (avant le lancement public)
+- [x] Déclaration de droits avant le premier import d'image (studio, photo d'un modèle, logo d'une demande de devis) ; date enregistrée sur la création (`designs.rights_declared_at`) ; enregistrement et commande refusés sans déclaration si la création contient des images importées. Décision D22.
+- [x] Signalement : un atelier depuis la fiche de production, toute personne connectée depuis un modèle (`/signaler`) ; la base vérifie que la personne voit bien le contenu.
+- [x] File de modération `/admin/moderation` (ops, support) : retenir (modèle retiré de la galerie, ou production de la commande mise en pause) ou classer sans suite, avec décision écrite et journal d'audit ; alerte au-delà de 48 h.
+- [x] Refus motivé au BAT : motifs « marque déposée », « personnage ou œuvre protégés », « contenu interdit » (paquet `workflow`), expliqués au client avec ses options (corriger ou être remboursé).
+- [ ] Plus tard : détection automatique (IA, E22) ; signalement public sans compte si les abus l'exigent.
 
 ## E19 — Humains photoréalistes (piste 3D) ⏳ 🧑‍💼
 - [ ] 🧑‍💼 Casting validé, studio de scan / artiste choisi, budget accordé (`VISUALISATION_3D.md`).

@@ -148,3 +148,9 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Contrôle** : la création doit rester dans les marquages devisés (zone, technique, taille maximale + 2 mm, couleurs), sinon pas de commande au prix du devis.
 - **Un devis, une commande** : réservation atomique (`claim_b2b_quote`), libérée si la commande échoue.
 - **Plus tard** : notification au client quand le devis est prêt (E12), paiement en ligne de l'acompte (E13), PDF du devis à télécharger.
+
+## D22 🟢 Modération : déclaration de droits, contrôle humain au BAT et file de signalements (décision CTO, 22/11/2026)
+- **Besoin** : éviter d'imprimer des marques, personnages ou photos sans droits et des contenus interdits, avant le lancement public.
+- **Choix** : (1) le client déclare détenir les droits avant le premier import (date conservée sur la création, vérifiée côté serveur à l'enregistrement et à la commande) ; (2) l'atelier, qui voit chaque création au BAT, refuse avec un motif précis (marque, personnage, contenu interdit) ; (3) ateliers et clients signalent, l'équipe tranche dans une file avec une décision écrite et tracée.
+- **Effets d'une décision « retenue »** : modèle retiré de la galerie ; commande mise en pause (le client corrige ou est remboursé).
+- **Pas d'automatique pour l'instant** : la détection par IA (logos, contenus) viendra avec E22, avec son coût et ses erreurs à mesurer ; le contrôle humain au BAT existe déjà sur chaque commande.
