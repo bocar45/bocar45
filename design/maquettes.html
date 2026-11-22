@@ -143,11 +143,11 @@ td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-n
 .logo-levels{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .lv{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:8px;align-content:start;min-width:0}
 .lv-art{aspect-ratio:3/2;border-radius:8px;background:var(--ivoire);display:grid;place-items:center;overflow:hidden}
-.lv-art img{width:100%;height:100%;object-fit:cover}
+.lv-art{position:relative}
+.lv-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .lv-art svg{width:60%;height:auto}
-.crop-sym{width:100%;height:100%;background:url("logo-reference-v0.webp") no-repeat;background-size:200%;background-position:51% 24%}
-.icon-sq{width:58%;aspect-ratio:1;border-radius:22%;overflow:hidden;background:#F8E9D7;border:1px solid var(--line)}
-.icon-sq .crop-sym{background-size:220%;background-position:51% 10%}
+.icon-sq{position:relative;width:58%;aspect-ratio:1;border-radius:22%;overflow:hidden;background:#F8E9D7;border:1px solid var(--line)}
+
 .cast{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
 .person{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:6px;background:var(--surface);min-width:0}
 .person.on{border-color:var(--action);box-shadow:0 0 0 1px var(--action)}
@@ -216,7 +216,7 @@ td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-n
     </div>
   </div>
   <div class="hero-mark">
-    <img src="logo-reference-v0.webp" alt="Logo SAWWA de référence : symbole S en ruban et W anguleux surmonté d'un losange ocre, et le mot SAWWA" style="width:100%;height:100%;object-fit:cover">
+    <img src="logo-reference-v0.webp" alt="Logo SAWWA de référence : symbole S en ruban et W anguleux surmonté d'un losange ocre, et le mot SAWWA" style="width:100%;height:100%;object-fit:contain">
     <span style="background:var(--surface);border-radius:6px;padding:4px">Logo de référence v0, à redessiner en vectoriel</span>
   </div>
 </header>
@@ -226,8 +226,8 @@ td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-n
   <p class="muted">Le plein-délié calligraphique du S, l'envol du W, le losange-point et le motif sont conservés. Seules les versions techniques (broderie, icône) sont allégées, parce que le fil et les petits écrans ne peuvent pas tout reproduire.</p></div>
   <div class="logo-levels">
     <div class="lv"><div class="lv-art"><img src="logo-reference-v0.webp" alt="Logo SAWWA principal : symbole S calligraphique et W, losanges ocre, mot SAWWA"></div><b>Principale</b><span class="note">Logo complet, fidèle, en aplats. Site, documents, packaging.</span></div>
-    <div class="lv"><div class="lv-art crop-sym" role="img" aria-label="Symbole S et W seul, avec le losange-point"></div><b>Symbole</b><span class="note">S + W + losange-point, sans le mot. Réseaux sociaux, étiquettes, broderie (motif retiré sous 40 mm).</span></div>
-    <div class="lv"><div class="lv-art"><div class="icon-sq"><div class="crop-sym" role="img" aria-label="Symbole recentré dans un carré pour l'icône"></div></div></div><b>Icône</b><span class="note">Le même symbole recentré dans un carré. Favicon, application ; losange seul sous 24 px.</span></div>
+    <div class="lv"><div class="lv-art"><img src="logo-symbole-v0.webp" alt="Symbole S et W seul, avec le losange-point" style="object-fit:contain"></div><b>Symbole</b><span class="note">S + W + losange-point, sans le mot. Réseaux sociaux, étiquettes, broderie (motif retiré sous 40 mm).</span></div>
+    <div class="lv"><div class="lv-art"><div class="icon-sq"><img src="logo-symbole-v0.webp" alt="Symbole recentré dans un carré pour l'icône" style="width:100%;height:100%;object-fit:cover"></div></div><b>Icône</b><span class="note">Le même symbole recentré dans un carré. Favicon, application ; losange seul sous 24 px.</span></div>
   </div>
   <p class="note">Visuels tirés de l'image d'origine. La version vectorielle sera superposée à l'original pour contrôler qu'aucune forme ne change.</p>
 </section>
