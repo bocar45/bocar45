@@ -40,7 +40,7 @@ describe("production SVG", () => {
 describe("production sheet PDF", () => {
   it("has one A4 page per zone", async () => {
     const bytes = await buildProductionSheet({
-      reference: "SW-2026-000001", productName: "T-shirt col rond 180 g", colorName: "ivoire", sizes: { M: 10, L: 5 },
+      reference: "SW-2026-000001", productName: "T-shirt brodé cœur", colorName: "ivoire", sizes: { M: 10, L: 5 },
       versionHash: "abcdef0123456789", generatedAt: "22/11/2026", dueDate: "23/11/2026 18:00",
       zones: [
         { label: "Devant", technique: "Transfert DTF", printedWidthCm: 20, printedHeightCm: 25.5, offsetLeftCm: 5, offsetTopCm: 4.5, zoneWidthCm: 30, zoneHeightCm: 40, anchorNote: "70 mm sous le col" },
@@ -51,5 +51,22 @@ describe("production sheet PDF", () => {
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(2);
     expect(Math.round(doc.getPage(0).getWidth())).toBe(595);
+  });
+});
+
+describe("print resolution metadata", async () => {
+  const { setPngDpi, readPngDpi } = await import("./png.ts");
+  // Smallest valid PNG (1×1 transparent).
+  const tiny = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="), (c) => c.charCodeAt(0));
+  it("writes 300 dpi (11811 px/m) after IHDR, and replaces an existing value", () => {
+    expect(readPngDpi(tiny)).toBeNull();
+    const out = setPngDpi(tiny, 300);
+    expect(readPngDpi(out)).toBe(300);
+    expect(String.fromCharCode(...out.subarray(37, 41))).toBe("pHYs");
+    expect(readPngDpi(setPngDpi(out, 150))).toBe(150);
+    expect(setPngDpi(out, 150).length).toBe(out.length);
+  });
+  it("refuses something that is not a PNG", () => {
+    expect(() => setPngDpi(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]), 300)).toThrow(/not a PNG/);
   });
 });

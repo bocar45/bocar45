@@ -3,9 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Resvg } from "@resvg/resvg-js";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import { layerBox, unionBox, visibleLayers, type DesignDocument } from "@sawwa/design";
-import { buildProductionSheet, fontFiles, renderSurfaceSvg } from "@sawwa/render";
+import { buildProductionSheet, fontFiles, renderSurfaceSvg, setPngDpi } from "@sawwa/render";
 import { getSession, hasPlatformRole, vendorMembership } from "@/lib/auth";
 import { readDoc } from "@/lib/orders";
+import { toPrintableImage } from "@/lib/print-images";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -21,11 +22,20 @@ async function embedImages(doc: DesignDocument) {
   for (const l of doc.surfaces.flatMap((s) => s.layers)) {
     if (l.type !== "image" || out[l.src] || !l.src.startsWith("storage:design-assets/")) continue;
     const { data, error } = await db.storage.from("design-assets").download(l.src.slice("storage:design-assets/".length));
-    if (error || !data) throw new Error(`Image introuvable : ${l.name}`);
-    out[l.src] = `data:${data.type || "image/png"};base64,${Buffer.from(await data.arrayBuffer()).toString("base64")}`;
+    if (error || !data) throw new ProductionError(`L'image « ${l.name} » de cette création est introuvable. Prévenez l'équipe SAWWA.`, 502);
+    const printable = await toPrintableImage(new Uint8Array(await data.arrayBuffer()), data.type || "image/png");
+    out[l.src] = `data:${printable.mime};base64,${Buffer.from(printable.bytes).toString("base64")}`;
   }
   return out;
 }
+
+class ProductionError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
+/** Plain French message, readable when opened from a download link. */
+const fail = (message: string, status: number) =>
+  new NextResponse(`${message}\n`, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
 
 function rasterize(svg: string, background?: string) {
   return new Resvg(svg, { font: { fontFiles: fonts(), loadSystemFonts: false, defaultFontFamily: "Manrope" }, ...(background ? { background } : {}) }).render().asPng();
@@ -35,10 +45,19 @@ function rasterize(svg: string, background?: string) {
  * Production files for the workshop assigned to a fulfillment (or SAWWA ops):
  * ?format=png&zone=<key> → transparent PNG at 300 dpi, real zone size; ?format=pdf → A4 production sheet.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ fulfillmentId: string }> }) {
-  const { fulfillmentId } = await params;
+export async function GET(request: NextRequest, ctx: { params: Promise<{ fulfillmentId: string }> }) {
+  try {
+    return await generate(request, (await ctx.params).fulfillmentId);
+  } catch (e) {
+    if (e instanceof ProductionError) return fail(e.message, e.status);
+    console.error("production file failed", e);
+    return fail("Le fichier n'a pas pu être généré. Réessayez dans un instant ; si le problème continue, prévenez l'équipe SAWWA.", 500);
+  }
+}
+
+async function generate(request: NextRequest, fulfillmentId: string) {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Connexion requise." }, { status: 401 });
+  if (!session) return fail("Connectez-vous pour télécharger ce fichier.", 401);
   const vendor = vendorMembership(session.memberships);
   const isOps = hasPlatformRole(session.memberships, ["ops"]);
 
@@ -47,14 +66,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .from("fulfillments")
     .select("id, status, vendor_id, sla_due_at, order:orders(number), items:order_items(color_key, sizes, decorations, version:design_versions(document, sha256), product:base_products(name, zones(key, anchor, max_width_mm, max_height_mm)))")
     .eq("id", fulfillmentId).maybeSingle();
-  if (!f) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  if (!f) return fail("Commande introuvable.", 404);
   const allowed = isOps || (vendor && vendor.organization.status === "active" && f.vendor_id === vendor.organization.id);
-  if (!allowed) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
-  if (["pending_assignment", "cancelled"].includes(f.status) && !isOps) return NextResponse.json({ error: "Commande non disponible." }, { status: 409 });
+  if (!allowed) return fail("Ce fichier est réservé à l'atelier affecté à la commande.", 403);
+  if (["pending_assignment", "cancelled"].includes(f.status) && !isOps) return fail("Cette commande n'est pas (ou plus) affectée à un atelier.", 409);
 
   const item = (f.items as unknown as { color_key: string; sizes: Record<string, number>; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: { fr?: string }; zones: { key: string; anchor: { label?: string; note?: string } | null; max_width_mm: number; max_height_mm: number }[] } }[])[0];
   const doc = item ? readDoc(item.version.document) : null;
-  if (!item || !doc) return NextResponse.json({ error: "Création illisible." }, { status: 500 });
+  if (!item || !doc) return fail("La création de cette commande est illisible. Prévenez l'équipe SAWWA.", 500);
   const reference = (f.order as unknown as { number: string } | null)?.number ?? fulfillmentId.slice(0, 8);
   const images = await embedImages(doc);
   const format = request.nextUrl.searchParams.get("format");
@@ -63,9 +82,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const zoneKey = request.nextUrl.searchParams.get("zone");
     const surface = doc.surfaces.find((s) => s.zoneKey === zoneKey);
     const zone = item.product.zones.find((z) => z.key === zoneKey);
-    if (!surface || !zone) return NextResponse.json({ error: "Zone inconnue." }, { status: 400 });
+    if (!surface || !zone) return fail("Zone inconnue pour cette commande.", 400);
     const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm }, { dpi: 300, images });
-    return new NextResponse(new Uint8Array(rasterize(svg)), {
+    return new NextResponse(new Uint8Array(setPngDpi(new Uint8Array(rasterize(svg)), 300)), {
       headers: { "Content-Type": "image/png", "Content-Disposition": `attachment; filename="${reference}-${zone.key}-300dpi.png"`, "Cache-Control": "private, no-store" },
     });
   }

@@ -30,7 +30,7 @@ const TERRA = rgb(0.71, 0.337, 0.165);
 const MUTED = rgb(0.42, 0.35, 0.29);
 
 /** WinAnsi-safe text for the standard PDF fonts (keeps French accents, drops the rest). */
-const safe = (s: string) => s.normalize("NFC").replace(/[’‘]/g, "'").replace(/[“”«»]/g, '"').replace(/[–—]/g, "-").replace(/[×]/g, "x").replace(/[^\x20-\x7E -ÿ]/g, "");
+const safe = (s: string) => s.normalize("NFC").replace(/[’‘]/g, "'").replace(/[“”«»]/g, '"').replace(/[–—]/g, "-").replace(/[×]/g, "x").replace(/[^\x20-\x7E\u00A0-\u00FF\u0152\u0153\u20AC]/g, "");
 
 /** One-page-per-zone A4 production sheet for the workshop. */
 export async function buildProductionSheet(data: SheetData): Promise<Uint8Array> {

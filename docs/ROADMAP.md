@@ -41,7 +41,8 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Phase 4 — commande : tailles, livraison, adresse ; contrôles et prix recalculés côté serveur ; création et devis figés ; création atomique (`create_order`) ; suivi client avec historique ; réponse à une demande de correction (produire telle quelle / annuler)
 - [x] Phase 4 — admin commandes : vues à encaisser / à affecter / en cours / terminées, retards SLA, confirmation manuelle du paiement (D15), affectation avec coût et marge par atelier, pause, reprise, annulation, livraison
 - [x] Phase 5 — atelier : file par étape, fiche de production (création figée, tailles, position du marquage en cm, fichiers originaux), prise en charge/refus, BAT (valider / demander correction), production, photos de contrôle, expédition
-- [ ] Phase 4/5 — fichier d'impression 300 dpi + fiche PDF, correction de la création par le client (nouvelle version), notifications WhatsApp/SMS, agrégateur de paiement, limitation de débit, test de bout en bout sur un vrai projet Supabase
+- [x] Phase 5 (E09) — fichiers de production : PNG transparent 300 dpi par zone (résolution écrite dans le fichier), images converties sans perte (WebP → PNG), fiche de production PDF A4, polices fixes fidèles au studio, accès réservé à l'atelier affecté
+- [ ] Phase 4/5 — correction de la création par le client (nouvelle version), notifications WhatsApp/SMS, agrégateur de paiement, limitation de débit, test de bout en bout sur un vrai projet Supabase
 - [ ] Phase 2 — créer les projets Supabase/Vercel (porteur), types générés, enregistrement d'offre atomique (RPC), test des écrans de bout en bout sur un vrai projet Supabase
 
 ## Critères d'acceptation par jalon
