@@ -27,6 +27,11 @@ export interface SheetData {
   roster?: { size: string; name?: string; number?: string }[] | null;
   /** Zones whose content changes on every piece (one print file per piece). */
   variableZones?: string[];
+  /** E18b: cutting plan of the all-over pieces of one garment on the fabric roll (mm). */
+  cutPlan?: {
+    fabricWidthMm: number; lengthMm: number; garments: number; tooWide: string[];
+    placements: { label: string; x: number; y: number; widthMm: number; heightMm: number; cut: [number, number][] }[];
+  } | null;
 }
 
 const BRUN = rgb(0.165, 0.102, 0.071);
@@ -46,6 +51,7 @@ export async function buildProductionSheet(data: SheetData): Promise<Uint8Array>
   const totalQty = Object.values(data.sizes).reduce((a, b) => a + b, 0);
   const PER_PAGE = 40;
   const rosterPages = data.roster?.length ? Math.ceil(data.roster.length / PER_PAGE) : 0;
+  const planPages = data.cutPlan ? 1 : 0;
 
   for (const [i, z] of data.zones.entries()) {
     const page = pdf.addPage([595.28, 841.89]);
@@ -55,7 +61,7 @@ export async function buildProductionSheet(data: SheetData): Promise<Uint8Array>
 
     page.drawRectangle({ x: 0, y: height - 8, width, height: 8, color: TERRA });
     text("SAWWA · FICHE DE PRODUCTION", 40, 9, bold, TERRA);
-    text(`Page ${i + 1}/${data.zones.length + rosterPages}`, width - 100, 9, font, MUTED);
+    text(`Page ${i + 1}/${data.zones.length + rosterPages + planPages}`, width - 100, 9, font, MUTED);
     y -= 26;
     text(data.reference, 40, 20, bold);
     y -= 22;
@@ -101,7 +107,7 @@ export async function buildProductionSheet(data: SheetData): Promise<Uint8Array>
     const text = (s: string, x: number, size = 10, f = font, color = BRUN) => page.drawText(safe(s), { x, y, size, font: f, color });
     page.drawRectangle({ x: 0, y: height - 8, width, height: 8, color: TERRA });
     text("SAWWA · LISTE DES PIÈCES", 40, 9, bold, TERRA);
-    text(`Page ${data.zones.length + p + 1}/${data.zones.length + rosterPages}`, width - 100, 9, font, MUTED);
+    text(`Page ${data.zones.length + p + 1}/${data.zones.length + rosterPages + planPages}`, width - 100, 9, font, MUTED);
     y -= 26;
     text(`${data.reference} · ${data.roster!.length} pièces`, 40, 16, bold);
     y -= 26;
@@ -116,6 +122,37 @@ export async function buildProductionSheet(data: SheetData): Promise<Uint8Array>
       text(e.name ?? "-", cols[2]!, 11, bold);
       text(e.number ?? "-", cols[3]!, 11, bold);
       page.drawRectangle({ x: cols[4]! + 4, y: y - 2, width: 10, height: 10, borderColor: BRUN, borderWidth: 0.8 });
+    }
+    y = 30;
+    text(`Version figée ${data.versionHash.slice(0, 16)} · générée le ${data.generatedAt}`, 40, 8, font, MUTED);
+  }
+  // E18b: cutting plan — printed rectangles laid on the roll, cut lines drawn, fabric length per garment and in total
+  if (data.cutPlan) {
+    const plan = data.cutPlan;
+    const page = pdf.addPage([595.28, 841.89]);
+    const { width, height } = page.getSize();
+    let y = height - 50;
+    const text = (s: string, x: number, size = 10, f = font, color = BRUN) => page.drawText(safe(s), { x, y, size, font: f, color });
+    page.drawRectangle({ x: 0, y: height - 8, width, height: 8, color: TERRA });
+    text("SAWWA · PLAN DE COUPE", 40, 9, bold, TERRA);
+    text(`Page ${data.zones.length + rosterPages + 1}/${data.zones.length + rosterPages + 1}`, width - 100, 9, font, MUTED);
+    y -= 26;
+    text(`${data.reference} · impression intégrale`, 40, 16, bold);
+    y -= 20;
+    const perGarment = plan.lengthMm / 1000, total = (plan.lengthMm * plan.garments) / 1000;
+    text(`Laize ${plan.fabricWidthMm / 10} cm · ${perGarment.toFixed(2)} m par vêtement · ${total.toFixed(2)} m pour ${plan.garments} vêtement${plan.garments > 1 ? "s" : ""} (hors chutes et essais)`, 40, 10);
+    if (plan.tooWide.length) { y -= 16; text(`Trop large pour la laize : ${plan.tooWide.join(", ")}`, 40, 10, bold, TERRA); }
+    y -= 14;
+    text("Rectangles imprimés (fond perdu compris) ; trait plein = ligne de coupe ; droit fil vertical.", 40, 9, font, MUTED);
+    const top = y - 16, maxW = width - 80, maxH = top - 50;
+    const k = Math.min(maxW / plan.fabricWidthMm, maxH / Math.max(1, plan.lengthMm));
+    page.drawRectangle({ x: 40, y: top - plan.lengthMm * k, width: plan.fabricWidthMm * k, height: plan.lengthMm * k, borderColor: MUTED, borderWidth: 0.6, borderDashArray: [3, 3] });
+    for (const p of plan.placements) {
+      const px = 40 + p.x * k, py = top - (p.y + p.heightMm) * k;
+      page.drawRectangle({ x: px, y: py, width: p.widthMm * k, height: p.heightMm * k, color: rgb(0.95, 0.91, 0.85), borderColor: MUTED, borderWidth: 0.4 });
+      const svgPath = "M" + p.cut.map(([cx, cy]) => `${(cx * k).toFixed(2)} ${(cy * k).toFixed(2)}`).join(" L") + " Z";
+      page.drawSvgPath(svgPath, { x: px, y: top - p.y * k, borderColor: TERRA, borderWidth: 0.8 }); // SVG y axis points down from (x, y)
+      page.drawText(safe(p.label), { x: px + 4, y: py + p.heightMm * k / 2, size: 7, font: bold, color: BRUN });
     }
     y = 30;
     text(`Version figée ${data.versionHash.slice(0, 16)} · générée le ${data.generatedAt}`, 40, 8, font, MUTED);

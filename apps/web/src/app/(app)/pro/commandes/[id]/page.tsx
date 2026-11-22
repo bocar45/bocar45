@@ -11,6 +11,7 @@ import { DesignPreview } from "@/components/design-preview";
 import { PageHeader, Section, fr, inputClass } from "@/components/ui";
 import { vendorEvent } from "../actions";
 import { QcUpload } from "./qc-upload";
+import { patternOf } from "@/lib/pattern-zone";
 import { reportContent } from "@/app/(vitrine)/signaler/actions";
 import { REPORT_REASONS } from "@/lib/report-reasons";
 
@@ -40,10 +41,13 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
     .select("id, status, sla_due_at, proof_round, carrier, tracking_number, order_id, items:order_items(id, design_version_id, color_key, sizes, quantity, decorations, roster, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), events:status_events(event, payload, at)")
     .eq("id", id).eq("vendor_id", vendor.organization.id).maybeSingle();
   if (!f) notFound();
+  const zoneOf = (key: string) => (f.items as unknown as { product: { zones: { key: string; anchor: unknown }[] } }[])[0]?.product.zones.find((z) => z.key === key);
   const vendorAmount = canSeeAmount
     ? ((await supabase.from("fulfillments").select("vendor_cost").eq("id", f.id).maybeSingle()).data?.vendor_cost as number | null | undefined) ?? null
     : null;
   const item = (f.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: (ZoneRow & { anchor: { label?: string; note?: string } | null })[] } }[])[0];
+  // a pair of sleeves is priced as two decorations of the same zone: one entry per zone here
+  const uniqueDecorations = (item?.decorations ?? []).filter((d, k, all) => all.findIndex((x) => x.zoneKey === d.zoneKey) === k);
   if (!item) notFound();
   const doc = readDoc(item.version.document);
   const urls = doc ? await signedDesignUrls(createServiceClient(), doc) : {};
@@ -107,7 +111,7 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
               {item.roster?.length ? <><dt className="text-muted">Équipe</dt><dd>Nom et numéro différents sur chaque pièce (liste figée de {item.roster.length} pièces)</dd></> : null}
             </dl>
             <ul className="grid gap-3">
-              {item.decorations.map((d) => {
+              {uniqueDecorations.map((d) => {
                 const z = item.product.zones.find((x) => x.key === d.zoneKey);
                 const s = doc?.surfaces.find((x) => x.zoneKey === d.zoneKey);
                 const box = s ? unionBox(visibleLayers(s).map(layerBox)) : null;
@@ -126,7 +130,7 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
           <Section title="Fichiers de production" id="production">
             <ul className="grid gap-2 text-sm">
               <li><a className="btn btn-brun !py-2 text-sm" href={`/api/production/${f.id}?format=pdf`}>Fiche de production (PDF)</a></li>
-              {item.decorations.map((d) => {
+              {uniqueDecorations.map((d) => {
                 const label = item.product.zones.find((z) => z.key === d.zoneKey)?.anchor?.label ?? d.zoneKey;
                 const variable = Boolean(item.roster?.length) && Boolean(doc?.surfaces.some((s) => s.zoneKey === d.zoneKey && s.layers.some((l) => l.type === "text" && l.perItem)));
                 const href = (piece?: number) => `/api/production/${f.id}?format=png&zone=${encodeURIComponent(d.zoneKey)}${piece ? `&piece=${piece}` : ""}`;
@@ -142,7 +146,10 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
                     </details>
                   </li>
                 ) : (
-                  <li key={d.zoneKey}><a className="underline" href={href()}>Fichier d&apos;impression · {label} (PNG transparent 300 dpi, taille réelle{item.roster?.length ? ", identique sur toutes les pièces" : ""})</a></li>
+                  <li key={d.zoneKey}>
+                    <a className="underline" href={href()}>Fichier d&apos;impression · {label} (PNG 300 dpi, taille réelle{patternOf(zoneOf(d.zoneKey)?.anchor) ? ", fond perdu compris" : " transparent"}{item.roster?.length ? ", identique sur toutes les pièces" : ""})</a>
+                    {patternOf(zoneOf(d.zoneKey)?.anchor)?.mirror && <> · <a className="underline" href={`${href()}&copie=2`}>seconde pièce (miroir)</a></>}
+                  </li>
                 );
               })}
             </ul>

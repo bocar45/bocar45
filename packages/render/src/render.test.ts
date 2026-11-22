@@ -79,6 +79,15 @@ describe("production sheet PDF", () => {
     });
     expect((await PDFDocument.load(bytes)).getPageCount()).toBe(3);
   });
+  it("adds a cutting plan page for all-over pieces", async () => {
+    const bytes = await buildProductionSheet({
+      reference: "SW-2026-000003", productName: "T-shirt AOP", colorName: "blanc", sizes: { M: 2 },
+      versionHash: "abcdef0123456789", generatedAt: "22/11/2026",
+      zones: [{ label: "Devant", technique: "Sublimation", printedWidthCm: 56.6, printedHeightCm: 77, offsetLeftCm: 0, offsetTopCm: 0, zoneWidthCm: 56.6, zoneHeightCm: 77 }],
+      cutPlan: { fabricWidthMm: 1500, lengthMm: 1050, garments: 2, tooWide: [], placements: [{ label: "Devant", x: 0, y: 0, widthMm: 566, heightMm: 770, cut: [[5, 5], [561, 5], [561, 765], [5, 765]] }] },
+    });
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(2);
+  });
 });
 
 describe("print resolution metadata", async () => {

@@ -3,7 +3,7 @@ import { TECHNIQUES, TECHNIQUE_LABEL, publishBlockers, type Technique } from "@s
 import { hasPlatformRole, requirePlatformRole } from "@/lib/auth";
 import { ActionForm } from "@/components/action-form";
 import { Empty, Field, PageHeader, Section, StatusPill, fr, inputClass } from "@/components/ui";
-import { addColor, addView, addZone, deleteVariant, deleteZone, setProductStatus, updateProduct } from "../actions";
+import { addColor, addView, addZone, createPatternPieces, deleteVariant, deleteZone, setProductStatus, updateProduct } from "../actions";
 
 export const metadata = { title: "Produit" };
 
@@ -134,7 +134,14 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             </table>
           </div>
         )}
-        {canEdit && views.length > 0 && (
+        {canEdit && views.length > 0 && (<>
+          <details className="mb-3 rounded-lg border border-dashed border-line p-3">
+            <summary className="cursor-pointer text-sm font-semibold">Impression intégrale (coupé-cousu) : créer les pièces de patron</summary>
+            <ActionForm action={createPatternPieces.bind(null, id)} submitLabel="Créer les pièces" className="mt-2 flex flex-wrap items-end gap-2">
+              <select name="pattern_kind" className={inputClass} aria-label="Patron"><option value="tee">T-shirt (devant, dos, 2 manches, col)</option><option value="hoodie">Hoodie (devant, dos, 2 manches, 2 capuches, poche, poignets, ceinture)</option></select>
+            </ActionForm>
+            <p className="mt-1 text-xs text-muted">Taille M, contours, marges de couture et fond perdu inclus, technique sublimation. À valider avec l&apos;atelier pilote avant la vente.</p>
+          </details>
           <ActionForm action={addZone.bind(null, id)} submitLabel="Ajouter la zone">
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Nom de la zone" htmlFor="zone_label"><input id="zone_label" name="zone_label" placeholder="Poitrine gauche" className={inputClass} /></Field>
@@ -158,7 +165,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               </div>
             </fieldset>
           </ActionForm>
-        )}
+        </>)}
       </Section>
     </div>
   );

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isHexColor, isTechnique, parseSizes, publishBlockers, slugify, toKey, validateZone } from "@sawwa/catalog";
+import { patternZones } from "@sawwa/design";
 import { audit } from "@/lib/audit";
 import { requirePlatformRole } from "@/lib/auth";
 import { int, optStr, str } from "@/lib/form";
@@ -149,4 +150,32 @@ export async function deleteZone(productId: string, zoneId: string) {
   const { error } = await supabase.from("zones").delete().eq("id", zoneId);
   if (error) return { error: friendly(error.message) };
   revalidatePath(`/admin/catalogue/${productId}`);
+}
+
+/**
+ * E18b: create the cut-and-sew pattern pieces of an all-over product (t-shirt or hoodie, size M) as print zones
+ * (sublimation), each with its outline, seam allowance and bleed. Existing pieces are kept.
+ */
+export async function createPatternPieces(productId: string, fd: FormData) {
+  const { supabase, user } = await guard();
+  const kind = str(fd, "pattern_kind");
+  if (kind !== "tee" && kind !== "hoodie") return { error: "Choisissez le patron (t-shirt ou hoodie)." };
+  let { data: view } = await supabase.from("product_views").select("id").eq("base_product_id", productId).eq("key", "patron").maybeSingle();
+  if (!view) {
+    const { data, error } = await supabase.from("product_views").insert({ base_product_id: productId, key: "patron", mockup_assets: { label: "Patron" } }).select("id").single();
+    if (error) return { error: friendly(error.message) };
+    view = data;
+  }
+  const { data: existing } = await supabase.from("zones").select("key").eq("base_product_id", productId);
+  const have = new Set((existing ?? []).map((z) => z.key));
+  const rows = patternZones(kind).filter((z) => !have.has(z.key)).map((z) => ({
+    base_product_id: productId, view_id: view!.id, key: z.key, max_width_mm: z.maxWidthMm, max_height_mm: z.maxHeightMm,
+    allowed_techniques: ["sublimation"], anchor: { label: z.label, note: "Pièce de patron, impression intégrale", pattern: z.pattern },
+  }));
+  if (rows.length === 0) return { ok: "Les pièces existent déjà." };
+  const { error } = await supabase.from("zones").insert(rows);
+  if (error) return { error: friendly(error.message) };
+  await audit({ actorUserId: user.id, action: "catalog.pattern_pieces", entityType: "base_product", entityId: productId, after: { kind, pieces: rows.map((r) => r.key) } });
+  revalidatePath(`/admin/catalogue/${productId}`);
+  return { ok: `${rows.length} pièces de patron créées (taille M, à vérifier avec l'atelier).` };
 }

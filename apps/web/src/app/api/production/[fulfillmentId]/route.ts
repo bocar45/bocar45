@@ -2,12 +2,16 @@ import path from "node:path";
 import { NextResponse, type NextRequest } from "next/server";
 import { Resvg } from "@resvg/resvg-js";
 import { TECHNIQUE_LABEL, slugify, type Technique } from "@sawwa/catalog";
-import { layerBox, personalize, unionBox, visibleLayers, type DesignDocument, type RosterEntry } from "@sawwa/design";
+import { layerBox, markerLayout, personalize, piecePolygons, unionBox, visibleLayers, type DesignDocument, type RosterEntry } from "@sawwa/design";
 import { buildProductionSheet, fontFiles, renderSurfaceSvg, setPngDpi } from "@sawwa/render";
 import { getSession, hasPlatformRole, vendorMembership } from "@/lib/auth";
 import { logError } from "@/lib/log";
 import { readDoc } from "@/lib/orders";
 import { storageRef } from "@/lib/storage-refs";
+import { patternOf } from "@/lib/pattern-zone";
+
+/** Fabric roll width assumed for the cutting plan until the pilot workshop gives its own (mm). */
+const FABRIC_WIDTH_MM = 1500;
 import { UnprintableImageError, toPrintableImage } from "@/lib/print-images";
 import { TOO_MANY, rateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -100,32 +104,59 @@ async function generate(request: NextRequest, fulfillmentId: string) {
     } else if (roster.length && doc.surfaces.some((s) => s.zoneKey === zoneKey && s.layers.some((l) => l.type === "text" && l.perItem))) {
       return fail("Cette zone change sur chaque pièce : téléchargez le fichier de chaque pièce.", 400);
     }
-    const surface = printed.surfaces.find((s) => s.zoneKey === zoneKey);
     const zone = item.product.zones.find((z) => z.key === zoneKey);
+    const pattern = zone ? patternOf(zone.anchor) : null;
+    // E18b: an all-over piece is printed even without its own design (continuous motif)
+    const surface = printed.surfaces.find((s) => s.zoneKey === zoneKey) ?? (pattern && doc.allOver ? { zoneKey: zoneKey!, technique: "sublimation", layers: [] } : undefined);
     if (!surface || !zone) return fail("Zone inconnue pour cette commande.", 400);
-    const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm }, { dpi: 300, images });
+    // ?copie=2: the second piece of a left/right pair (sleeves, hood) is the mirror image
+    const copy = request.nextUrl.searchParams.get("copie") === "2";
+    if (copy && !(pattern?.mirror && pattern.quantity > 1)) return fail("Cette pièce n'a pas de seconde copie en miroir.", 400);
+    if (copy) pieceLabel += "-copie2-miroir";
+    const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm, pattern }, { dpi: 300, images, allOver: doc.allOver ?? null, mirror: copy });
     return new NextResponse(new Uint8Array(setPngDpi(new Uint8Array(rasterize(svg)), 300)), {
       headers: { "Content-Type": "image/png", "Content-Disposition": `attachment; filename="${reference}-${zone.key}${pieceLabel}-300dpi.png"`, "Cache-Control": "private, no-store" },
     });
   }
 
-  const zones = item.decorations.map((d) => {
+  // one page per printed zone (a pair of sleeves is one zone priced twice: one page)
+  const decorations = item.decorations.filter((d, i, all) => all.findIndex((x) => x.zoneKey === d.zoneKey) === i);
+  const zones = decorations.map((d) => {
     const zone = item.product.zones.find((z) => z.key === d.zoneKey)!;
-    const surface = doc.surfaces.find((s) => s.zoneKey === d.zoneKey)!;
-    const box = unionBox(visibleLayers(surface).map(layerBox));
-    const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm }, { dpi: 60, images });
+    const pattern = patternOf(zone.anchor);
+    const surface = doc.surfaces.find((s) => s.zoneKey === d.zoneKey) ?? { zoneKey: d.zoneKey, technique: d.technique, layers: [] };
+    const box = pattern ? { minX: 0, minY: 0 } : unionBox(visibleLayers(surface).map(layerBox));
+    const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm, pattern }, { dpi: 60, images, allOver: doc.allOver ?? null, cutLine: true });
     return {
       label: zone.anchor?.label ?? zone.key,
       technique: TECHNIQUE_LABEL[d.technique] ?? d.technique,
       printedWidthCm: d.widthMm / 10, printedHeightCm: d.heightMm / 10,
       offsetLeftCm: Math.max(0, box?.minX ?? 0) / 10, offsetTopCm: Math.max(0, box?.minY ?? 0) / 10,
       zoneWidthCm: zone.max_width_mm / 10, zoneHeightCm: zone.max_height_mm / 10,
-      anchorNote: zone.anchor?.note ?? null,
+      anchorNote: pattern ? `Pièce de patron : imprimer le rectangle entier (fond perdu ${pattern.bleedMm} mm), couper sur le trait (couture ${pattern.seamMm} mm)${pattern.quantity > 1 ? `, ${pattern.quantity} pièces${pattern.mirror ? " dont une en miroir (fichier « copie 2 »)" : ""}` : ""}` : zone.anchor?.note ?? null,
       colors: d.technique === "embroidery" || d.technique === "screen_print" ? d.colors : null,
       previewPng: new Uint8Array(rasterize(svg, "#F2E9D8")),
     };
   });
+  // E18b: cutting plan for all-over pieces, per garment, on a 150 cm roll
+  const pieceZones = decorations.flatMap((d) => {
+    const zone = item.product.zones.find((z) => z.key === d.zoneKey)!;
+    const pattern = patternOf(zone.anchor);
+    return pattern ? [{ zone, pattern }] : [];
+  });
+  const totalQty = Object.values(item.sizes).reduce((a, b) => a + b, 0);
+  const marker = pieceZones.length ? markerLayout(pieceZones.map(({ zone, pattern }) => ({ key: zone.key, label: zone.anchor?.label ?? zone.key, widthMm: zone.max_width_mm, heightMm: zone.max_height_mm, count: pattern.quantity })), FABRIC_WIDTH_MM) : null;
+  const cutPlan = marker ? {
+    fabricWidthMm: FABRIC_WIDTH_MM, lengthMm: marker.lengthMm, garments: totalQty, tooWide: marker.tooWide,
+    placements: marker.placements.map((pl) => {
+      const pz = pieceZones.find((x) => x.zone.key === pl.key)!;
+      const mirrored = Boolean(pz.pattern.mirror) && pl.index === 1;
+      const cut = piecePolygons(pz.pattern).cut.map(([x, y]) => [mirrored ? pl.widthMm - x : x, y] as [number, number]);
+      return { label: `${pl.label}${pz.pattern.quantity > 1 ? ` ${pl.index + 1}` : ""}`, x: pl.x, y: pl.y, widthMm: pl.widthMm, heightMm: pl.heightMm, cut };
+    }),
+  } : null;
   const pdf = await buildProductionSheet({
+    cutPlan,
     reference, productName: item.product.name.fr ?? "", colorName: item.color_key.replace(/_/g, " "), sizes: item.sizes,
     dueDate: f.sla_due_at ? new Date(f.sla_due_at).toLocaleString("fr-SN", { dateStyle: "short", timeStyle: "short" }) : null,
     versionHash: item.version.sha256, generatedAt: new Date().toLocaleString("fr-SN", { dateStyle: "short", timeStyle: "short" }), zones,
