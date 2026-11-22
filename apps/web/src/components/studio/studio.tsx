@@ -237,6 +237,12 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
 
   // ── E15: template assistant (customer) and template saving (catalogue team) ──
   const fields = useMemo(() => templateFields(doc), [doc]);
+  /** Template fields the customer left as they were (sample photo kept, empty text). */
+  const unfilled = useMemo(() => (assistant ? fields.filter((f) => {
+    if (f.kind === "text") return !f.text?.trim();
+    const l = doc.surfaces.flatMap((s) => s.layers).find((x) => x.id === f.layerId);
+    return l?.type === "image" && initial?.document.surfaces.some((s) => s.layers.some((x) => x.type === "image" && x.id === l.id && x.src === l.src));
+  }) : []), [assistant, fields, doc, initial]);
   const fillPhotoField = async (f: FieldRef, file: File) => {
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setNotice("Formats acceptés : PNG, JPG ou WebP.");
     if (file.size > 25 * 1024 * 1024) return setNotice("Image trop lourde (25 Mo maximum).");
@@ -450,7 +456,11 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               onText={(f, text) => { history.commit((d) => fillText(d, f.layerId, text)); if (f.zoneKey !== zone.key) setZoneKey(f.zoneKey); }}
               onPhoto={(f, file) => void fillPhotoField(f, file)}
               onFree={() => setAssistantOpen(false)} />
-          ) : (<>
+          ) : null}
+          {assistantOpen && unfilled.length > 0 && (
+            <p className="rounded-lg bg-ocre/20 px-3 py-2 text-sm">ⓘ À personnaliser : {unfilled.map((f) => f.label).join(", ")}.</p>
+          )}
+          {!assistantOpen && (<>
           <Panel title="Technique pour cette zone">
             <div className="flex flex-wrap gap-2">
               {zone.techniques.map((t) => (
@@ -532,7 +542,10 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               <button type="button" className={btn} disabled={saving} onClick={() => void saveToAccount()}>{saving ? "Enregistrement…" : designId ? "Enregistrer" : "Enregistrer dans mon compte"}</button>
               {!correction && (
                 <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={decorations.length === 0 || blocking(allIssues)}
-                  onClick={() => (userId ? setOrdering(true) : router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}${assistant ? `?modele=${assistant.slug}` : ""}`)}`))}>
+                  onClick={() => {
+                    if (unfilled.length && !window.confirm(`Ces champs n'ont pas été personnalisés : ${unfilled.map((f) => f.label).join(", ")}. La photo d'exemple ou le texte vide seront imprimés tels quels. Continuer quand même ?`)) return;
+                    if (userId) setOrdering(true); else router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}${assistant ? `?modele=${assistant.slug}` : ""}`)}`);
+                  }}>
                   Commander
                 </button>
               )}

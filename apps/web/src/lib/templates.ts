@@ -40,10 +40,15 @@ export async function listTemplates(filter: { occasion?: string; product?: strin
   const client = await createClient();
   let q = client.from("templates").select(SELECT).eq("status", "published").order("popularity", { ascending: false }).order("created_at", { ascending: false }).limit(60);
   if (filter.occasion && isOccasion(filter.occasion)) q = q.eq("occasion", filter.occasion);
+  if (filter.product) {
+    const { data: p } = await client.from("base_products").select("id").eq("slug", filter.product).maybeSingle();
+    if (!p) return [];
+    q = q.eq("base_product_id", p.id);
+  }
   const { data, error } = await q;
   if (error) { logError("templates_read_failed", error); throw new Error("Modèles indisponibles pour le moment."); }
   const cards = await Promise.all(((data ?? []) as unknown as Row[]).map((r) => toCard(client, r)));
-  return cards.filter((c): c is TemplateCard => c !== null && (!filter.product || c.product.slug === filter.product));
+  return cards.filter((c): c is TemplateCard => c !== null);
 }
 
 /** One published template for the customer assistant (null if unknown, unpublished or for another product). */

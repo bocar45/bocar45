@@ -2,6 +2,25 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E15 — VALIDÉ
+Commit examiné : d3008f0 (depuis 308524f), `git status` propre, branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (118, 19 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (`/modeles`, `/admin/modeles` générées)
+Vérification navigateur : non refaite (pas de Supabase réel ; l'auteur l'a faite avec un jeu temporaire retiré). Bout en bout sur un vrai projet : en attente du porteur (E11).
+Critères de l'étape :
+- [x] Table `templates` + RLS + tests : `20261122000600_templates.sql` (RLS l. 45-50 : public = publié et produit actif, écriture `catalog`) ; contrôle SQL à la publication (trigger l. 26-43 : champ client, produit actif, document du bon produit) ; bucket `template-assets` insert seul, sans update/delete (l. 53-60). Tests `rls.test.sql` section 14 : publication sans champ refusée, document d'un autre produit refusé, occasion inconnue refusée, anon/atelier voient 1 modèle (publié), client ne modifie ni ne crée, client n'envoie pas d'image, catalogue voit les brouillons, suppression d'image sans effet, anon lit l'image.
+- [x] Champ `field` validé (`document.ts:129-134` : photo sur image, texte sur texte, libellé ≤ 60, maxLength 1-200) ; `template.ts` (templateFields, fillText, coverCrop, fillPhoto, templateBlockers) couvert par `template.test.ts` (5 tests).
+- [x] Admin : `admin/modeles/actions.ts` (rôle `catalog` via `requirePlatformRole`, `templateBlockers` avant publication, erreur 23514 traduite, audit create/statut) ; `template-actions.ts` (rôle vérifié, images obligatoirement dans `template-assets`, produit cohérent, modèle publié incomplet refusé, audit) ; `?gabarit=` → `notFound()` hors équipe catalogue (`studio/[slug]/page.tsx`).
+- [x] Client : galerie `/modeles` par occasion et `?produit=`, états vide et indisponible ; assistant `?modele=` (seulement publié et du bon produit, `templates.ts` `publishedTemplate`), photo recadrée `coverCrop`, texte limité, prix et contrôle de fabrication hors du panneau assistant, « Modifier librement », brouillon par clé `:modele:<slug>`, retour après connexion sur le modèle.
+- [x] Images de modèles acceptées dans une création client (`design-ownership.ts`, test ajouté) et lues par le fichier de production (`api/production/.../route.ts` via `storageRef`) ; non modifiables → règle 7 tenue.
+Critères communs : C1 ✅ · C2 ✅ (aucun calcul de prix ni transition ajoutés ; permissions serveur + RLS ; table neuve avec RLS et tests) · C3 ✅ (grep secrets vide dans apps/packages ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ · C6 ✅ (D19, ROADMAP, DATABASE, BACKLOG ; commit poussé ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- Le client peut commander sans remplacer la photo d'exemple ni remplir un texte (texte vide accepté par `fillText`). Signaler dans l'assistant un champ non rempli avant « Commander ».
+- `listTemplates` (`templates.ts`) filtre le produit après `limit(60)` : au-delà de 60 modèles publiés, le filtre « par produit » peut en manquer. Filtrer côté requête.
+- Test « anon ne lit pas design-assets » (`rls.test.sql`, fin de section 14) sans objet : aucun fichier `design-assets` n'existe à ce moment (insertion de la section 11 annulée). Insérer un fichier client avant de tester.
+- Un brouillon d'assistant conservé sur l'appareil prend le pas sur une version plus récente du modèle ; acceptable, à garder en tête.
+Décision : passer à E16
+
 ## 2026-11-22 — E18c — VALIDÉ
 Commit examiné : 5dc90a3 (second passage ; corrections après c09736e), `git status` propre
 Contrôles : typecheck ✅ · tests ✅ (112, 18 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅

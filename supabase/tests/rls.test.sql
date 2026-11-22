@@ -543,6 +543,10 @@ do $$ declare n int; begin
 end $$;
 commit;
 begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+insert into storage.objects (bucket_id, name) values ('design-assets', '00000000-0000-0000-0000-0000000000c1/photo.png');
+commit;
+begin;
 select pg_temp.act_as(null);
 do $$ begin
   if not exists (select 1 from storage.objects where bucket_id = 'template-assets' and name = 't1/exemple.png') then raise exception 'FAIL anon cannot read template image'; end if;
