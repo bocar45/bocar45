@@ -14,6 +14,7 @@ export default async function AccountPage() {
       <ul className="grid gap-2">
         <li><Link className="underline" href="/compte/commandes">Mes commandes</Link></li>
         <li><Link className="underline" href="/compte/creations">Mes créations</Link></li>
+        <li><Link className="underline" href="/compte/devis">Mes devis (associations, entreprises)</Link></li>
         {vendor && <li><Link className="underline" href="/pro">Espace atelier : {vendor.organization.name}</Link></li>}
         {isAdmin && <li><Link className="underline" href="/admin">Administration SAWWA</Link></li>}
       </ul>
