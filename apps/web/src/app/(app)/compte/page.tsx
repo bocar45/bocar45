@@ -12,6 +12,8 @@ export default async function AccountPage() {
       <h1 className="font-display text-3xl">Mon compte</h1>
       <p className="text-muted">Connecté avec {user.phone ? `+${user.phone.replace(/^\+/, "")}` : user.email}.</p>
       <ul className="grid gap-2">
+        <li><Link className="underline" href="/compte/commandes">Mes commandes</Link></li>
+        <li><Link className="underline" href="/compte/creations">Mes créations</Link></li>
         {vendor && <li><Link className="underline" href="/pro">Espace atelier : {vendor.organization.name}</Link></li>}
         {isAdmin && <li><Link className="underline" href="/admin">Administration SAWWA</Link></li>}
       </ul>

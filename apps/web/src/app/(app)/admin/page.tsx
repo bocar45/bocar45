@@ -6,12 +6,14 @@ export const metadata = { title: "Administration" };
 export default async function AdminHome() {
   const { supabase, memberships } = await requirePlatformRole(["ops", "vendor_manager", "catalog", "support", "finance"], "/admin");
   const can = (r: Parameters<typeof hasPlatformRole>[1]) => hasPlatformRole(memberships, r);
-  const [pending, products, rules] = await Promise.all([
+  const [pending, products, rules, toPay] = await Promise.all([
     supabase.from("organizations").select("id", { count: "exact", head: true }).eq("kind", "vendor").eq("status", "pending"),
     supabase.from("base_products").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("price_rule_sets").select("version").eq("status", "active").maybeSingle(),
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "awaiting_payment"),
   ]);
   const tiles = [
+    can(["ops", "support", "finance"]) && { href: "/admin/commandes", label: "Commandes à encaisser", value: String(toPay.count ?? 0) },
     can(["ops", "vendor_manager"]) && { href: "/admin/ateliers", label: "Candidatures d'ateliers à traiter", value: String(pending.count ?? 0) },
     can(["catalog", "ops", "vendor_manager"]) && { href: "/admin/catalogue", label: "Produits publiés", value: String(products.count ?? 0) },
     can(["finance", "ops", "catalog"]) && { href: "/admin/regles-prix", label: "Règles de prix actives", value: rules.data ? `v${rules.data.version}` : "aucune" },

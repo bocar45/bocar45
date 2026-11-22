@@ -5,7 +5,7 @@ export const metadata = { title: "Espace atelier" };
 
 const STATUS_TEXT = {
   pending: "Candidature reçue. L'équipe SAWWA vous contacte pour la commande test.",
-  active: "Atelier actif. Renseignez vos offres et vos prix ; la file de commandes arrive avec le module commandes.",
+  active: "Atelier actif. Les commandes que SAWWA vous affecte apparaissent dans « Mes commandes ».",
   suspended: "Compte suspendu. Contactez l'équipe SAWWA.",
   rejected: "Candidature non retenue pour le moment.",
 } as const;
@@ -30,7 +30,10 @@ export default async function ProHome() {
       <h1 className="font-display text-3xl">{name}</h1>
       <p role="status" className="rounded-lg border border-line bg-surface p-4">{STATUS_TEXT[status]}</p>
       {status === "active" && (
-        <Link href="/pro/offres" className="w-fit rounded-md bg-action px-4 py-3 font-bold text-on-action">Gérer mes offres et mes prix</Link>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/pro/commandes" className="btn btn-terra">Mes commandes</Link>
+          <Link href="/pro/offres" className="btn btn-brun">Mes offres et mes prix</Link>
+        </div>
       )}
     </div>
   );

@@ -19,7 +19,8 @@
     "server-only": "0.0.1",
     "@sawwa/catalog": "workspace:*",
     "@sawwa/pricing": "workspace:*",
-    "@sawwa/design": "workspace:*"
+    "@sawwa/design": "workspace:*",
+    "@sawwa/workflow": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.5",

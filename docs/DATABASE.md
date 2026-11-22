@@ -101,5 +101,6 @@ Un client B2B (association, entreprise) est une `organization` de type `customer
 |---|---|
 | `20261122000100_core.sql` | Identité, organisations, rôles, catalogue, ateliers, offres, grilles, règles de prix, audit, RLS |
 | `20261122000200_catalog_offers_rules.sql` | Publication contrôlée d'un produit, zone ↔ vue du même produit, offres réservées aux ateliers **actifs**, capacité ≤ zone de référence et technique autorisée, activation des règles de prix (`activate_price_rule_set`, rôle finance, audit), versions activées figées |
+| `20261122000300_designs_orders.sql` | Créations, versions figées (immuables), commandes (numéro SW-AAAA-000001), lignes, ordres de fabrication, historique (immuable), fonctions serveur `create_order` / `apply_fulfillment_transition` (contrôle optimiste) / `mark_order_paid`, stockage `design-assets` (dossier par client) et `qc-photos` (dossier par atelier) |
 Tests : `pnpm db:test` (Postgres local jetable, sans Docker).
 

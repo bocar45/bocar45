@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import {
   FONTS, blocking, decorationsFor, effectiveDpi, emptyDocument, parseDesign, preflight,
   type DesignDocument, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
 } from "@sawwa/design";
+import { DELIVERY_OPTIONS, type DeliveryKey } from "@/lib/shipping";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { ProductArt, artKindFor } from "../product-art";
 import { getAsset, loadDraft, putAsset, saveDraft } from "./asset-store";
 import { LayerShape, StudioCanvas, isDark } from "./canvas";
@@ -18,6 +21,13 @@ export interface StudioProps {
   quote: (slug: string, colorKey: string, quantity: number, decorations: ReturnType<typeof decorationsFor>) => Promise<
     { ok: true; unitPrice: number; total: number; quantity: number; leadTimeDays: number; depositDue: number | null; setupFee: number } | { ok: false; message: string }
   >;
+  userId: string | null;
+  initial: { id: string; title: string; document: DesignDocument; urls: Record<string, string> } | null;
+  save: (input: { id: string | null; slug: string; title: string; document: unknown }) => Promise<{ ok: true; id: string } | { error: string }>;
+  order: (input: {
+    designId: string; sizes: Record<string, number>; delivery: string; acceptWarnings: boolean;
+    address: { name: string; phone: string; district: string; landmark: string; city: string };
+  }) => Promise<{ ok: true; orderId: string; number: string } | { error: string }>;
 }
 
 const SWATCHES = ["#2A1A12", "#F2E9D8", "#FFFFFF", "#000000", "#B5562A", "#C9923E", "#2F4B7C", "#68705A", "#A4262C"];
@@ -26,8 +36,13 @@ const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).sl
 const btn = "inline-flex items-center justify-center gap-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-sable disabled:opacity-40";
 const field = "w-full rounded-md border border-line bg-bg px-2 py-1.5 text-sm";
 
-export function Studio({ product, quote }: StudioProps) {
-  const draftKey = `sawwa:studio:${product.slug}`;
+export function Studio({ product, quote, userId, initial, save, order }: StudioProps) {
+  const router = useRouter();
+  const draftKey = `sawwa:studio:${product.slug}${initial ? `:${initial.id}` : ""}`;
+  const [designId, setDesignId] = useState<string | null>(initial?.id ?? null);
+  const [title, setTitle] = useState(initial?.title ?? "Ma création");
+  const [saving, setSaving] = useState(false);
+  const [ordering, setOrdering] = useState(false);
   const history = useHistory<DesignDocument>(emptyDocument(product.slug, product.colors[0]?.key ?? ""));
   const doc = history.value;
   const [zoneKey, setZoneKey] = useState(product.zones[0]?.key ?? "");
@@ -49,6 +64,12 @@ export function Studio({ product, quote }: StudioProps) {
 
   // ── Restore the draft kept on this device ──
   useEffect(() => {
+    if (initial) {
+      history.reset(initial.document);
+      setUrls(initial.urls);
+      setRestored(true);
+      return;
+    }
     const saved = loadDraft<DesignDocument>(draftKey);
     const parsed = saved ? parseDesign(saved) : null;
     if (parsed?.ok && parsed.value.product === product.slug) {
@@ -127,6 +148,46 @@ export function Studio({ product, quote }: StudioProps) {
       setNotice(null);
     } catch {
       setNotice("Impossible de lire cette image.");
+    }
+  };
+
+  // ── Save to the customer account: upload on-device images, then store the document ──
+  const saveToAccount = async (): Promise<string | null> => {
+    if (!userId) {
+      router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}`)}`);
+      return null;
+    }
+    setSaving(true);
+    setNotice(null);
+    try {
+      const supabase = createBrowserSupabase();
+      let next = doc;
+      const newUrls: Record<string, string> = {};
+      for (const s of doc.surfaces) {
+        for (const l of s.layers) {
+          if (l.type !== "image" || l.src.startsWith("storage:")) continue;
+          const blob = await getAsset(l.src.replace(/^idb:/, ""));
+          if (!blob) throw new Error(`Image « ${l.name} » introuvable sur cet appareil : importez-la à nouveau.`);
+          const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+          const path = `${userId}/${uid()}${uid()}.${ext}`;
+          const { error } = await supabase.storage.from("design-assets").upload(path, blob, { contentType: blob.type, upsert: false });
+          if (error) throw new Error(`Envoi de l'image impossible : ${error.message}`);
+          const src = `storage:design-assets/${path}`;
+          newUrls[src] = urls[l.src] ?? "";
+          next = { ...next, surfaces: next.surfaces.map((x) => ({ ...x, layers: x.layers.map((y) => (y.id === l.id ? { ...y, src } as Layer : y)) })) };
+        }
+      }
+      if (next !== doc) { setUrls((u) => ({ ...u, ...newUrls })); history.commit(next); }
+      const r = await save({ id: designId, slug: product.slug, title, document: next });
+      if ("error" in r) throw new Error(r.error);
+      setDesignId(r.id);
+      setNotice("Création enregistrée dans votre compte.");
+      return r.id;
+    } catch (e) {
+      setNotice((e as Error).message);
+      return null;
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -314,8 +375,32 @@ export function Studio({ product, quote }: StudioProps) {
                   <span className="text-xs text-ivoire/60">Fabriqué en {price.leadTimeDays} jours ouvrés après le BAT</span>
                 </div>
               ) : <p className="text-sm text-muted">{price.message}</p>}
-            <p className="text-xs text-muted">Votre création est enregistrée automatiquement sur cet appareil. La commande en ligne arrive à la prochaine étape.</p>
+            <label className="grid gap-1 text-xs font-semibold text-muted">Nom de la création
+              <input value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} className={field} />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={btn} disabled={saving} onClick={() => void saveToAccount()}>{saving ? "Enregistrement…" : designId ? "Enregistrer" : "Enregistrer dans mon compte"}</button>
+              <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={decorations.length === 0 || blocking(allIssues)}
+                onClick={() => (userId ? setOrdering(true) : router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}`)}`))}>
+                Commander
+              </button>
+            </div>
+            {blocking(allIssues) && <p className="text-xs text-error">Corrigez les points bloquants pour pouvoir commander.</p>}
+            <p className="text-xs text-muted">{designId ? "Enregistrée dans votre compte." : "Enregistrée automatiquement sur cet appareil."}</p>
           </Panel>
+          {ordering && (
+            <OrderPanel sizes={color.sizes} issues={allIssues.length} price={price}
+              onQuantity={setQuantity} onCancel={() => setOrdering(false)}
+              onConfirm={async (form) => {
+                const id = await saveToAccount();
+                if (!id) return "Enregistrez d'abord votre création.";
+                const r = await order({ designId: id, ...form });
+                if ("error" in r) return r.error;
+                try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+                router.push(`/compte/commandes/${r.orderId}`);
+                return null;
+              }} />
+          )}
         </aside>
       </div>
     </div>
@@ -431,5 +516,69 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (hex: strin
         <input type="color" value={value} onChange={(e) => onChange(e.target.value.toUpperCase())} aria-label="Autre couleur" className="h-7 w-10 cursor-pointer rounded border border-line" />
       </div>
     </div>
+  );
+}
+
+function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm }: {
+  sizes: string[]; issues: number; price: Awaited<ReturnType<StudioProps["quote"]>> | null;
+  onQuantity: (n: number) => void; onCancel: () => void;
+  onConfirm: (form: { sizes: Record<string, number>; delivery: string; acceptWarnings: boolean; address: { name: string; phone: string; district: string; landmark: string; city: string } }) => Promise<string | null>;
+}) {
+  const [qty, setQty] = useState<Record<string, number>>(Object.fromEntries(sizes.map((s, i) => [s, i === Math.floor(sizes.length / 2) ? 1 : 0])));
+  const [delivery, setDelivery] = useState<DeliveryKey>("dakar");
+  const [address, setAddress] = useState({ name: "", phone: "", district: "", landmark: "", city: "Dakar" });
+  const [accept, setAccept] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const total = Object.values(qty).reduce((a, b) => a + b, 0);
+  useEffect(() => { if (total > 0) onQuantity(total); }, [total, onQuantity]);
+  const ship = DELIVERY_OPTIONS[delivery].price;
+  return (
+    <section className="grid gap-3 rounded-2xl border-2 border-terra bg-surface p-4" aria-labelledby="order-title">
+      <h2 id="order-title" className="display on-light text-2xl">Votre commande</h2>
+      <fieldset className="grid gap-2">
+        <legend className="text-xs font-semibold text-muted">Quantité par taille</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {sizes.map((s) => (
+            <label key={s} className="grid gap-1 text-xs font-bold">{s}
+              <input type="number" min={0} max={5000} value={qty[s] ?? 0} className={field}
+                onChange={(e) => setQty((q) => ({ ...q, [s]: Math.max(0, Math.min(5000, Number(e.target.value) || 0)) }))} />
+            </label>
+          ))}
+        </div>
+        <span className="text-sm">Total : <b>{total}</b> pièce{total > 1 ? "s" : ""}</span>
+      </fieldset>
+      <label className="grid gap-1 text-xs font-semibold text-muted">Livraison
+        <select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryKey)} className={field}>
+          {(Object.keys(DELIVERY_OPTIONS) as DeliveryKey[]).map((k) => (
+            <option key={k} value={k}>{DELIVERY_OPTIONS[k].label} — {DELIVERY_OPTIONS[k].price ? fcfa(DELIVERY_OPTIONS[k].price) : "gratuit"}</option>
+          ))}
+        </select>
+      </label>
+      {([["name", "Nom de la personne qui reçoit"], ["phone", "Téléphone (WhatsApp de préférence)"], ["district", "Quartier"], ["landmark", "Point de repère"], ["city", "Ville"]] as const).map(([k, label]) => (
+        <label key={k} className="grid gap-1 text-xs font-semibold text-muted">{label}
+          <input value={address[k]} onChange={(e) => setAddress((a) => ({ ...a, [k]: e.target.value }))} className={field}
+            inputMode={k === "phone" ? "tel" : undefined} autoComplete={k === "name" ? "name" : k === "phone" ? "tel" : undefined} />
+        </label>
+      ))}
+      {issues > 0 && (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="mt-1" />
+          J&apos;ai lu les remarques de fabrication et je souhaite commander quand même.
+        </label>
+      )}
+      {price?.ok && price.quantity === total && (
+        <p className="text-sm">Articles {fcfa(price.total)} + livraison {ship ? fcfa(ship) : "gratuite"} = <b>{fcfa(price.total + ship)}</b> TTC</p>
+      )}
+      <p className="text-xs text-muted">Paiement après confirmation : Wave, Orange Money ou virement. L&apos;atelier vérifie votre fichier (BAT) avant de produire ; si une correction est nécessaire, vous pourrez accepter, corriger ou annuler et être remboursé.</p>
+      {error && <p role="alert" className="text-sm text-error">⚠ {error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={busy || total < 1}
+          onClick={async () => { setBusy(true); setError(null); const e = await onConfirm({ sizes: qty, delivery, acceptWarnings: accept, address }); if (e) setError(e); setBusy(false); }}>
+          {busy ? "Envoi…" : "Confirmer la commande"}
+        </button>
+        <button type="button" className={btn} onClick={onCancel}>Annuler</button>
+      </div>
+    </section>
   );
 }

@@ -221,4 +221,104 @@ do $$ declare ok boolean := false; begin
   if not ok then raise exception 'FAIL active rules edited'; end if;
 end $$;
 
+-- 11. Designs, orders and fulfillments
+insert into auth.users (id, phone) values ('00000000-0000-0000-0000-0000000000c2', '+221770000010');
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+insert into public.designs (id, owner_id, base_product_id, document)
+select '00000000-0000-0000-0000-00000000d001', '00000000-0000-0000-0000-0000000000c1', id, '{"schemaVersion":1}' from public.base_products where slug = 'tee-crew-180';
+commit;
+-- another customer cannot read or write it
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c2');
+do $$ declare ok boolean := false; begin
+  if exists (select 1 from public.designs) then raise exception 'FAIL other customer sees design'; end if;
+  begin
+    insert into public.designs (owner_id, base_product_id, document) select '00000000-0000-0000-0000-0000000000c1', id, '{}' from public.base_products limit 1;
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL design written for someone else'; end if;
+end $$;
+rollback;
+-- customers cannot call order functions directly
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+do $$ declare ok boolean := false; begin
+  begin perform public.mark_order_paid(gen_random_uuid(), auth.uid(), 'x'); exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL customer marked an order paid'; end if;
+end $$;
+rollback;
+-- server creates the order (service role)
+set role service_role;
+select * from public.create_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000d001', '{"schemaVersion":1}', 'abc', '[]',
+  '[{"color_key":"ivory","sizes":{"M":3},"quantity":3,"unit_price":7200,"line_total":21600,"decorations":[]}]',
+  '{"subtotal":21600,"tax":3295,"total":21600}', '{"ruleSetVersion":1}', '{"name":"Awa","phone":"+221770000005"}');
+reset role;
+do $$ begin
+  if (select count(*) from public.design_versions) <> 1 then raise exception 'FAIL version not frozen'; end if;
+  if (select status from public.fulfillments) <> 'pending_assignment' then raise exception 'FAIL fulfillment'; end if;
+  if (select number from public.orders) !~ '^SW-\d{4}-\d{6}$' then raise exception 'FAIL order number'; end if;
+end $$;
+-- frozen version is immutable
+do $$ declare ok boolean := false; begin
+  begin update public.design_versions set document = '{}'; exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL version edited'; end if;
+end $$;
+-- workshops see nothing before assignment; the assigned workshop sees its fulfillment and items, never the order row
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ begin
+  if exists (select 1 from public.fulfillments) or exists (select 1 from public.order_items) then raise exception 'FAIL workshop sees unassigned order'; end if;
+end $$;
+rollback;
+set role service_role;
+select public.apply_fulfillment_transition((select id from public.fulfillments), 'pending_assignment',
+  jsonb_build_object('status','assigned','vendorId',(select id from public.organizations where name = 'Atelier Médina'),'proofRound',0,'heldFrom',null),
+  'assign', '00000000-0000-0000-0000-00000000000a', 'admin', '{}', '{"sla_hours":24,"vendor_cost":12000}');
+reset role;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ begin
+  if (select count(*) from public.fulfillments) <> 1 then raise exception 'FAIL assigned workshop cannot see fulfillment'; end if;
+  if (select count(*) from public.order_items) <> 1 then raise exception 'FAIL workshop cannot see items'; end if;
+  if (select count(*) from public.design_versions) <> 1 then raise exception 'FAIL workshop cannot see frozen design'; end if;
+  if exists (select 1 from public.orders) then raise exception 'FAIL workshop sees the customer order row'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+do $$ begin
+  if exists (select 1 from public.fulfillments) then raise exception 'FAIL other workshop sees fulfillment'; end if;
+end $$;
+rollback;
+-- optimistic check: a stale transition fails
+set role service_role;
+do $$ declare ok boolean := false; begin
+  begin perform public.apply_fulfillment_transition((select id from public.fulfillments), 'pending_assignment', '{"status":"assigned","proofRound":0}', 'assign', null, 'admin', '{}');
+  exception when serialization_failure then ok := true; end;
+  if not ok then raise exception 'FAIL stale transition applied'; end if;
+end $$;
+reset role;
+-- customer sees order, timeline (2 events)
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+do $$ begin
+  if (select count(*) from public.orders) <> 1 then raise exception 'FAIL customer order'; end if;
+  if (select count(*) from public.status_events) <> 2 then raise exception 'FAIL customer timeline: %', (select count(*) from public.status_events); end if;
+end $$;
+rollback;
+-- storage: customers write only in their own folder; QC photos only for workshop members
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+insert into storage.objects (bucket_id, name) values ('design-assets', '00000000-0000-0000-0000-0000000000c1/logo.png');
+do $$ declare ok boolean := false; begin
+  begin insert into storage.objects (bucket_id, name) values ('design-assets', '00000000-0000-0000-0000-0000000000c2/x.png');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL wrote in another customer folder'; end if;
+  ok := false;
+  begin insert into storage.objects (bucket_id, name) values ('qc-photos', 'not-a-uuid/x.jpg');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL customer wrote a QC photo'; end if;
+end $$;
+rollback;
+
 select 'ALL RLS TESTS PASSED' as result;

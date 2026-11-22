@@ -98,3 +98,8 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Pourquoi** : le format est déjà en mm et les fichiers de production seront produits en SVG → ce que voit le client est exactement ce que reçoit l'atelier ; pas de conversion Fabric ↔ document à maintenir ; aucune dépendance lourde ; même code de rendu pour l'aperçu produit (et demain la 3D et l'export).
 - **Limites assumées** : pas d'édition de texte directement sur le canevas (le texte se modifie dans le panneau) ; pas d'outils vectoriels avancés. Fabric.js reste une option si ces besoins deviennent prioritaires.
 - **Réversible** : oui, le document ne dépend pas de l'éditeur.
+
+## D15 🟢 Pilote : paiement confirmé manuellement, livraison au forfait (décision CTO, 22/11/2026, réversible)
+- **Problème** : l'agrégateur de paiement (Wave/Orange Money/carte) demande un compte marchand que SAWWA n'a pas encore ; les tarifs de livraison ne sont pas encore négociés.
+- **Choix pour le pilote** : la commande est créée « Paiement attendu » ; SAWWA envoie les instructions de paiement par WhatsApp ; la finance confirme le paiement dans l'admin avec la référence de transaction (journalisé). Livraison : 4 forfaits fixes (retrait gratuit, Dakar 2 000, banlieue 3 000, régions 5 000 FCFA) dans `apps/web/src/lib/shipping.ts`.
+- **Ensuite** : webhook de l'agrégateur → `mark_order_paid` automatique ; tarifs de livraison gérés dans l'admin (`shipping_rates`).

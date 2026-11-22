@@ -37,7 +37,11 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Refonte visuelle du site (direction « atelier contemporain ouest-africain », logo réel, aplats, bandes tissées)
 - [x] Phase 3 (début) — catalogue public par catégorie et fiches produits ; prix « dès » et prix par quantité calculés par le moteur sur les offres actives (seuls les prix publics quittent le serveur), cache 10 min + rafraîchissement à chaque modification admin/atelier
 - [x] Phase 3 — studio V1 : texte (6 polices libres), images (PNG/JPG/WebP), formes (losange, cercle, carré), zones en mm réels, déplacement/redimensionnement/rotation avec aimantation, calques (ordre, masquer, verrouiller), annuler/rétablir, raccourcis clavier, choix de technique par zone, contrôle de fabrication en direct (`@sawwa/design`), prix en direct (moteur de prix, serveur), aperçu sur le produit, brouillon enregistré sur l'appareil (images en IndexedDB)
-- [ ] Phase 3 — enregistrer les créations dans le compte (Supabase Storage), version figée à la commande, export 300 dpi + fiche technique, limitation de débit du calcul de prix
+- [x] Phase 3/4 — créations enregistrées dans le compte (images dans Supabase Storage), réouverture dans le studio, « Mes créations »
+- [x] Phase 4 — commande : tailles, livraison, adresse ; contrôles et prix recalculés côté serveur ; création et devis figés ; création atomique (`create_order`) ; suivi client avec historique ; réponse à une demande de correction (produire telle quelle / annuler)
+- [x] Phase 4 — admin commandes : vues à encaisser / à affecter / en cours / terminées, retards SLA, confirmation manuelle du paiement (D15), affectation avec coût et marge par atelier, pause, reprise, annulation, livraison
+- [x] Phase 5 — atelier : file par étape, fiche de production (création figée, tailles, position du marquage en cm, fichiers originaux), prise en charge/refus, BAT (valider / demander correction), production, photos de contrôle, expédition
+- [ ] Phase 4/5 — fichier d'impression 300 dpi + fiche PDF, correction de la création par le client (nouvelle version), notifications WhatsApp/SMS, agrégateur de paiement, limitation de débit, test de bout en bout sur un vrai projet Supabase
 - [ ] Phase 2 — créer les projets Supabase/Vercel (porteur), types générés, enregistrement d'offre atomique (RPC), test des écrans de bout en bout sur un vrai projet Supabase
 
 ## Critères d'acceptation par jalon
