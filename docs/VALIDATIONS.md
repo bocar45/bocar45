@@ -2,6 +2,24 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E21 (2e passage) — VALIDÉ
+Commit examiné : 05a6581 (depuis 2609e7d), `git status` propre, branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (142) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.
+Vérification navigateur : non faite (pages dépendantes de la base, pas de Supabase réel).
+Critères de l'étape :
+- [x] Capacité et fermetures à l'affectation : acquis au 1er passage, inchangés (commentaire de `capacity.ts` corrigé).
+- [x] Plusieurs utilisateurs par atelier, opérateur sans argent ni offres :
+  - RLS : `offers_read`, `offer_variants_read`, `capabilities_read`, `grids_read` recréées avec `is_org_manager` (migration 11, fin) ; rôles plateforme inchangés. Les lectures de devis, catalogue public, B2B et affectation passent par le client service (`quoting.ts:34`, `catalog-public.ts:34`, `b2b.ts:39`, `assignment.ts`) et ne dépendent donc pas de ces politiques.
+  - Tests section 19 : l'opérateur ne lit ni offres, ni variantes, ni capacités, ni grilles ; le propriétaire lit les siennes ; un gérant ne peut pas inviter un gérant mais peut inviter un opérateur.
+  - Interface : `/pro/offres` et `/pro/offres/[productId]` redirigent l'opérateur (`!canManage`) ; `/pro/commandes/[id]` ne sélectionne plus `vendor_cost` dans la requête principale et ne le lit et l'affiche que pour propriétaire et gérant (`canSeeAmount`).
+  - `accept_vendor_invitation` revérifie que l'atelier est actif.
+Critères communs : C1 ✅ · C2 ✅ (permissions serveur et RLS alignées sur D24) · C3 ✅ (grep secrets vide dans apps/packages/supabase ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ (tests SQL d'accès opérateur, gérant) · C6 ✅ (D24 précisée ; poussé ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- `fulfillments.vendor_cost` reste lisible par l'API pour un opérateur (montant de son propre atelier) ; écart assumé et documenté dans D24, à fermer à la revue de sécurité (E24) par privilège de colonne ou vue.
+- Migration 11 modifiée sur place : acceptable tant qu'aucune base réelle ne l'a appliquée (avant E11).
+Décision : passer à E22 (partie gratuite : détourage dans le navigateur ; la génération de motifs attend le budget du porteur 🧑‍💼)
+
 ## 2026-11-22 — E21 — À CORRIGER
 Commit examiné : 2609e7d (depuis f013e48), `git status` propre, branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (142, 24 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.

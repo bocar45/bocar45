@@ -142,7 +142,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Export comptable CSV (Excel FR) : commandes/TVA, grand livre, versements, litiges, par période ; protection contre l'injection de formules. Décision D23.
 - [ ] Plus tard : remboursement en ligne (E13), factures et auto-factures numérotées, rapprochement des paiements.
 
-## E21 — Espace atelier avancé 🔎
+## E21 — Espace atelier avancé ✅
 - [x] Capacité par jour et fermetures (`/pro/disponibilites`) prises en compte à l'affectation : charge en cours + commande ÷ capacité, jours ouvrés du lundi au samedi, fermetures sautées ; l'admin voit « prêt le… / surchargé / fermé jusqu'au… », les ateliers disponibles sont proposés en premier, l'affectation à un atelier fermé est refusée (`lib/capacity.ts`, tests). Marge de l'affectation calculée avec `splitGross` (règle 3).
 - [x] Plusieurs utilisateurs par atelier : invitation par numéro de téléphone (7 jours), acceptation par la personne connectée avec ce numéro, rôles propriétaire / gérant / opérateur ; l'opérateur ne voit ni l'argent ni les offres et ne gère ni l'équipe ni les disponibilités ; au moins un propriétaire garanti (`/pro/equipe`). Décision D24.
 
