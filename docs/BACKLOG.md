@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → E18b → E24a → E24b → E24c → **E24d** (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → E18b → E24a → E24b → E24c → E24d (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -173,8 +173,12 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Données structurées : Organisation (accueil), Produit avec fourchette de prix publique en FCFA (fiches), protégées contre l'injection (testé).
 - [x] Pages légales provisoires (mentions légales, CGV, confidentialité) rédigées d'après le fonctionnement réel, signalées « version provisoire » avec les éléments à compléter ; liens en pied de page. 🧑‍💼 Relecture par un juriste, informations de l'entreprise et déclaration CDP avant ouverture.
 
-## E24d — Version anglaise ⏳
-- [ ] Interface FR/EN (pages publiques, studio, compte), sélection de langue, textes de la base (catalogue `name.fr` / `name.en`).
+## E24d — Version anglaise 🔎
+- [x] Langue choisie par cookie (navigateur en anglais → anglais d'emblée, sinon français), sélecteur FR | EN dans l'en-tête qui garde la page (`/langue`, redirection protégée), `<html lang>` correct. Sans dépendance (`lib/i18n.ts`, testé).
+- [x] Traduit : en-tête, pied de page, accueil, catalogue et catégories, fiches produit, galerie de modèles (occasions), devis, connexion, interface principale du studio (outils, panneaux, prix, boutons) ; montants FCFA au format de la langue.
+- [x] Catalogue : `name.en` / `description.en` affichés en anglais quand ils existent, sinon le français.
+- [x] Pages légales : en anglais, mention que la version française fait foi (traduction après relecture juridique).
+- [ ] Plus tard : messages d'erreur renvoyés par le serveur, panneaux secondaires du studio, espaces compte/atelier/admin (en français : équipes au Sénégal), adresses `/en/…` avec hreflang pour le référencement anglais. Décision D29.
 
 ## E24 — Lancement public ⏳ 🧑‍💼
 - [ ] Revue de sécurité, tests de charge, CGV/CGU/confidentialité relues, déclaration CDP, SEO, mesure d'audience.

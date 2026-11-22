@@ -27,6 +27,8 @@ import { RightsGate } from "./rights-gate";
 import { AssistantPanel, FieldEditor, TemplateSavePanel } from "./template-panels";
 import { moveLayerToZone } from "./move";
 import { useHistory } from "./use-history";
+import { useLang } from "@/components/lang-context";
+import { fcfaIn, l } from "@/lib/i18n";
 import { fitsQuote } from "@/lib/b2b-rules";
 import { needsRightsDeclaration } from "@/lib/design-ownership";
 
@@ -71,6 +73,8 @@ const btn = "inline-flex items-center justify-center gap-1 rounded-lg border bor
 const field = "w-full rounded-md border border-line bg-bg px-2 py-1.5 text-sm";
 
 export function Studio({ product, quote, userId, initial, save, order, correction, resubmit, assistant, template, saveTemplate, b2b }: StudioProps) {
+  const lang = useLang();
+  const t = (fr: string, en: string) => l(lang, fr, en);
   const router = useRouter();
   const draftKey = `sawwa:studio:${product.slug}${correction ? `:commande:${correction.orderId}` : template ? `:gabarit:${template.id}` : b2b ? `:devis:${b2b.id}` : assistant ? `:modele:${assistant.slug}` : initial ? `:${initial.id}` : ""}`;
   const [assistantOpen, setAssistantOpen] = useState(Boolean(assistant));
@@ -410,7 +414,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
     <div className="grid min-h-[calc(100dvh-64px)] grid-rows-[auto_1fr] bg-sable/40">
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-3 border-b border-line bg-ivoire px-4 py-3">
-        <Link href={`/produits/${product.slug}`} className="text-sm text-muted underline">← Produit</Link>
+        <Link href={`/produits/${product.slug}`} className="text-sm text-muted underline">{t("← Produit", "← Product")}</Link>
         <b className="display on-light text-xl">{product.name}</b>
         {correction && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Correction · {correction.number}</span>}
         {template && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Modèle · {template.title}</span>}
@@ -429,8 +433,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           ))}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <button type="button" className={btn} onClick={history.undo} disabled={!history.canUndo} aria-label="Annuler (Ctrl+Z)">↶ Annuler</button>
-          <button type="button" className={btn} onClick={history.redo} disabled={!history.canRedo} aria-label="Rétablir (Ctrl+Maj+Z)">↷ Rétablir</button>
+          <button type="button" className={btn} onClick={history.undo} disabled={!history.canUndo} aria-label={t("Annuler (Ctrl+Z)", "Undo (Ctrl+Z)")}>{t("↶ Annuler", "↶ Undo")}</button>
+          <button type="button" className={btn} onClick={history.redo} disabled={!history.canRedo} aria-label={t("Rétablir (Ctrl+Maj+Z)", "Redo (Ctrl+Shift+Z)")}>{t("↷ Rétablir", "↷ Redo")}</button>
           <div className="flex rounded-full bg-brun p-1 text-sm font-bold" role="group" aria-label="Mode">
             {(["edit", "split", "3d"] as const).map((m) => (
               <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m} disabled={m !== "edit" && !webgl}
@@ -444,19 +448,19 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
       <div className={`grid gap-0 ${assistantOpen ? "lg:grid-cols-[1fr_380px]" : "lg:grid-cols-[88px_1fr_340px]"}`}>
         {/* Tools (hidden while the customer fills a template in the assistant) */}
         <div className={`${assistantOpen ? "hidden" : "flex"} gap-2 overflow-x-auto border-b border-line bg-ivoire p-3 lg:flex-col lg:border-b-0 lg:border-r`}>
-          <Tool label="Texte" icon="T" onClick={addText} />
+          <Tool label={t("Texte", "Text")} icon="T" onClick={addText} />
           <Tool label="Image" icon="▣" onClick={() => requireRights(() => fileInput.current?.click())} />
-          <Tool label="Losange" icon="◆" onClick={() => addShape("losange")} />
-          <Tool label="Cercle" icon="●" onClick={() => addShape("circle")} />
-          <Tool label="Carré" icon="■" onClick={() => addShape("rect")} />
-          <Tool label="Nom + n°" icon="10" onClick={addTeamTexts} />
+          <Tool label={t("Losange", "Diamond")} icon="◆" onClick={() => addShape("losange")} />
+          <Tool label={t("Cercle", "Circle")} icon="●" onClick={() => addShape("circle")} />
+          <Tool label={t("Carré", "Square")} icon="■" onClick={() => addShape("rect")} />
+          <Tool label={t("Nom + n°", "Name + no.")} icon="10" onClick={addTeamTexts} />
           <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void importImage(f); e.target.value = ""; }} />
         </div>
 
         {/* Canvas / preview */}
         <div className="grid grid-rows-[auto_1fr] gap-3 p-4">
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Zones à personnaliser">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label={t("Zones à personnaliser", "Areas to personalise")}>
             {product.zones.map((z) => {
               const n = doc.surfaces.find((s) => s.zoneKey === z.key)?.layers.length ?? 0;
               const bad = blocking(issuesByZone[z.key] ?? []);
@@ -508,7 +512,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
                 </div>
                 {surface.layers.length === 0 && !assistantOpen && (
                   <div className="pointer-events-none absolute inset-x-0 bottom-6 grid place-items-center">
-                    <p className="rounded-full bg-brun/85 px-4 py-2 text-sm font-semibold text-ivoire">Ajoutez un texte, une image ou une forme avec les outils</p>
+                    <p className="rounded-full bg-brun/85 px-4 py-2 text-sm font-semibold text-ivoire">{t("Ajoutez un texte, une image ou une forme avec les outils", "Add a text, an image or a shape with the tools")}</p>
                   </div>
                 )}
               </div>
@@ -535,14 +539,14 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           )}
           {!assistantOpen && (<>
           {allOverProduct && (
-            <Panel title="Motif continu (tout le vêtement)">
+            <Panel title={t("Motif continu (tout le vêtement)", "All-over motif (whole garment)")}>
               <AllOverPicker value={doc.allOver ?? null} onChange={(allOver) => history.commit((d) => {
                 const { allOver: _old, ...rest } = d;
                 return allOver ? { ...rest, allOver } : rest;
               })} />
             </Panel>
           )}
-          <Panel title="Technique pour cette zone">
+          <Panel title={t("Technique pour cette zone", "Technique for this area")}>
             <div className="flex flex-wrap gap-2">
               {zone.techniques.map((t) => (
                 <button key={t} type="button" aria-pressed={surface.technique === t}
@@ -553,7 +557,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           </Panel>
 
           {selected && product.zones.length > 1 && (
-            <Panel title="Placer ici en un clic">
+            <Panel title={t("Placer ici en un clic", "Move here in one click")}>
               <div className="flex flex-wrap gap-2">
                 {product.zones.filter((z) => z.key !== zone.key).map((z) => (
                   <button key={z.key} type="button" className={btn} onClick={() => moveToZone(selected.id, z.key)}>{z.label}</button>
@@ -570,7 +574,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               templateMode={Boolean(template)} />
           ) : (
             <Panel title={`Calques · ${zone.label}`}>
-              {surface.layers.length === 0 ? <p className="text-sm text-muted">Aucun élément dans cette zone.</p> : (
+              {surface.layers.length === 0 ? <p className="text-sm text-muted">{t("Aucun élément dans cette zone.", "Nothing in this area yet.")}</p> : (
                 <ul className="grid gap-1.5">
                   {[...surface.layers].reverse().map((l) => (
                     <li key={l.id} className="flex items-center gap-2 rounded-lg border border-line bg-surface px-2 py-1.5 text-sm">
@@ -586,9 +590,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
 
           </>)}
 
-          <Panel title="Vérification de fabrication">
+          <Panel title={t("Vérification de fabrication", "Production check")}>
             {allIssues.length === 0 ? (
-              <p className="flex items-center gap-2 text-sm text-ok">✓ {decorations.length ? "Votre création peut être fabriquée telle quelle." : "Rien à vérifier pour l'instant."}</p>
+              <p className="flex items-center gap-2 text-sm text-ok">✓ {decorations.length ? t("Votre création peut être fabriquée telle quelle.", "Your design can be produced as it is.") : t("Rien à vérifier pour l'instant.", "Nothing to check yet.")}</p>
             ) : (
               <ul className="grid gap-2 text-sm">
                 {allIssues.map((i, k) => (
@@ -600,7 +604,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             )}
           </Panel>
 
-          <Panel title="Prix">
+          <Panel title={t("Prix", "Price")}>
             {b2b ? (
               <div className="grid gap-2">
                 <div className="grid gap-1 rounded-xl bg-indigo-900 p-4 text-ivoire">
@@ -616,38 +620,38 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               </div>
             ) : (<>
             <div className="flex items-center gap-2">
-              <label htmlFor="qty" className="text-sm">Quantité</label>
+              <label htmlFor="qty" className="text-sm">{t("Quantité", "Quantity")}</label>
               <input id="qty" type="number" min={1} max={5000} value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(5000, Number(e.target.value) || 1)))} className={`${field} w-24`} />
             </div>
-            {decorations.length === 0 ? <p className="text-sm text-muted">Le prix s&apos;affiche dès que vous ajoutez un élément.</p>
-              : !price ? <p className="text-sm text-muted">Calcul…</p>
+            {decorations.length === 0 ? <p className="text-sm text-muted">{t("Le prix s'affiche dès que vous ajoutez un élément.", "The price appears as soon as you add something.")}</p>
+              : !price ? <p className="text-sm text-muted">{t("Calcul…", "Calculating…")}</p>
               : price.ok ? (
                 <div className={`grid gap-1 rounded-xl bg-brun p-4 text-ivoire ${pricing ? "opacity-60" : ""}`} aria-live="polite">
-                  <span className="display text-3xl">{fcfa(price.unitPrice)} <span className="font-sans text-sm text-ivoire/70">/ pièce TTC</span></span>
-                  <span className="text-sm text-ivoire/80">Total {fcfa(price.total)} pour {price.quantity} pièce{price.quantity > 1 ? "s" : ""}{price.setupFee ? `, dont ${fcfa(price.setupFee)} de préparation` : ""}</span>
-                  {price.depositDue && <span className="text-sm text-ivoire/80">Acompte à la commande : {fcfa(price.depositDue)}</span>}
-                  <span className="text-xs text-ivoire/60">Fabriqué en {price.leadTimeDays} jours ouvrés après le BAT</span>
+                  <span className="display text-3xl">{fcfaIn(lang, price.unitPrice)} <span className="font-sans text-sm text-ivoire/70">{t("/ pièce TTC", "/ piece incl. VAT")}</span></span>
+                  <span className="text-sm text-ivoire/80">{lang === "en" ? `Total ${fcfaIn(lang, price.total)} for ${price.quantity} piece${price.quantity > 1 ? "s" : ""}${price.setupFee ? `, including ${fcfaIn(lang, price.setupFee)} set-up` : ""}` : `Total ${fcfa(price.total)} pour ${price.quantity} pièce${price.quantity > 1 ? "s" : ""}${price.setupFee ? `, dont ${fcfa(price.setupFee)} de préparation` : ""}`}</span>
+                  {price.depositDue && <span className="text-sm text-ivoire/80">{t("Acompte à la commande :", "Deposit when ordering:")} {fcfaIn(lang, price.depositDue)}</span>}
+                  <span className="text-xs text-ivoire/60">{lang === "en" ? `Made in ${price.leadTimeDays} working days after proof approval` : `Fabriqué en ${price.leadTimeDays} jours ouvrés après le BAT`}</span>
                 </div>
               ) : <p className="text-sm text-muted">{price.message}</p>}
             </>)}
             {!template && <>
-            <label className="grid gap-1 text-xs font-semibold text-muted">Nom de la création
+            <label className="grid gap-1 text-xs font-semibold text-muted">{t("Nom de la création", "Design name")}
               <input value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} className={field} />
             </label>
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={btn} disabled={saving} onClick={() => void saveToAccount()}>{saving ? "Enregistrement…" : designId ? "Enregistrer" : "Enregistrer dans mon compte"}</button>
+              <button type="button" className={btn} disabled={saving} onClick={() => void saveToAccount()}>{saving ? t("Enregistrement…", "Saving…") : designId ? t("Enregistrer", "Save") : t("Enregistrer dans mon compte", "Save to my account")}</button>
               {!correction && (
                 <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={decorations.length === 0 || blocking(allIssues) || quoteProblems.length > 0}
                   onClick={() => {
                     if (unfilled.length && !window.confirm(`Ces champs n'ont pas été personnalisés : ${unfilled.map((f) => f.label).join(", ")}. La photo d'exemple ou le texte vide seront imprimés tels quels. Continuer quand même ?`)) return;
                     if (userId) setOrdering(true); else router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}${assistant ? `?modele=${assistant.slug}` : ""}`)}`);
                   }}>
-                  Commander
+                  {t("Commander", "Order")}
                 </button>
               )}
             </div>
-            {blocking(allIssues) && <p className="text-xs text-error">Corrigez les points bloquants pour pouvoir commander.</p>}
-            <p className="text-xs text-muted">{designId ? "Enregistrée dans votre compte." : "Enregistrée automatiquement sur cet appareil."}</p>
+            {blocking(allIssues) && <p className="text-xs text-error">{t("Corrigez les points bloquants pour pouvoir commander.", "Fix the blocking issues to be able to order.")}</p>}
+            <p className="text-xs text-muted">{designId ? t("Enregistrée dans votre compte.", "Saved to your account.") : t("Enregistrée automatiquement sur cet appareil.", "Saved automatically on this device.")}</p>
             </>}
           </Panel>
           {correction && resubmit && (

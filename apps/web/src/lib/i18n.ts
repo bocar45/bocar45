@@ -42,3 +42,10 @@ const TECHNIQUES_EN: Record<string, string> = {
   sublimation: "Sublimation", uv: "UV print", engraving: "Engraving", flock: "Flock",
 };
 export const techniqueLabel = (t: string, fr: string, lang: Lang) => (lang === "en" ? TECHNIQUES_EN[t] ?? fr : fr);
+
+const OCCASIONS_EN: Record<string, string> = {
+  mariage: "Wedding", bapteme: "Baptism", anniversaire: "Birthday", tabaski: "Tabaski", korite: "Korité", magal: "Magal",
+  rentree: "Back to school", "fin-annee": "Year-end holidays", "saint-valentin": "Valentine's Day", "fete-meres": "Mother's Day",
+  sport: "Sport and fans", entreprise: "Company", association: "Association", humour: "Humour", autre: "Other",
+};
+export const occasionLabel = (k: string, fr: string, lang: Lang) => (lang === "en" ? OCCASIONS_EN[k] ?? fr : fr);

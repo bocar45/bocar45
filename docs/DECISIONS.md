@@ -191,3 +191,9 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Constat (E24b)** : une grande pièce d'impression intégrale à 300 dpi (65 Mpx) demande ≈ 1,5 Go au rendu, plus qu'une fonction serveur standard.
 - **Choix** : la meilleure résolution parmi 300, 200, 150 dpi qui reste sous 25 Mpx (`printDpiFor`) ; réglable par `PRINT_MAX_MEGAPIXELS` si la fonction a plus de mémoire. Les marquages habituels (A3, poitrine, manches) restent à 300 dpi ; les grandes pièces passent à 150–200 dpi, résolution usuelle de la sublimation grand format. La résolution figure dans le fichier (pHYs), son nom et la fiche.
 - **Alternative écartée pour l'instant** : rendu par tuiles assemblées (300 dpi partout) — plus complexe ; à reconsidérer si l'atelier pilote exige 300 dpi sur les grandes pièces.
+
+## D29 🟢 Version anglaise : cookie de langue, textes en paires, priorité au parcours client (décision CTO, 22/11/2026)
+- **Choix** : la langue est un cookie (préférence du navigateur par défaut, sinon français) ; les textes sont écrits en paires français/anglais à côté de leur usage (`l(lang, fr, en)`), sans bibliothèque. Simple, lisible, aucune dépendance.
+- **Périmètre traduit** : tout ce que voit un client anglophone avant et pendant la création (accueil, catalogue, fiches, modèles, devis, connexion, studio principal). Restent en français : administration et espace atelier (équipes au Sénégal), messages d'erreur détaillés du serveur, panneaux secondaires du studio — à traduire si la demande anglophone se confirme.
+- **Référencement anglais** : l'URL ne change pas avec la langue (pas de hreflang) ; si un marché anglophone devient prioritaire, passer à des adresses `/en/…` (routage par langue de Next.js).
+- **Catalogue** : l'équipe catalogue peut renseigner `name.en` / `description.en` ; à défaut, le français s'affiche.
