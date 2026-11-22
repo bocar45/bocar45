@@ -1,3 +1,5 @@
+import { categoryName, l } from "@/lib/i18n";
+import { getLang } from "@/lib/lang";
 import { notFound } from "next/navigation";
 import { CatalogView } from "@/components/catalog-view";
 import { loadPublicCatalog } from "@/lib/catalog-public";
@@ -20,10 +22,13 @@ export default async function CategoryPage({ params }: { params: Promise<{ categ
   const data = await loadPublicCatalog();
   const category = data?.categories.find((c) => c.slug === categorie);
   if (data && !category) notFound();
+  const lang = await getLang();
+  const name = category ? categoryName(category, lang) : "Catalogue";
   return (
     <CatalogView
-      title={<>{category?.name ?? "Catalogue"} <em>à votre image.</em></>}
-      intro="Prix TTC pour une pièce avec un marquage. Les prix baissent automatiquement avec la quantité."
+      lang={lang}
+      title={lang === "en" ? <>{name} <em>made yours.</em></> : <>{name} <em>à votre image.</em></>}
+      intro={l(lang, "Prix TTC pour une pièce avec un marquage. Les prix baissent automatiquement avec la quantité.", "Prices include VAT, for one piece with one print. Prices drop automatically with quantity.")}
       categories={data?.categories ?? []}
       products={data ? data.products.filter((p) => p.category.slug === categorie) : null}
       active={categorie}

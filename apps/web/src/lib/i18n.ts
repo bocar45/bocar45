@@ -32,3 +32,13 @@ export function loc(v: unknown, lang: Lang): string {
 
 /** Numbers and amounts in the reader's language (FCFA has no decimals). */
 export const fcfaIn = (lang: Lang, n: number) => `${n.toLocaleString(lang === "en" ? "en-GB" : "fr-FR")} FCFA`;
+
+/** Product, category and technique names in the reader's language (catalogue English falls back to French). */
+export const productName = (p: { name: string; en?: { name?: string | undefined } | undefined }, lang: Lang) => (lang === "en" && p.en?.name) || p.name;
+export const productDescription = (p: { description: string; en?: { description?: string | undefined } | undefined }, lang: Lang) => (lang === "en" && p.en?.description) || p.description;
+export const categoryName = (c: { name: string; nameEn?: string | undefined }, lang: Lang) => (lang === "en" && c.nameEn) || c.name;
+const TECHNIQUES_EN: Record<string, string> = {
+  dtg: "Direct-to-garment print", dtf: "DTF transfer", embroidery: "Embroidery", screen_print: "Screen printing",
+  sublimation: "Sublimation", uv: "UV print", engraving: "Engraving", flock: "Flock",
+};
+export const techniqueLabel = (t: string, fr: string, lang: Lang) => (lang === "en" ? TECHNIQUES_EN[t] ?? fr : fr);

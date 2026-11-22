@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { TECHNIQUE_LABEL } from "@sawwa/catalog";
-import { fcfa, type PublicProduct } from "@/lib/catalog-public";
+import type { PublicProduct } from "@/lib/catalog-public";
+import { categoryName, fcfaIn, l, productName, techniqueLabel, type Lang } from "@/lib/i18n";
 import { ProductArt, artKindFor, tileFor } from "./product-art";
 
-export function ProductCard({ product, index }: { product: PublicProduct; index: number }) {
+export function ProductCard({ product, index, lang = "fr" }: { product: PublicProduct; index: number; lang?: Lang }) {
   const first = product.colors[0];
   const bg = tileFor(first?.hex ?? "#F2E9D8", index);
   const light = first && first.hex.toUpperCase() !== "#2A1A12";
@@ -23,18 +24,18 @@ export function ProductCard({ product, index }: { product: PublicProduct; index:
         )}
       </div>
       <div className="grid gap-1">
-        <span className="text-xs font-bold uppercase tracking-wider text-muted">{product.category.name}</span>
-        <b className="text-lg leading-tight group-hover:underline">{product.name}</b>
+        <span className="text-xs font-bold uppercase tracking-wider text-muted">{categoryName(product.category, lang)}</span>
+        <b className="text-lg leading-tight group-hover:underline">{productName(product, lang)}</b>
         {product.price ? (
           <span className="text-sm">
-            dès <b className="text-terra-700">{fcfa(product.price.fromUnitPrice)}</b>
+            {l(lang, "dès", "from")} <b className="text-terra-700">{fcfaIn(lang, product.price.fromUnitPrice)}</b>
             {product.price.fromQuantity > 1 && <span className="text-muted"> (min. {product.price.fromQuantity} pc)</span>}
           </span>
         ) : (
-          <span className="text-sm text-muted">Bientôt disponible</span>
+          <span className="text-sm text-muted">{l(lang, "Bientôt disponible", "Coming soon")}</span>
         )}
         {product.price && (
-          <span className="text-xs text-muted">{product.price.techniques.map((t) => TECHNIQUE_LABEL[t]).join(" · ")}</span>
+          <span className="text-xs text-muted">{product.price.techniques.map((t) => techniqueLabel(t, TECHNIQUE_LABEL[t], lang)).join(" · ")}</span>
         )}
       </div>
     </Link>

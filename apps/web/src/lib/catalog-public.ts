@@ -5,7 +5,7 @@ import { catalogPrice, type CatalogPrice, type PlatformRuleSet, type VendorPrice
 import { isSupabaseConfigured } from "./env";
 import { createServiceClient } from "./supabase/server";
 
-export interface PublicCategory { slug: string; name: string }
+export interface PublicCategory { slug: string; name: string; nameEn?: string | undefined }
 export interface PublicVariant { colorKey: string; colorHex: string; size: string }
 export interface PublicZone { key: string; label: string; maxWidthMm: number; maxHeightMm: number; techniques: Technique[] }
 export interface PublicProduct {
@@ -18,10 +18,13 @@ export interface PublicProduct {
   category: PublicCategory;
   colors: { key: string; hex: string; sizes: string[] }[];
   zones: PublicZone[];
+  /** E24d: English texts when the catalogue team has written them (French otherwise). */
+  en?: { name?: string | undefined; description?: string | undefined };
   /** Public TTC prices only — never workshop costs or margins. null = no workshop offers it yet. */
   price: CatalogPrice | null;
 }
 
+const en = (v: unknown) => (v && typeof v === "object" && "en" in v && typeof (v as { en: unknown }).en === "string" && (v as { en: string }).en.trim() ? (v as { en: string }).en : undefined);
 const fr = (v: unknown) => (v && typeof v === "object" && "fr" in v ? String((v as { fr: unknown }).fr ?? "") : "");
 
 /**
@@ -73,9 +76,10 @@ export async function loadPublicCatalog(): Promise<{ categories: PublicCategory[
       slug: p.slug,
       name: fr(p.name),
       description: fr(p.description),
+      en: { name: en(p.name), description: en(p.description) },
       material: attrs.material ?? null,
       weightGsm: attrs.weight_gsm ?? null,
-      category: { slug: category?.slug ?? "", name: fr(category?.name) },
+      category: { slug: category?.slug ?? "", name: fr(category?.name), nameEn: en(category?.name) },
       colors: [...colors.values()],
       zones: ((p.zones ?? []) as { key: string; anchor: { label?: string } | null; max_width_mm: number; max_height_mm: number; allowed_techniques: Technique[] }[]).map((z) => ({
         key: z.key, label: z.anchor?.label ?? z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm, techniques: z.allowed_techniques,
@@ -83,7 +87,7 @@ export async function loadPublicCatalog(): Promise<{ categories: PublicCategory[
       price: ruleSet && offersForProduct.length ? catalogPrice(offersForProduct, ruleSet, category?.slug ?? "default") : null,
     };
   });
-  return { categories: (cats.data ?? []).map((c) => ({ slug: c.slug, name: fr(c.name) })), products };
+  return { categories: (cats.data ?? []).map((c) => ({ slug: c.slug, name: fr(c.name), nameEn: en(c.name) })), products };
 }
 
 export const fcfa = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
