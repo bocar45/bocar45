@@ -1,5 +1,7 @@
 "use server";
 
+import { safeNext } from "@/lib/safe-next";
+
 import { normalizeSenegalPhone } from "@/lib/phone";
 import { LIMITS, TOO_MANY, clientIp, rateLimit } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +18,7 @@ export async function sendLoginCode(input: { phone?: string; email?: string; nex
     const email = String(input.email).trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Adresse e-mail invalide." };
     if (!(await rateLimit("otpPerPhone", email))) return { error: TOO_MANY };
-    const next = input.next.startsWith("/") && !input.next.startsWith("//") ? input.next : "/compte";
+    const next = safeNext(input.next);
     const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
     const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${site}/auth/callback?suite=${encodeURIComponent(next)}` } });
     if (error) return { error: "Envoi impossible pour le moment. Réessayez dans un instant." };

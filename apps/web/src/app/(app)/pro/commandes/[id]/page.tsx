@@ -43,7 +43,7 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
   if (!f) notFound();
   const zoneOf = (key: string) => (f.items as unknown as { product: { zones: { key: string; anchor: unknown }[] } }[])[0]?.product.zones.find((z) => z.key === key);
   const vendorAmount = canSeeAmount
-    ? ((await supabase.from("fulfillments").select("vendor_cost").eq("id", f.id).maybeSingle()).data?.vendor_cost as number | null | undefined) ?? null
+    ? ((await supabase.from("fulfillment_costs").select("vendor_cost").eq("fulfillment_id", f.id).maybeSingle()).data?.vendor_cost as number | null | undefined) ?? null
     : null;
   const item = (f.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: (ZoneRow & { anchor: { label?: string; note?: string } | null })[] } }[])[0];
   // a pair of sleeves is priced as two decorations of the same zone: one entry per zone here

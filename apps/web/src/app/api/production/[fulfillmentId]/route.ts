@@ -74,7 +74,7 @@ async function generate(request: NextRequest, fulfillmentId: string) {
   const db = createServiceClient();
   const { data: f } = await db
     .from("fulfillments")
-    .select("id, status, vendor_id, sla_due_at, order:orders(number), items:order_items(color_key, sizes, decorations, roster, version:design_versions(document, sha256), product:base_products(name, zones(key, anchor, max_width_mm, max_height_mm)))")
+    .select("id, status, vendor_id, sla_due_at, order:orders(number, quote_snapshot), items:order_items(color_key, sizes, decorations, roster, version:design_versions(document, sha256), product:base_products(name, zones(key, anchor, max_width_mm, max_height_mm)))")
     .eq("id", fulfillmentId).maybeSingle();
   if (!f) return fail("Commande introuvable.", 404);
   const allowed = isOps || (vendor && vendor.organization.status === "active" && f.vendor_id === vendor.organization.id);
@@ -85,6 +85,9 @@ async function generate(request: NextRequest, fulfillmentId: string) {
   const doc = item ? readDoc(item.version.document) : null;
   if (!item || !doc) return fail("La création de cette commande est illisible. Prévenez l'équipe SAWWA.", 500);
   const reference = (f.order as unknown as { number: string } | null)?.number ?? fulfillmentId.slice(0, 8);
+  // E24a: pattern pieces frozen with the order win over the live catalogue
+  const frozen = ((f.order as unknown as { quote_snapshot: { patterns?: Record<string, unknown> } | null } | null)?.quote_snapshot?.patterns) ?? {};
+  const patternFor = (zone: { key: string; anchor: unknown }) => patternOf(frozen[zone.key] ? { pattern: frozen[zone.key] } : zone.anchor);
   const images = await embedImages(doc);
   const format = request.nextUrl.searchParams.get("format");
 
@@ -105,7 +108,7 @@ async function generate(request: NextRequest, fulfillmentId: string) {
       return fail("Cette zone change sur chaque pièce : téléchargez le fichier de chaque pièce.", 400);
     }
     const zone = item.product.zones.find((z) => z.key === zoneKey);
-    const pattern = zone ? patternOf(zone.anchor) : null;
+    const pattern = zone ? patternFor(zone) : null;
     // E18b: an all-over piece is printed even without its own design (continuous motif)
     const surface = printed.surfaces.find((s) => s.zoneKey === zoneKey) ?? (pattern && doc.allOver ? { zoneKey: zoneKey!, technique: "sublimation", layers: [] } : undefined);
     if (!surface || !zone) return fail("Zone inconnue pour cette commande.", 400);
@@ -123,7 +126,7 @@ async function generate(request: NextRequest, fulfillmentId: string) {
   const decorations = item.decorations.filter((d, i, all) => all.findIndex((x) => x.zoneKey === d.zoneKey) === i);
   const zones = decorations.map((d) => {
     const zone = item.product.zones.find((z) => z.key === d.zoneKey)!;
-    const pattern = patternOf(zone.anchor);
+    const pattern = patternFor(zone);
     const surface = doc.surfaces.find((s) => s.zoneKey === d.zoneKey) ?? { zoneKey: d.zoneKey, technique: d.technique, layers: [] };
     const box = pattern ? { minX: 0, minY: 0 } : unionBox(visibleLayers(surface).map(layerBox));
     const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm, pattern }, { dpi: 60, images, allOver: doc.allOver ?? null, cutLine: true });
@@ -141,7 +144,7 @@ async function generate(request: NextRequest, fulfillmentId: string) {
   // E18b: cutting plan for all-over pieces, per garment, on a 150 cm roll
   const pieceZones = decorations.flatMap((d) => {
     const zone = item.product.zones.find((z) => z.key === d.zoneKey)!;
-    const pattern = patternOf(zone.anchor);
+    const pattern = patternFor(zone);
     return pattern ? [{ zone, pattern }] : [];
   });
   const totalQty = Object.values(item.sizes).reduce((a, b) => a + b, 0);

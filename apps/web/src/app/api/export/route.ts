@@ -1,3 +1,4 @@
+import { vendorCostsByOrder } from "@/lib/fulfillment-costs";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSession, hasPlatformRole } from "@/lib/auth";
 import { toCsv } from "@/lib/csv";
@@ -26,11 +27,12 @@ export async function GET(request: NextRequest) {
   try {
     switch (p.get("type")) {
       case "orders": {
-        const { data, error } = await db.from("orders").select("number, created_at, paid_at, payment_status, payment_reference, subtotal, shipping, discount, tax, total, deposit_due, fulfillments(status, vendor_cost, vendor:organizations(name))").gte("created_at", start).lte("created_at", end).order("created_at");
+        const { data, error } = await db.from("orders").select("number, created_at, paid_at, payment_status, payment_reference, subtotal, shipping, discount, tax, total, deposit_due, id, fulfillments(status, vendor:organizations(name))").gte("created_at", start).lte("created_at", end).order("created_at");
         if (error) throw error;
+        const costs = await vendorCostsByOrder(db, (data ?? []).map((o) => o.id as string));
         csv = toCsv(["Commande", "Date", "Payée le", "Paiement", "Référence paiement", "Articles TTC", "Livraison TTC", "Remise TTC", "TVA", "Total TTC", "Acompte", "Statut fabrication", "Atelier", "Coût atelier HT"],
-          (data ?? []).map((o) => { const f = (o.fulfillments as unknown as { status: string; vendor_cost: number | null; vendor: { name: string } | null }[])[0];
-            return [o.number, date(o.created_at), date(o.paid_at), o.payment_status, o.payment_reference, o.subtotal, o.shipping, o.discount, o.tax, o.total, o.deposit_due, f?.status, f?.vendor?.name, f?.vendor_cost]; }));
+          (data ?? []).map((o) => { const f = (o.fulfillments as unknown as { status: string; vendor: { name: string } | null }[])[0];
+            return [o.number, date(o.created_at), date(o.paid_at), o.payment_status, o.payment_reference, o.subtotal, o.shipping, o.discount, o.tax, o.total, o.deposit_due, f?.status, f?.vendor?.name, costs.get(o.id as string) ?? null]; }));
         break;
       }
       case "ledger": {

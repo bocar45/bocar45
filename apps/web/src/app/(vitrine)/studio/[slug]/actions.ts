@@ -185,6 +185,9 @@ export async function placeOrder(input: PlaceOrderInput) {
     q = best.quote; suggestedVendorId = best.vendorId; leadTimeDays = best.leadTimeDays;
   }
 
+  // E18b/E24a: the pattern pieces used are frozen with the order (rule 7): a later catalogue change never alters it
+  const usedPieces = zoneSizes.filter((z) => z.pattern && decorations.some((d) => d.zoneKey === z.key));
+  const frozenPatterns = usedPieces.length ? Object.fromEntries(usedPieces.map((z) => [z.key, z.pattern])) : null;
   const { data, error } = await createServiceClient().rpc("create_order", {
     p_customer: user.id,
     p_design: design.id,
@@ -198,7 +201,7 @@ export async function placeOrder(input: PlaceOrderInput) {
       decorations, roster,
     }],
     p_totals: { subtotal: q.goodsSubtotal.amount, shipping: q.shipping.amount, discount: q.discount.amount, tax: q.tax.amount, total: q.total.amount, deposit_due: q.depositDue?.amount ?? null },
-    p_quote: { ...q.snapshot, suggestedVendorId, leadTimeDays, ...(b2b ? { b2bQuoteId: b2b.id, b2bQuoteVersion: b2b.version, ...(sizeMix ? { b2bSizeMix: sizeMix } : {}) } : {}), lines: q.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })), setupFee: q.setupFee.amount, delivery: input.delivery },
+    p_quote: { ...q.snapshot, suggestedVendorId, leadTimeDays, ...(frozenPatterns ? { patterns: frozenPatterns } : {}), ...(b2b ? { b2bQuoteId: b2b.id, b2bQuoteVersion: b2b.version, ...(sizeMix ? { b2bSizeMix: sizeMix } : {}) } : {}), lines: q.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })), setupFee: q.setupFee.amount, delivery: input.delivery },
     p_address: { name, phone, district, landmark: String(input.address?.landmark ?? "").trim().slice(0, 160), city: String(input.address?.city ?? "Dakar").trim().slice(0, 60), delivery: input.delivery },
   });
   if (error || !data?.[0]) {

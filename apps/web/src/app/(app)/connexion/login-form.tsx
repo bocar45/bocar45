@@ -1,5 +1,7 @@
 "use client";
 
+import { safeNext as checkNext } from "@/lib/safe-next";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -13,7 +15,7 @@ const button = "rounded-md bg-action px-4 py-3 font-bold text-on-action disabled
 export function LoginForm() {
   const router = useRouter();
   const next = useSearchParams().get("suite") ?? "/compte";
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/compte";
+  const safeNext = checkNext(next);
   const [step, setStep] = useState<Step>({ kind: "phone" });
   const [useEmail, setUseEmail] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -180,3 +180,9 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Motif continu vectoriel** (losanges, bandes tissées, damier, pois) plutôt qu'une image du client : rendu identique et net partout, aucune nouvelle chaîne d'images à sécuriser ; l'image en motif continu viendra ensuite.
 - **Prix** : chaque pièce imprimée est chiffrée sur sa surface entière, une fois par pièce coupée (deux manches = deux marquages), par le moteur de prix existant.
 - **À valider avec l'atelier** : patrons de référence taille M seulement ; laize supposée 150 cm ; la mise en vente attend un atelier capable (sublimation + coupe-couture), 🧑‍💼.
+
+## D27 🟢 Sécurité avant lancement (décision CTO, 22/11/2026)
+- **Redirections** : une seule fonction (`safeNext`) décide où renvoyer après connexion : chemin du site uniquement, barres obliques inverses et caractères de contrôle refusés, origine vérifiée.
+- **En-têtes** : CSP stricte sans script tiers ; `'unsafe-inline'` reste nécessaire pour l'amorçage de Next.js (passage à des nonces quand le rendu dynamique le permettra sans coût de cache) ; `'wasm-unsafe-eval'` pour le détourage ; seul domaine externe : Supabase. HSTS avec préchargement : à n'activer sur le domaine définitif qu'une fois tout le domaine en HTTPS (🧑‍💼 nom de domaine).
+- **Colonnes sensibles** : la RLS filtre des lignes ; pour une colonne, privilège de colonne + vue filtrée par rôle (`fulfillment_costs`). Même méthode à appliquer à toute future donnée interne.
+- **Hors code, avant ouverture (🧑‍💼)** : test d'intrusion léger par un tiers, sauvegardes et restauration testées sur le vrai projet Supabase, rotation des clés, comptes admin avec double authentification.

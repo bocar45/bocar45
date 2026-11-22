@@ -45,6 +45,7 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Phase 4/5 (E10) — correction de la création par le client : studio ouvert sur la version commandée, nouvelle version figée, renvoi au BAT atomique, prix recalculé (supplément explicitement accepté, jamais de baisse remboursée), historique des versions pour le client, l'atelier et l'admin
 - [x] E14 — robustesse : offre atelier en une transaction, limitation de débit (SMS, prix, commandes, fichiers), contrôle et ré-encodage des fichiers, images limitées à celles du client, erreurs journalisées
 - [x] E18 — studio 3D en direct (2D + 3D), modèles provisoires calibrés en mm (D17), emplacements en un clic
+- [x] E24a — sécurité avant lancement : redirection ouverte corrigée, en-têtes de sécurité, montant atelier protégé au niveau colonne, patrons figés avec la commande (D27)
 - [x] E18b (code) — impression intégrale coupé-cousu : pièces de patron, motif continu raccordé aux coutures, fichiers par pièce et plan de coupe (D26) ; vente quand un atelier capable sera recruté
 - [x] E22 (partie gratuite) — détourage automatique des photos dans le navigateur, sans service externe (D25)
 - [x] E21 — espace atelier avancé : capacité et fermetures prises en compte à l'affectation, équipe avec rôles (D24)

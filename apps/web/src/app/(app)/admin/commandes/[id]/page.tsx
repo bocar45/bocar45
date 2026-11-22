@@ -1,3 +1,4 @@
+import { vendorCostsByOrder } from "@/lib/fulfillment-costs";
 import { RosterList } from "@/components/roster-list";
 import type { RosterEntry } from "@sawwa/design";
 import { notFound } from "next/navigation";
@@ -22,11 +23,12 @@ export default async function AdminOrder({ params }: { params: Promise<{ id: str
   const isFinance = hasPlatformRole(memberships, ["finance"]);
   const { data: o } = await supabase
     .from("orders")
-    .select("id, number, payment_status, payment_reference, subtotal, shipping, tax, total, deposit_due, shipping_address, created_at, quote_snapshot, items:order_items(id, design_version_id, color_key, sizes, quantity, roster, unit_price, decorations, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), fulfillments(id, status, vendor_cost, sla_due_at, qc_photos, carrier, tracking_number, vendor:organizations(name)), events:status_events(event, actor_role, payload, at)")
+    .select("id, number, payment_status, payment_reference, subtotal, shipping, tax, total, deposit_due, shipping_address, created_at, quote_snapshot, items:order_items(id, design_version_id, color_key, sizes, quantity, roster, unit_price, decorations, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), fulfillments(id, status, sla_due_at, qc_photos, carrier, tracking_number, vendor:organizations(name)), events:status_events(event, actor_role, payload, at)")
     .eq("id", id).maybeSingle();
   if (!o) notFound();
   const item = (o.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; unit_price: number; decorations: { zoneKey: string; technique: string; widthMm: number; heightMm: number }[]; version: { document: unknown; sha256: string } | null; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: ZoneRow[] } }[])[0];
-  const f = (o.fulfillments as unknown as { id: string; status: string; vendor_cost: number | null; sla_due_at: string | null; qc_photos: string[]; carrier: string | null; tracking_number: string | null; vendor: { name: string } | null }[])[0];
+  const vendorCost = (await vendorCostsByOrder(supabase, [o.id])).get(o.id) ?? null;
+  const f = (o.fulfillments as unknown as { id: string; status: string; sla_due_at: string | null; qc_photos: string[]; carrier: string | null; tracking_number: string | null; vendor: { name: string } | null }[])[0];
   const events = ((o.events ?? []) as { event: string; actor_role: string; payload: Record<string, string>; at: string }[]).sort((a, b) => a.at.localeCompare(b.at));
   const doc = item?.version ? readDoc(item.version.document) : null;
   const db = createServiceClient();
@@ -109,7 +111,7 @@ export default async function AdminOrder({ params }: { params: Promise<{ id: str
               <dt>Livraison</dt><dd>{fcfa(o.shipping)}</dd>
               <dt className="font-bold">Total TTC</dt><dd className="font-bold">{fcfa(o.total)}</dd>
               <dt className="text-muted">TVA</dt><dd className="text-muted">{fcfa(o.tax)}</dd>
-              {f?.vendor_cost != null && (<><dt>Coût atelier figé</dt><dd>{fcfa(f.vendor_cost)}</dd></>)}
+              {vendorCost != null && (<><dt>Coût atelier figé</dt><dd>{fcfa(vendorCost)}</dd></>)}
               {o.payment_reference && (<><dt>Référence paiement</dt><dd>{o.payment_reference}</dd></>)}
               {surchargeDue > 0 && (<><dt className="font-bold text-terra-700">Supplément accepté après correction</dt><dd className="font-bold text-terra-700">{fcfa(surchargeDue)}</dd></>)}
             </dl>

@@ -980,4 +980,38 @@ do $$ declare ok boolean := false; begin
 end $$;
 rollback;
 
+-- 20. Montant atelier : équipe, propriétaire et gérants seulement (E24a)
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1'); -- customer
+do $$ declare ok boolean := false; begin
+  begin perform vendor_cost from public.fulfillments; exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL customer reads the workshop amount'; end if;
+  if exists (select 1 from public.fulfillment_costs) then raise exception 'FAIL customer reads workshop costs view'; end if;
+  if not exists (select 1 from public.fulfillments) then raise exception 'FAIL customer cannot read own fulfillment status'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1'); -- workshop owner
+do $$ begin
+  if not exists (select 1 from public.fulfillment_costs where vendor_cost is not null) then raise exception 'FAIL owner cannot read own amount'; end if;
+end $$;
+rollback;
+insert into auth.users (id, phone) values ('00000000-0000-0000-0000-0000000000d2', '221770000013');
+insert into public.memberships (user_id, organization_id, role) select '00000000-0000-0000-0000-0000000000d2', id, 'operator' from public.organizations where name = 'Atelier Médina';
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000d2'); -- operator
+do $$ declare ok boolean := false; begin
+  if not exists (select 1 from public.fulfillments) then raise exception 'FAIL operator cannot see production'; end if;
+  begin perform vendor_cost from public.fulfillments; exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL operator reads the workshop amount'; end if;
+  if exists (select 1 from public.fulfillment_costs) then raise exception 'FAIL operator reads workshop costs view'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000f1'); -- finance
+do $$ begin
+  if not exists (select 1 from public.fulfillment_costs where vendor_cost is not null) then raise exception 'FAIL finance cannot read costs'; end if;
+end $$;
+rollback;
+
 select 'ALL RLS TESTS PASSED' as result;

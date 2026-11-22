@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → E18b → **E24a** → E24b → E24c → E24d (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → E18b → E24a → **E24b** → E24c → E24d (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -156,11 +156,11 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] 2 ateliers actifs, 20–50 commandes réelles.
 - [ ] Critères go/no-go de `ROADMAP.md` (délais, défauts, refus BAT, marge réelle).
 
-## E24a — Sécurité avant lancement ⏳
-- [ ] Revue de sécurité de toute la branche (`/security-review`) : accès aux données, injections, fichiers, actions serveur ; corrections.
-- [ ] En-têtes HTTP de sécurité (CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy) compatibles avec le studio (WebAssembly, blob:, 3D).
-- [ ] Montant atelier (`fulfillments.vendor_cost`) illisible par un opérateur d'atelier via l'API (privilège de colonne ou vue), sans casser l'admin (D24).
-- [ ] Contour des pièces de patron figé avec la commande (remarque E18b).
+## E24a — Sécurité avant lancement 🔎
+- [x] Revue de sécurité (manuelle, l'outil automatique demande une branche de référence absente) : actions serveur (toutes contrôlent l'identité ou le rôle, sauf connexion, prix publics et annulation contrôlée par la base), usages de la clé serveur (toujours après un contrôle), redirections. **Corrigé : redirection ouverte après connexion** (`/\site.com` accepté) → `lib/safe-next.ts`, testé.
+- [x] En-têtes HTTP de sécurité sur toutes les réponses (CSP sans script tiers, WebAssembly autorisé, Supabase seul domaine externe ; HSTS ; pas d'encadrement ; Referrer-Policy ; Permissions-Policy ; COOP) ; studio complet vérifié au navigateur sous CSP (3D, import, détourage) sans violation.
+- [x] Montant atelier retiré du droit de lecture général de `fulfillments` (privilège de colonne) et exposé par la vue `fulfillment_costs` (équipe SAWWA, propriétaire et gérants) ; client et opérateur refusés (tests section 20) ; tableau de bord, export, pages commande adaptés. Décision D27.
+- [x] Contours des pièces de patron figés avec la commande (`quote_snapshot.patterns`) et utilisés en priorité pour la production.
 
 ## E24b — Tests de charge locaux ⏳
 - [ ] Scénarios k6 ou équivalent sans dépendance externe : catalogue, prix en direct, studio ; budget (p95) et résultats consignés ; limites de débit vérifiées sous charge.
