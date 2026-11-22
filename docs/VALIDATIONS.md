@@ -2,6 +2,20 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E14 — VALIDÉ
+Commit examiné : 59ef8c7 (troisième passage ; corrections après 242378e), branche à jour avec `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (86, 15 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (21 pages)
+Limite : pas de Supabase réel ni de Docker (SMS/e-mails, limites du stockage, `/auth/callback` à rejouer en E11).
+Point du passage précédent :
+1. [x] `lib/fulfillment.ts:34-38` : conflit → message français ; sinon `logError("fulfillment_transition_failed", rpcError, { fulfillmentId, event })` et `TRY_AGAIN`. Les erreurs du moteur de statuts restent traduites (`TRANSITION_MESSAGES`, l. 44-49, couvre les 4 codes de `TransitionError`). Garde étendue : `no-raw-errors.test.ts` parcourt `app/`, `components/` et `lib/` (`log.ts` exclu), nouveaux motifs `rpcError|\w+Error` et `: xError.message }` ; vérifié que le motif ajouté détecte l'ancienne ligne de 242378e (`true`). Recherche `\.message` dans `app/ components/ lib/` : seuls restent des tests `.includes(...)`, `friendly()` (catalogue, inconnu → journalisé + `TRY_AGAIN`), des messages métier français et `rate-limit.ts:35` (journal).
+Remarques du passage précédent : imports inutilisés nettoyés ✅ (aucun `READ_FAILED`/`TRY_AGAIN`/`logError` importé sans usage) ; `auth.ts:26`, `audit.ts:22`, `studio-data.ts:27`, `catalog-public.ts:49` journalisent désormais et lèvent un message sans texte technique ✅.
+Passages précédents toujours corrigés : `save_vendor_offer` sans `p_user` (test 13a passe) ; actions studio/candidature/pages compte sans `error.message` (garde verte).
+Critères de l'étape : offre en une transaction [x] · limitation de débit [x] · codes envoyés par le serveur [x] · contrôle des fichiers [x] · images du propriétaire [x] · erreurs journalisées [x] (`lib/log.ts` + `instrumentation.ts` + garde) · 🧑‍💼 Sentry : en attente du porteur (compte et clé), non bloquant.
+Critères communs : C1 ✅ · C2 ✅ · C3 ✅ (grep secrets vide hors docs/supabase/consigne ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ · C6 ✅. Aucune nouvelle dépendance.
+Corrections à faire : aucune.
+Remarque non bloquante : `fulfillment.ts:24` garde `?? e.message` en repli pour un futur code de `TransitionError` non traduit ; ajouter la traduction en même temps que tout nouveau code.
+Décision : passer à E18 (E11, E12, E13, E19 attendent le porteur)
+
 ## 2026-11-22 — E14 — À CORRIGER
 Commit examiné : 242378e (second passage ; corrections après 8e16463, fbfd4ae = BACKLOG et image de référence seulement), branche à jour avec `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (86, 15 fichiers, dont `no-raw-errors.test.ts`) · db ✅ (ALL RLS TESTS PASSED, section 13) · build ✅

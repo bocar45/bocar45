@@ -69,7 +69,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] Webhook signé et **idempotent** (rejouer 3 fois = un seul paiement), `mark_order_paid` automatique.
 - [ ] Remboursement déclenché par l'annulation ; aucune donnée de carte chez SAWWA.
 
-## E14 — Robustesse 🔎
+## E14 — Robustesse ✅ (Sentry en attente du porteur)
 - [x] Enregistrement d'une offre atelier en une seule transaction (fonction SQL `save_vendor_offer`, tout ou rien, nouvelle version de grille seulement si elle change).
 - [x] Limitation de débit : calcul de prix, envoi de code SMS/e-mail (désormais envoyé par le serveur), enregistrements, commandes, corrections, candidatures, fichiers de production.
 - [x] Taille et type des fichiers imposés par le stockage ; images décodées et ré-encodées avant impression (un faux fichier est refusé).
@@ -91,7 +91,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] Formulaire de demande (quantités, logo, date souhaitée).
 - [ ] Devis préparé par l'admin à partir du moteur de prix, valable 30 jours, lien de commande.
 
-## E18 — Studio 3D en direct ⏳ (priorité avancée : juste après E14, demande du porteur)
+## E18 — Studio 3D en direct 🛠️ en cours (priorité avancée : juste après E14, demande du porteur)
 **Référence** : `design/reference-studio-3d-blankbuilder.jpg` (inspiration fonctionnelle, pas de copie d'interface ni de marque).
 - [ ] Écran partagé dans le studio : vue 3D en haut (ou à côté sur grand écran), édition 2D en dessous ; la 3D se met à jour en direct (< 500 ms après une modification).
 - [ ] React Three Fiber, chargement à la demande, repli 2D automatique si l'appareil ne suit pas.
