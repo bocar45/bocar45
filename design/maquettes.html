@@ -1,0 +1,388 @@
+<title>SAWWA Direction & Maquettes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..700,100&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: long document, sections stacked; each portal mockup in a device frame, palette/type as specimen grids. */
+:root{
+  --brun:#24221F; --ivoire:#F2E9D8; --paper:#FBF7EF; --terra:#B76545; --terra-700:#9A4E31;
+  --sable:#A58B6A; --sable-700:#7A6446; --olive:#68705A; --olive-700:#525944; --indigo:#2F4B7C;
+  --error:#A4262C; --warning:#B07A12;
+  --bg:#F2E9D8; --surface:#FBF7EF; --surface-2:#EFE4D0; --fg:#24221F; --muted:#6B5F50; --line:#DCCFB8;
+  --action:#9A4E31; --on-action:#FFFFFF; --frame:#24221F; --ok:#525944; --info:#2F4B7C;
+  --f-display:"Fraunces",Georgia,"Times New Roman",serif;
+  --f-ui:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1A1917; --surface:#24221F; --surface-2:#2E2B27; --fg:#F2E9D8; --muted:#B9AD99; --line:#3B3732;
+  --action:#D08A6C; --on-action:#1A1917; --frame:#0F0E0D; --ok:#A3AC8C; --info:#8FA9D6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1A1917; --surface:#24221F; --surface-2:#2E2B27; --fg:#F2E9D8; --muted:#B9AD99; --line:#3B3732;
+  --action:#D08A6C; --on-action:#1A1917; --frame:#0F0E0D; --ok:#A3AC8C; --info:#8FA9D6; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;padding-block:40px 80px;display:grid;gap:72px}
+h1,h2,h3{font-family:var(--f-display);font-weight:500;text-wrap:balance;margin:0;font-variation-settings:"SOFT" 100}
+h1{font-size:clamp(36px,6vw,64px);line-height:1.05;letter-spacing:-.01em}
+h2{font-size:clamp(26px,3.4vw,36px);line-height:1.15}
+h3{font-size:20px}
+p{margin:0;max-width:66ch}
+.eyebrow{font:600 12px/1 var(--f-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.sec{display:grid;gap:24px}
+.sec-head{display:grid;gap:10px}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.note{font-size:13px;color:var(--muted)}
+/* hero */
+.hero{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:end}
+.hero-mark{aspect-ratio:1;max-width:100%;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center;position:relative;overflow:hidden;background:var(--surface)}
+.hero-mark svg{width:70%;height:auto;color:var(--terra)}
+.hero-mark span{position:absolute;bottom:12px;left:12px;right:12px;font-size:12px;color:var(--muted);text-align:center}
+.sig{display:flex;gap:24px;flex-wrap:wrap;font-family:var(--f-display);font-size:20px;font-style:italic}
+.sig small{display:block;font:500 11px/1.4 var(--f-ui);font-style:normal;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+/* palette */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.sw{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.sw .chip{height:84px;display:flex;align-items:flex-end;padding:10px;font:700 18px var(--f-display)}
+.sw .meta{padding:10px 12px;display:grid;gap:2px;font-size:12px}
+.sw .meta b{font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700;border:1px solid transparent;white-space:nowrap}
+.p-ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.p-warn{background:color-mix(in srgb,var(--warning) 18%,transparent);color:var(--warning)}
+.p-err{background:color-mix(in srgb,var(--error) 14%,transparent);color:var(--error)}
+:root[data-theme="dark"] .p-err{color:#F08A8F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .p-err{color:#F08A8F}}
+.p-info{background:color-mix(in srgb,var(--info) 16%,transparent);color:var(--info)}
+.p-neutral{background:var(--surface-2);color:var(--muted)}
+/* type */
+.type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.type-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:10px;min-width:0}
+.type-card .big{font-size:44px;line-height:1}
+/* pattern */
+.trame{height:120px;border-radius:12px;border:1px solid var(--line);color:var(--terra);background:var(--surface);overflow:hidden}
+.trame svg{width:100%;height:100%;display:block}
+/* device frames */
+.screen{border-radius:14px;border:1px solid var(--line);background:var(--surface);overflow:hidden;box-shadow:0 18px 40px -24px rgba(36,34,31,.45)}
+.bar{display:flex;align-items:center;gap:6px;padding:9px 12px;background:var(--frame);color:#cfc6b6;font:500 11.5px var(--f-mono)}
+.bar i{width:9px;height:9px;border-radius:50%;background:#5a544c;display:block}
+.bar span{margin-left:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scroll-x{overflow-x:auto}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:6px;padding:10px 16px;font:700 14px var(--f-ui);border:1px solid transparent;cursor:pointer}
+.btn-primary{background:var(--action);color:var(--on-action)}
+.btn-ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+.btn:focus-visible{outline:3px solid var(--info);outline-offset:2px}
+/* client home */
+.c-nav{display:flex;align-items:center;gap:20px;padding:14px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.c-logo{font:800 17px var(--f-ui);letter-spacing:.18em}
+.c-nav nav{display:flex;gap:18px;font-size:14px;color:var(--muted);flex-wrap:wrap}
+.c-nav .btn{margin-left:auto;padding:8px 14px}
+.c-hero{display:grid;grid-template-columns:1.1fr 1fr;min-height:340px}
+.c-hero .txt{padding:40px 32px;display:grid;gap:18px;align-content:center}
+.c-hero .txt h3{font-size:clamp(28px,3.6vw,44px);line-height:1.05}
+.c-hero .vis{background:var(--terra);position:relative;color:var(--ivoire);overflow:hidden;min-height:260px}
+.c-hero .vis svg.bg{position:absolute;inset:0;width:100%;height:100%;opacity:.16}
+.tee{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:62%;max-width:280px}
+.c-cats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:24px}
+.cat{background:var(--surface-2);border-radius:12px;padding:14px;display:grid;gap:6px;min-width:0}
+.cat .ph{aspect-ratio:4/3;border-radius:8px;background:linear-gradient(160deg,var(--ivoire),color-mix(in srgb,var(--sable) 40%,var(--ivoire)))}
+:root[data-theme="dark"] .cat .ph{background:linear-gradient(160deg,#3B3732,#2E2B27)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cat .ph{background:linear-gradient(160deg,#3B3732,#2E2B27)}}
+.cat b{font-size:14px}.cat span{font-size:12px;color:var(--muted)}
+/* studio */
+.st{display:grid;grid-template-columns:56px 1fr 260px;min-height:520px}
+.st-top{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.st-top .price{margin-left:auto;display:flex;align-items:baseline;gap:8px}
+.st-top .price b{font:700 20px var(--f-ui);font-variant-numeric:tabular-nums}
+.st-tools{border-right:1px solid var(--line);display:grid;align-content:start;gap:6px;padding:10px 8px}
+.tool{width:40px;height:40px;border-radius:8px;display:grid;place-items:center;color:var(--muted);border:1px solid transparent;font:700 13px var(--f-ui)}
+.tool.on{background:var(--surface-2);color:var(--fg);border-color:var(--line)}
+.st-canvas{background:var(--surface-2);display:grid;place-items:center;position:relative;padding:20px;min-width:0}
+.st-canvas svg{width:100%;max-width:380px;height:auto}
+.st-views{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.st-views span{padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;color:var(--muted)}
+.st-views span.on{background:var(--fg);color:var(--bg)}
+.st-panel{border-left:1px solid var(--line);padding:14px;display:grid;gap:16px;align-content:start;font-size:13px;min-width:0}
+.st-panel h4{margin:0;font:700 11px var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.check{display:grid;gap:8px}
+.layer{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface)}
+.layer.on{border-color:var(--action)}
+.layer em{font-style:normal;font-size:11px;color:var(--muted);margin-left:auto}
+/* pro */
+.pro{display:grid;grid-template-columns:200px 1fr;min-height:460px}
+.side{background:var(--frame);color:#e8dfcf;padding:16px 12px;display:grid;align-content:start;gap:4px;font-size:13.5px}
+.side .c-logo{color:#F2E9D8;padding:4px 8px 14px;font-size:14px}
+.side a{display:flex;justify-content:space-between;padding:8px 10px;border-radius:6px;color:#cfc6b6;text-decoration:none}
+.side a.on{background:#3a352f;color:#fff}
+.side a b{font:600 11px var(--f-mono);background:#4a443c;border-radius:999px;padding:1px 7px;color:#fff}
+.main{padding:20px;display:grid;gap:16px;align-content:start;min-width:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs span{padding:6px 12px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--muted)}
+.tabs span.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.order{display:grid;grid-template-columns:120px 1fr 1fr;gap:16px;border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface)}
+.order .thumb{aspect-ratio:1;border-radius:8px;background:var(--surface-2);display:grid;place-items:center}
+.order dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+.order dt{color:var(--muted)}.order dd{margin:0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-content:start}
+.sla{font:600 12px var(--f-mono);color:var(--warning)}
+/* admin */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--surface);display:grid;gap:4px;min-width:0}
+.kpi b{font:700 22px var(--f-ui);font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:640px}
+th{font:700 11px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line)}
+td.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.filters span{border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:12.5px;background:var(--surface)}
+.cap{display:grid;gap:8px}
+.cap p{font-size:14px}
+@media (max-width:900px){
+  .hero,.c-hero{grid-template-columns:1fr}
+  .type-grid{grid-template-columns:1fr}
+  .c-cats,.kpis{grid-template-columns:repeat(2,1fr)}
+  .st{grid-template-columns:48px 1fr}
+  .st-panel{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}
+  .pro{grid-template-columns:1fr}
+  .side{grid-auto-flow:column;grid-auto-columns:max-content;overflow-x:auto;align-items:center}
+  .side .c-logo{padding:4px 8px}
+  .order{grid-template-columns:80px 1fr}
+  .order .actions{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:no-preference){.btn{transition:filter .15s}.btn:hover{filter:brightness(1.08)}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- Trame SAWWA : bandes tissées + chevrons (écho du W) + quart de cercle (écho du S) -->
+    <pattern id="trame" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M0 12 L12 0 L24 12 L36 0 L48 12" fill="none" stroke="currentColor" stroke-width="2.2"/>
+      <path d="M0 24 H48" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 4"/>
+      <path d="M0 48 A24 24 0 0 1 24 24" fill="none" stroke="currentColor" stroke-width="2.2"/>
+      <path d="M24 48 A24 24 0 0 0 48 24" fill="none" stroke="currentColor" stroke-width="2.2"/>
+      <rect x="21" y="33" width="6" height="6" fill="currentColor" transform="rotate(45 24 36)"/>
+    </pattern>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="sec-head" style="gap:18px">
+    <span class="eyebrow">Phase 0 · Livrable C · proposition à valider</span>
+    <h1>SAWWA, direction artistique et premières maquettes</h1>
+    <p class="muted">Palette de départ conservée, complétée pour l'accessibilité. Trois espaces, un même système : un portail client éditorial, un studio outil, des espaces pro et admin sobres et denses. Les écrans ci-dessous sont des maquettes statiques, pas des fonctionnalités.</p>
+    <div class="sig">
+      <div><small>Français</small>Donner forme aux idées.</div>
+      <div><small>English</small>Give Form to Ideas.</div>
+    </div>
+  </div>
+  <div class="hero-mark">
+    <svg viewBox="0 0 200 200" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1" opacity=".55">
+        <circle cx="100" cy="100" r="80"/><circle cx="100" cy="100" r="40"/>
+        <path d="M20 100H180M100 20V180M43 43L157 157M157 43L43 157"/>
+      </g>
+      <text x="100" y="118" text-anchor="middle" font-family="Manrope,system-ui,sans-serif" font-weight="800" font-size="48" fill="currentColor" letter-spacing="2">SW</text>
+    </svg>
+    <span>Emplacement du logo : fichier non reçu. Grille de construction proposée (cercle, diagonales 45°).</span>
+  </div>
+</header>
+
+<section class="sec" aria-labelledby="pal">
+  <div class="sec-head"><span class="eyebrow">Palette</span><h2 id="pal">Couleurs de marque et teintes d'usage</h2>
+  <p class="muted">Contraste mesuré sur fond ivoire. Les couleurs d'origine restent la signature ; les teintes « 700 » portent le texte et les boutons.</p></div>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#24221F;color:#F2E9D8">Brun</div><div class="meta"><b class="mono">#24221F</b><span>Texte, fonds sombres</span><span class="pill p-ok">13,2:1 · AA</span></div></div>
+    <div class="sw"><div class="chip" style="background:#F2E9D8;color:#24221F;border-bottom:1px solid #DCCFB8">Ivoire</div><div class="meta"><b class="mono">#F2E9D8</b><span>Fond principal</span><span class="pill p-neutral">fond</span></div></div>
+    <div class="sw"><div class="chip" style="background:#B76545;color:#24221F">Terracotta</div><div class="meta"><b class="mono">#B76545</b><span>Marque, aplats, icônes</span><span class="pill p-warn">3,5:1 · grands titres</span></div></div>
+    <div class="sw"><div class="chip" style="background:#9A4E31;color:#fff">Terracotta 700</div><div class="meta"><b class="mono">#9A4E31</b><span>Boutons, liens</span><span class="pill p-ok">blanc 6,0:1 · AA</span></div></div>
+    <div class="sw"><div class="chip" style="background:#A58B6A;color:#24221F">Sable</div><div class="meta"><b class="mono">#A58B6A</b><span>Décor uniquement</span><span class="pill p-err">2,7:1 · pas de texte</span></div></div>
+    <div class="sw"><div class="chip" style="background:#68705A;color:#F2E9D8">Olive</div><div class="meta"><b class="mono">#68705A</b><span>Accent naturel</span><span class="pill p-warn">4,3:1 · limite</span></div></div>
+    <div class="sw"><div class="chip" style="background:#525944;color:#F2E9D8">Olive 700</div><div class="meta"><b class="mono">#525944</b><span>Succès, texte secondaire</span><span class="pill p-ok">6,1:1 · AA</span></div></div>
+    <div class="sw"><div class="chip" style="background:#2F4B7C;color:#F2E9D8">Indigo</div><div class="meta"><b class="mono">#2F4B7C</b><span>Ajout : info, focus</span><span class="pill p-info">proposé</span></div></div>
+  </div>
+  <p class="note">Les erreurs portent toujours une icône et un texte : le rouge d'erreur et la terracotta sont trop proches pour être distingués par la couleur seule.</p>
+</section>
+
+<section class="sec" aria-labelledby="typo">
+  <div class="sec-head"><span class="eyebrow">Typographie</span><h2 id="typo">Trois rôles, trois familles libres de droits</h2></div>
+  <div class="type-grid">
+    <div class="type-card"><span class="eyebrow">Titres · Fraunces</span><div class="big" style="font-family:var(--f-display);font-variation-settings:'SOFT' 100">Façonner</div><p class="note">Titres éditoriaux du site client. Chaleur et caractère, en contrepoint du logo géométrique.</p></div>
+    <div class="type-card"><span class="eyebrow">Interface · Manrope</span><div class="big" style="font-weight:700">Créer 24×30</div><p class="note">Interface, texte courant, boutons. Chiffres tabulaires pour les prix.</p></div>
+    <div class="type-card"><span class="eyebrow">Données · JetBrains Mono</span><div class="big mono" style="font-size:30px">SW-2026-000123</div><p class="note">Références, montants alignés dans l'admin.</p></div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="tr">
+  <div class="sec-head"><span class="eyebrow">Trame</span><h2 id="tr">Un motif tiré du symbole, pas d'un folklore</h2>
+  <p class="muted">Chevrons (le W), quarts de cercle (le S), pointillé de couture. Usage discret : fonds de section, états vides, packaging. Les motifs proposés aux clients seront commandés à des designers africains et crédités.</p></div>
+  <div class="trame"><svg aria-hidden="true"><rect width="100%" height="100%" fill="url(#trame)"/></svg></div>
+</section>
+
+<section class="sec" aria-labelledby="m1">
+  <div class="sec-head"><span class="eyebrow">Maquette 1 · Portail client</span><h2 id="m1">Accueil : l'envie de créer d'abord</h2></div>
+  <div class="screen">
+    <div class="bar"><i></i><i></i><i></i><span>sawwa.com</span></div>
+    <div class="c-nav">
+      <span class="c-logo">SAWWA</span>
+      <nav><span>Vêtements</span><span>Accessoires</span><span>Objets</span><span>Équipes &amp; entreprises</span><span>Inspirations</span></nav>
+      <span class="btn btn-primary">Ouvrir le studio</span>
+    </div>
+    <div class="c-hero">
+      <div class="txt">
+        <span class="eyebrow">Donner forme aux idées</span>
+        <h3>Votre idée, brodée, imprimée, livrée.</h3>
+        <p class="muted">Choisissez un produit, créez dans le studio, voyez le rendu, payez le prix affiché. Un atelier partenaire le fabrique.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><span class="btn btn-primary">Créer un t-shirt</span><span class="btn btn-ghost">Devis pour une équipe</span></div>
+        <p class="note">Brodé dès 1 pièce · Prix dégressifs dès 25 pièces · BAT validé par l'atelier</p>
+      </div>
+      <div class="vis">
+        <svg class="bg" aria-hidden="true"><rect width="100%" height="100%" fill="url(#trame)"/></svg>
+        <svg class="tee" viewBox="0 0 200 200" aria-hidden="true">
+          <path d="M70 20 Q100 38 130 20 L176 42 L160 82 L142 74 L142 184 L58 184 L58 74 L40 82 L24 42 Z" fill="#F2E9D8"/>
+          <path d="M70 20 Q100 38 130 20" fill="none" stroke="#DCCFB8" stroke-width="3"/>
+          <text x="100" y="104" text-anchor="middle" font-family="Fraunces,Georgia,serif" font-size="20" fill="#24221F">Teranga</text>
+          <text x="100" y="124" text-anchor="middle" font-family="Manrope,sans-serif" font-weight="800" font-size="10" letter-spacing="3" fill="#9A4E31">FOOTBALL CLUB</text>
+        </svg>
+      </div>
+    </div>
+    <div class="c-cats">
+      <div class="cat"><div class="ph"></div><b>T-shirts</b><span>dès 19,90 € · DTG, broderie</span></div>
+      <div class="cat"><div class="ph"></div><b>Hoodies</b><span>dès 39,90 € · DTF, broderie</span></div>
+      <div class="cat"><div class="ph"></div><b>Casquettes</b><span>dès 21,90 € · broderie</span></div>
+      <div class="cat"><div class="ph"></div><b>Mugs</b><span>dès 14,90 € · sublimation · 3D</span></div>
+    </div>
+  </div>
+  <p class="note">Prix indicatifs pour la maquette, à recalculer avec les grilles des ateliers pilotes.</p>
+</section>
+
+<section class="sec" aria-labelledby="m2">
+  <div class="sec-head"><span class="eyebrow">Maquette 2 · Studio</span><h2 id="m2">La contrainte visible, le prix qui suit</h2>
+  <p class="muted">Cadre imprimable en taille réelle, pré-contrôle en direct, prix détaillé par zone, bascule vers le rendu réaliste sans quitter l'éditeur.</p></div>
+  <div class="screen">
+    <div class="bar"><i></i><i></i><i></i><span>sawwa.com/studio/tee-crew-180</span></div>
+    <div class="st">
+      <div class="st-top">
+        <b style="font-size:14px">T-shirt col rond 180 g · Ivoire · DTG</b>
+        <span class="pill p-ok">Sauvegardé</span>
+        <span class="btn btn-ghost" style="padding:6px 12px">Aperçu réaliste</span>
+        <div class="price"><span class="note">25 pièces</span><b>17,40 €</b><span class="note">/ pièce TTC</span></div>
+        <span class="btn btn-primary" style="padding:8px 14px">Choisir les tailles</span>
+      </div>
+      <div class="st-tools" aria-label="Outils">
+        <span class="tool on" title="Sélection">↖</span><span class="tool" title="Texte">T</span><span class="tool" title="Image">▣</span><span class="tool" title="Formes">◇</span><span class="tool" title="Motifs">▦</span><span class="tool" title="IA">✦</span>
+      </div>
+      <div class="st-canvas">
+        <svg viewBox="0 0 300 300" aria-label="Aperçu du devant du t-shirt avec la zone imprimable">
+          <path d="M100 30 Q150 56 200 30 L270 62 L246 122 L220 110 L220 286 L80 286 L80 110 L54 122 L30 62 Z" fill="#F2E9D8" stroke="#C9BBA2" stroke-width="2"/>
+          <rect x="102" y="78" width="96" height="128" fill="none" stroke="#9A4E31" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text x="150" y="72" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#9A4E31">Zone devant · 30 × 40 cm</text>
+          <text x="150" y="118" text-anchor="middle" font-family="Fraunces,Georgia,serif" font-size="22" fill="#24221F">Teranga</text>
+          <text x="150" y="134" text-anchor="middle" font-family="Manrope,sans-serif" font-weight="800" font-size="8" letter-spacing="2.5" fill="#9A4E31">FOOTBALL CLUB</text>
+          <g transform="translate(150 168)"><circle r="22" fill="none" stroke="#24221F" stroke-width="3"/><path d="M-12 6 L-6 -8 L0 4 L6 -8 L12 6" fill="none" stroke="#B76545" stroke-width="3"/></g>
+          <rect x="125" y="143" width="50" height="50" fill="none" stroke="#2F4B7C" stroke-width="1"/>
+        </svg>
+        <div class="st-views"><span class="on">Devant</span><span>Dos</span><span>Manche G</span><span>Manche D</span></div>
+      </div>
+      <aside class="st-panel">
+        <div class="check"><h4>Pré-contrôle</h4>
+          <div class="row"><span>Résolution du logo</span><span class="pill p-warn">170 dpi</span></div>
+          <div class="row"><span>Dans la zone</span><span class="pill p-ok">OK</span></div>
+          <div class="row"><span>Taille du texte</span><span class="pill p-ok">OK</span></div>
+          <p class="note">Le logo sera légèrement flou à cette taille. Réduisez-le à 10 cm ou importez une version plus grande.</p>
+        </div>
+        <div class="check"><h4>Calques</h4>
+          <div class="layer on">▣ logo-club.png <em>5 × 5 cm</em></div>
+          <div class="layer">T FOOTBALL CLUB <em>texte</em></div>
+          <div class="layer">T Teranga <em>texte</em></div>
+        </div>
+        <div class="check"><h4>Prix par pièce</h4>
+          <div class="row"><span>T-shirt</span><span class="mono">8,90 €</span></div>
+          <div class="row"><span>Impression devant</span><span class="mono">6,10 €</span></div>
+          <div class="row"><span>Dos (vide)</span><span class="mono">—</span></div>
+          <div class="row"><span>TVA</span><span class="mono">2,40 €</span></div>
+          <div class="row" style="font-weight:700"><span>Total</span><span class="mono">17,40 €</span></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="m3">
+  <div class="sec-head"><span class="eyebrow">Maquette 3 · SAWWA Pro (ateliers)</span><h2 id="m3">La file de travail, pensée pour la tablette de l'atelier</h2></div>
+  <div class="screen">
+    <div class="bar"><i></i><i></i><i></i><span>pro.sawwa.com/commandes</span></div>
+    <div class="pro">
+      <nav class="side" aria-label="Navigation atelier">
+        <span class="c-logo">SAWWA PRO</span>
+        <a class="on" href="#m3">Commandes <b>7</b></a>
+        <a href="#m3">Offres</a>
+        <a href="#m3">Paiements</a>
+        <a href="#m3">Atelier</a>
+      </nav>
+      <div class="main">
+        <div class="tabs"><span>Nouvelles 2</span><span class="on">BAT à valider 3</span><span>En production 4</span><span>À expédier 1</span><span>Expédiées</span></div>
+        <div class="order">
+          <div class="thumb"><svg viewBox="0 0 100 100" width="80%" aria-hidden="true"><path d="M33 10 Q50 19 67 10 L90 21 L82 41 L73 37 L73 95 L27 95 L27 37 L18 41 L10 21 Z" fill="#F2E9D8" stroke="#C9BBA2"/><text x="50" y="52" text-anchor="middle" font-family="Fraunces,serif" font-size="9" fill="#24221F">Teranga</text></svg></div>
+          <dl>
+            <dt>Ordre</dt><dd class="mono">SW-2026-000123-A</dd>
+            <dt>Produit</dt><dd>T-shirt 180 g · Ivoire</dd>
+            <dt>Tailles</dt><dd class="mono">S 6 · M 10 · L 7 · XL 2</dd>
+            <dt>Technique</dt><dd>DTG · devant 24 × 30 cm, 7 cm sous le col</dd>
+          </dl>
+          <div class="actions">
+            <span class="sla">BAT dans 5 h 40</span>
+            <span class="btn btn-ghost" style="padding:7px 12px">Fichiers (PNG 300 dpi, fiche PDF)</span>
+            <span class="btn btn-primary" style="padding:7px 12px">Valider le BAT</span>
+            <span class="btn btn-ghost" style="padding:7px 12px">Demander une correction</span>
+          </div>
+        </div>
+        <p class="note">Le refus et la demande de correction exigent un motif normé (résolution, hors zone, couleurs, finesse, autre) et un commentaire. Le client est prévenu automatiquement.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="m4">
+  <div class="sec-head"><span class="eyebrow">Maquette 4 · Administration</span><h2 id="m4">Le centre de contrôle : ce qui demande une action d'abord</h2></div>
+  <div class="screen">
+    <div class="bar"><i></i><i></i><i></i><span>admin.sawwa.com</span></div>
+    <div class="main" style="padding:20px">
+      <div class="row" style="flex-wrap:wrap">
+        <b style="font-size:16px">Aujourd'hui</b>
+        <div class="filters"><span>30 derniers jours</span><span>Tous pays</span><span>Toutes catégories</span><span>⌘K Rechercher</span></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><span>Ordres en retard sur SLA</span><b style="color:var(--error)">3</b><span class="pill p-err" style="justify-self:start">à traiter</span></div>
+        <div class="kpi"><span>BAT en attente</span><b>11</b><span class="note">délai moyen 6 h 12</span></div>
+        <div class="kpi"><span>CA HT (30 j)</span><b class="mono">24 860 €</b><span class="note">212 commandes</span></div>
+        <div class="kpi"><span>Marge brute</span><b class="mono">8 470 €</b><span class="note">34,1 % du HT</span></div>
+      </div>
+      <div class="scroll-x">
+        <table>
+          <thead><tr><th>Ordre</th><th>Client</th><th>Atelier</th><th>Statut</th><th>Échéance</th><th style="text-align:right">Total TTC</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">SW-000123-A</td><td>Teranga FC</td><td>Atelier Médina</td><td><span class="pill p-warn">BAT en attente</span></td><td class="mono">auj. 18:00</td><td class="num">435,00 €</td></tr>
+            <tr><td class="mono">SW-000119-A</td><td>A. Ndiaye</td><td>Brod'Est</td><td><span class="pill p-err">En retard</span></td><td class="mono">hier</td><td class="num">42,80 €</td></tr>
+            <tr><td class="mono">SW-000117-B</td><td>Asso. Kër Gi</td><td>Atelier Médina</td><td><span class="pill p-info">En production</span></td><td class="mono">25/11</td><td class="num">1 180,00 €</td></tr>
+            <tr><td class="mono">SW-000115-A</td><td>M. Laurent</td><td>Print Lyon</td><td><span class="pill p-ok">Expédiée</span></td><td class="mono">—</td><td class="num">38,90 €</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">Données fictives pour la maquette.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec cap" aria-labelledby="next">
+  <span class="eyebrow">Suite</span>
+  <h2 id="next">Ce qu'il faut pour passer en phase 1</h2>
+  <p>Le fichier du logo, l'arbitrage des décisions D1 à D11, et deux ateliers pilotes prêts à partager leurs grilles de prix. Les maquettes cliquables complètes des six parcours clés seront produites en phase 1, sur ces bases.</p>
+</section>
+
+</div>
