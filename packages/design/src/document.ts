@@ -52,7 +52,19 @@ export interface ShapeLayer extends LayerBase {
   fill: string;
 }
 
-export type Layer = TextLayer | ImageLayer | ShapeLayer;
+/** Flat-colour vector artwork (e.g. a logo vectorised in the studio). Paths are drawn in a viewBox scaled to the layer. */
+export interface VectorLayer extends LayerBase {
+  type: "vector";
+  name: string;
+  viewWidth: number;
+  viewHeight: number;
+  paths: { d: string; fill: string }[];
+}
+
+export type Layer = TextLayer | ImageLayer | ShapeLayer | VectorLayer;
+
+/** Only absolute/relative move, line, curve and close commands with numbers: nothing executable can hide in it. */
+export const isSafePathData = (d: unknown) => typeof d === "string" && d.length > 0 && d.length <= 200_000 && /^[MmLlHhVvCcSsQqTtZz0-9eE.,\s-]+$/.test(d);
 
 export interface Surface {
   zoneKey: string;
@@ -105,6 +117,10 @@ export function parseDesign(input: unknown): { ok: true; value: DesignDocument }
         if (typeof l.src !== "string" || !isNum(l.pxWidth) || !isNum(l.pxHeight)) errors.push(`${at}: image`);
       } else if (l?.type === "shape") {
         if (!["rect", "circle", "losange"].includes(l.shape) || !isHex(l.fill)) errors.push(`${at}: shape`);
+      } else if (l?.type === "vector") {
+        if (!isNum(l.viewWidth) || !isNum(l.viewHeight) || l.viewWidth <= 0 || l.viewHeight <= 0) errors.push(`${at}: vector viewBox`);
+        if (!Array.isArray(l.paths) || l.paths.length === 0 || l.paths.length > 3000) errors.push(`${at}: vector paths`);
+        else if (l.paths.some((p) => !isSafePathData(p?.d) || !isHex(p?.fill))) errors.push(`${at}: vector path`);
       } else errors.push(`${at}: type`);
     }
   }

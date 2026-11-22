@@ -40,6 +40,10 @@ function drawLayer(ctx: CanvasRenderingContext2D, l: Layer, images: ImageCache, 
   } else if (l.type === "image") {
     const img = images.get(l.src);
     if (img) ctx.drawImage(img, -l.widthMm / 2, -l.heightMm / 2, l.widthMm, l.heightMm);
+  } else if (l.type === "vector") {
+    ctx.translate(-l.widthMm / 2, -l.heightMm / 2);
+    ctx.scale(l.widthMm / l.viewWidth, l.heightMm / l.viewHeight);
+    for (const p of l.paths) { ctx.fillStyle = p.fill; ctx.fill(new Path2D(p.d)); }
   } else {
     ctx.fillStyle = l.fill;
     ctx.beginPath();

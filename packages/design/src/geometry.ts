@@ -42,6 +42,9 @@ export function effectiveDpi(l: { pxWidth: number; pxHeight: number; widthMm: nu
 /** Distinct solid colours used on a surface (images excluded). */
 export function solidColors(s: Surface): string[] {
   const set = new Set<string>();
-  for (const l of visibleLayers(s)) if (l.type !== "image") set.add(l.fill.toUpperCase());
+  for (const l of visibleLayers(s)) {
+    if (l.type === "vector") for (const p of l.paths) set.add(p.fill.toUpperCase());
+    else if (l.type !== "image") set.add(l.fill.toUpperCase());
+  }
   return [...set];
 }

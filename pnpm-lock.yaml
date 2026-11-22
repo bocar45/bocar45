@@ -50,6 +50,9 @@ importers:
       '@supabase/supabase-js':
         specifier: 2.119.0
         version: 2.119.0
+      imagetracerjs:
+        specifier: 1.2.6
+        version: 1.2.6
       next:
         specifier: 16.4.5
         version: 16.4.5(@types/node@22.15.3)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -1094,6 +1097,9 @@ packages:
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
+
+  imagetracerjs@1.2.6:
+    resolution: {integrity: sha512-LKJlnKmXFzDdh6IZtXTyBxXcCLTAkwgKYS+NMiPXiXVnlTLjQC8fq7U89laUSgHtypJB3TdMMDK4ecG5NI/Cgw==}
 
   immediate@3.0.6:
     resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
@@ -2339,6 +2345,8 @@ snapshots:
   iceberg-js@0.8.1: {}
 
   ieee754@1.2.1: {}
+
+  imagetracerjs@1.2.6: {}
 
   immediate@3.0.6: {}
 

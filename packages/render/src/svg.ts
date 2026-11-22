@@ -29,6 +29,11 @@ function layerSvg(l: Layer, images: Record<string, string>): string {
     if (!href) throw new Error(`missing image ${l.src}`);
     return `<g transform="${t}"><image href="${esc(href)}" x="${num(-l.widthMm / 2)}" y="${num(-l.heightMm / 2)}" width="${num(l.widthMm)}" height="${num(l.heightMm)}" preserveAspectRatio="none"/></g>`;
   }
+  if (l.type === "vector") {
+    // Paths were validated (isSafePathData) when the document was parsed; attributes are escaped anyway.
+    const paths = l.paths.map((p) => `<path d="${esc(p.d)}" fill="${esc(p.fill)}"/>`).join("");
+    return `<g transform="${t}"><svg x="${num(-l.widthMm / 2)}" y="${num(-l.heightMm / 2)}" width="${num(l.widthMm)}" height="${num(l.heightMm)}" viewBox="0 0 ${num(l.viewWidth)} ${num(l.viewHeight)}" preserveAspectRatio="none">${paths}</svg></g>`;
+  }
   const w = l.widthMm, h = l.heightMm;
   const shape = l.shape === "circle"
     ? `<ellipse rx="${num(w / 2)}" ry="${num(h / 2)}" fill="${esc(l.fill)}"/>`

@@ -45,6 +45,7 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Phase 4/5 (E10) — correction de la création par le client : studio ouvert sur la version commandée, nouvelle version figée, renvoi au BAT atomique, prix recalculé (supplément explicitement accepté, jamais de baisse remboursée), historique des versions pour le client, l'atelier et l'admin
 - [x] E14 — robustesse : offre atelier en une transaction, limitation de débit (SMS, prix, commandes, fichiers), contrôle et ré-encodage des fichiers, images limitées à celles du client, erreurs journalisées
 - [x] E18 — studio 3D en direct (2D + 3D), modèles provisoires calibrés en mm (D17), emplacements en un clic
+- [x] E18c — outils d'image : fond, inversion, rognage, recadrage, trame, vectorisation en aplats (D18)
 - [ ] Suite : notifications WhatsApp/SMS, agrégateur de paiement, Sentry, test de bout en bout sur un vrai projet Supabase
 - [ ] Phase 2 — créer les projets Supabase/Vercel (porteur), types générés, enregistrement d'offre atomique (RPC), test des écrans de bout en bout sur un vrai projet Supabase
 

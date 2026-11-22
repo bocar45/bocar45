@@ -70,3 +70,15 @@ describe("print resolution metadata", async () => {
     expect(() => setPngDpi(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]), 300)).toThrow(/not a PNG/);
   });
 });
+
+describe("vector layers in production files", () => {
+  it("draws vector paths scaled to the layer, attributes escaped", () => {
+    const s: Surface = { zoneKey: "f", technique: "embroidery", layers: [
+      { id: "v", type: "vector", name: "logo", viewWidth: 100, viewHeight: 50, xMm: 50, yMm: 50, rotation: 0, widthMm: 80, heightMm: 40, paths: [{ d: "M0 0 L100 0 L100 50 Z", fill: "#2A1A12" }] },
+    ] };
+    const { svg } = renderSurfaceSvg(s, { maxWidthMm: 100, maxHeightMm: 100 }, { dpi: 300, images: {} });
+    expect(svg).toContain('viewBox="0 0 100 50" preserveAspectRatio="none"');
+    expect(svg).toContain('<path d="M0 0 L100 0 L100 50 Z" fill="#2A1A12"/>');
+    expect(svg).toContain('x="-40" y="-20" width="80" height="40"');
+  });
+});

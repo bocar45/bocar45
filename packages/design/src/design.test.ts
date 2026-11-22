@@ -65,3 +65,24 @@ describe("document", () => {
     ]);
   });
 });
+
+describe("vector layers (E18c)", () => {
+  const vector = (over = {}) => ({
+    id: "v1", type: "vector" as const, name: "logo", viewWidth: 100, viewHeight: 50, xMm: 150, yMm: 100, rotation: 0, widthMm: 120, heightMm: 60,
+    paths: [{ d: "M0 0 L100 0 L100 50 Z", fill: "#2A1A12" }, { d: "M10 10 C 20 20, 40 20, 50 10 z", fill: "#C9923E" }], ...over,
+  });
+  it("validates vector paths and refuses anything that is not plain path data", () => {
+    const ok = { ...emptyDocument("tee", "ivoire"), surfaces: [{ zoneKey: "front", technique: "embroidery", layers: [vector()] }] };
+    expect(parseDesign(ok).ok).toBe(true);
+    for (const d of ['M0 0" onload="alert(1)', "M0 0 url(#x)", "<script>", ""]) {
+      const bad = { ...ok, surfaces: [{ ...ok.surfaces[0]!, layers: [vector({ paths: [{ d, fill: "#000000" }] })] }] };
+      expect(parseDesign(bad).ok, d).toBe(false);
+    }
+  });
+  it("counts each vector colour for embroidery and screen printing", () => {
+    const s: Surface = { zoneKey: "chest", technique: "embroidery", layers: [vector()] };
+    expect(preflight(s, { maxWidthMm: 300, maxHeightMm: 300 })).toEqual([]);
+    const many = { ...s, layers: [vector({ paths: Array.from({ length: 13 }, (_, i) => ({ d: "M0 0 L1 1 Z", fill: `#${(i + 16).toString(16)}0000` })) })] };
+    expect(preflight(many, { maxWidthMm: 300, maxHeightMm: 300 }).map((i) => i.code)).toEqual(["TOO_MANY_COLORS"]);
+  });
+});

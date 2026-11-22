@@ -21,6 +21,7 @@ const Viewer3D = dynamic(() => import("../studio3d/viewer"), {
 });
 import { getAsset, loadDraft, putAsset, saveDraft } from "./asset-store";
 import { LayerShape, StudioCanvas, isDark } from "./canvas";
+import { ImageTools } from "./image-tools";
 import { moveLayerToZone } from "./move";
 import { useHistory } from "./use-history";
 
@@ -391,6 +392,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           )}
           {selected ? (
             <Properties key={selected.id} layer={selected} zone={{ W, H }} onChange={(patch) => commitPatch(selected.id, patch)}
+              imageUrl={selected.type === "image" ? urls[selected.src] : undefined}
+              onReplace={(next) => history.commit((d) => updateSurface(d, (s) => ({ ...s, layers: s.layers.map((l) => (l.id === next.id ? next : l)) })))}
+              onUrl={(src, url) => setUrls((u) => ({ ...u, [src]: url }))}
               onDelete={() => removeLayer(selected.id)} onDuplicate={() => duplicate(selected)} onReorder={(dir) => reorder(selected.id, dir)} onDone={() => setSelectedId(null)} />
           ) : (
             <Panel title={`Calques · ${zone.label}`}>
@@ -503,6 +507,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 function layerName(l: Layer) {
   if (l.type === "text") return `T  ${l.text || "(vide)"}`;
   if (l.type === "image") return `▣  ${l.name}`;
+  if (l.type === "vector") return `✦  ${l.name} (${new Set(l.paths.map((p) => p.fill)).size} couleurs)`;
   return { rect: "■  Carré", circle: "●  Cercle", losange: "◆  Losange" }[l.shape];
 }
 
@@ -516,28 +521,33 @@ function Num({ label, value, onChange, step = 1, min, suffix }: { label: string;
   );
 }
 
-function Properties({ layer: l, zone, onChange, onDelete, onDuplicate, onReorder, onDone }: {
+function Properties({ layer: l, zone, onChange, onDelete, onDuplicate, onReorder, onDone, imageUrl, onReplace, onUrl }: {
   layer: Layer; zone: { W: number; H: number }; onChange: (p: Partial<Layer>) => void;
+  imageUrl: string | undefined; onReplace: (next: Layer) => void; onUrl: (src: string, url: string) => void;
   onDelete: () => void; onDuplicate: () => void; onReorder: (dir: 1 | -1) => void; onDone: () => void;
 }) {
   const ratio = l.heightMm / Math.max(l.widthMm, 0.1);
   return (
     <section className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="eyebrow flex items-center gap-2 text-muted"><span className="losange !h-2 !w-2" aria-hidden="true" />{l.type === "text" ? "Texte" : l.type === "image" ? "Image" : "Forme"}</h2>
+        <h2 className="eyebrow flex items-center gap-2 text-muted"><span className="losange !h-2 !w-2" aria-hidden="true" />{l.type === "text" ? "Texte" : l.type === "image" ? "Image" : l.type === "vector" ? "Logo vectoriel" : "Forme"}</h2>
         <button type="button" className="text-sm underline" onClick={onDone}>Terminé</button>
       </div>
 
       {l.type === "text" && <TextProps layer={l} onChange={onChange} />}
       {l.type === "image" && (
+        <ImageTools layer={l} url={imageUrl} onReplace={onReplace} onUrl={onUrl} />
+      )}
+      {l.type === "image" && (
         <p className="text-sm text-muted">{l.name} · {l.pxWidth} × {l.pxHeight} px · <b className={effectiveDpi(l) < 150 ? "text-error" : effectiveDpi(l) < 200 ? "text-ocre-700" : "text-ok"}>{effectiveDpi(l)} dpi</b> à cette taille</p>
       )}
       {(l.type === "shape") && <ColorPicker value={l.fill} onChange={(fill) => onChange({ fill })} />}
+      {l.type === "vector" && <VectorColors layer={l} onChange={onChange} />}
 
       {l.type !== "text" && (
         <div className="grid grid-cols-2 gap-2">
-          <Num label="Largeur" suffix="mm" value={l.widthMm} min={3} onChange={(w) => onChange({ widthMm: w, heightMm: l.type === "image" ? w * ratio : l.heightMm })} />
-          <Num label="Hauteur" suffix="mm" value={l.heightMm} min={3} onChange={(h) => onChange({ heightMm: h, widthMm: l.type === "image" ? h / ratio : l.widthMm })} />
+          <Num label="Largeur" suffix="mm" value={l.widthMm} min={3} onChange={(w) => onChange({ widthMm: w, heightMm: l.type === "shape" ? l.heightMm : w * ratio })} />
+          <Num label="Hauteur" suffix="mm" value={l.heightMm} min={3} onChange={(h) => onChange({ heightMm: h, widthMm: l.type === "shape" ? l.widthMm : h / ratio })} />
         </div>
       )}
       <div className="grid grid-cols-3 gap-2">
@@ -698,5 +708,24 @@ function CorrectionPanel({ correction, issues, blocked, onSend }: {
       </div>
       {blocked && <p className="text-xs text-error">Corrigez les points bloquants pour pouvoir renvoyer.</p>}
     </section>
+  );
+}
+
+/** Each colour of a vectorised logo can be changed (all its shapes at once): handy to match a thread or ink colour. */
+function VectorColors({ layer, onChange }: { layer: Extract<Layer, { type: "vector" }>; onChange: (p: Partial<Layer>) => void }) {
+  const colors = [...new Set(layer.paths.map((p) => p.fill.toUpperCase()))];
+  return (
+    <div className="grid gap-2">
+      <span className="text-xs font-semibold text-muted">Couleurs du logo ({colors.length})</span>
+      <div className="flex flex-wrap gap-2">
+        {colors.map((c) => (
+          <label key={c} className="inline-flex items-center gap-1 text-xs">
+            <input type="color" value={c} aria-label={`Remplacer la couleur ${c}`} className="h-7 w-9 cursor-pointer rounded border border-line"
+              onChange={(e) => onChange({ paths: layer.paths.map((p) => (p.fill.toUpperCase() === c ? { ...p, fill: e.target.value.toUpperCase() } : p)) } as Partial<Layer>)} />
+            <span className="tabular-nums">{c}</span>
+          </label>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -109,11 +109,12 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] Contrôle de fabrication propre à la sublimation / impression textile (fond perdu, résolution, couleurs).
 - [ ] 🧑‍💼 Au moins un atelier partenaire capable (sublimation ou impression textile + coupe-couture) avant mise en vente.
 
-## E18c — Outils d'image du studio 🛠️ en cours
-- [ ] Retrait d'une couleur de fond, inversion, recadrage.
-- [ ] Effet trame (« halftone ») pour l'impression d'images en sérigraphie / DTF.
-- [ ] Vectorisation d'un logo simple (aplats) pour broderie et sérigraphie.
-- [ ] Agrandissement sans perte (« upscale ») : avec l'étape IA (E22), quotas et suivi des coûts.
+## E18c — Outils d'image du studio 🔎
+- [x] Retrait du fond (couleur du bord, tolérance réglable, fond seulement s'il touche le bord : l'intérieur du logo est conservé), inversion, « rogner les bords vides », recadrage en % ; la taille réelle et la position sont conservées.
+- [x] Effet trame (« halftone ») : points d'une couleur d'encre, pas réglable en mm.
+- [x] Vectorisation d'un logo simple en aplats (2 à 6 couleurs, palette exacte du logo, fond retiré) → élément vectoriel net à toute taille, couleurs modifiables une à une ; compté correctement par le contrôle de fabrication (broderie, sérigraphie) ; rendu identique dans l'éditeur, la 3D et les fichiers d'impression (D18).
+- [x] Chaque opération crée une nouvelle image (l'original n'est pas modifié) et s'annule.
+- [ ] Agrandissement sans perte (« upscale ») : reporté à l'étape IA (E22), comme prévu.
 
 ## E18d — Modération des images importées ⏳ (avant le lancement public)
 - [ ] Déclaration de droits à l'import ; signalement ; file de modération admin ; refus motivé au BAT pour marques et personnages protégés.

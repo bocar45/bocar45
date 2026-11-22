@@ -117,3 +117,8 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Choix** : vêtements modélisés à partir de leur patron en millimètres (contour réel, panneaux « gonflés », plis légers), mug/gourde/casquette en géométrie simple. Le dessin du studio est peint sur la texture à 2 px/mm avec les vraies polices.
 - **Contrat stable** : `placeZone()` (où chaque zone se trouve sur le vêtement) et `uvFor()` sont testés ; les modèles d'artiste devront respecter les mêmes positions, ce qui les rend interchangeables sans toucher au studio.
 - **Dépendances** : three 0.187.0, @react-three/fiber 9.8.2, @react-three/drei 10.7.9 (chargées seulement quand la 3D s'ouvre).
+
+## D18 🟢 Élément « vectoriel » dans le format des créations (décision CTO, 22/11/2026)
+- **Besoin** : un logo vectorisé dans le studio doit rester net à toutes les tailles et compter ses vraies couleurs (broderie, sérigraphie).
+- **Choix** : nouveau type de calque `vector` (viewBox + liste de chemins `d` et couleurs). Les chemins sont validés à la lecture (`isSafePathData` : seulement des commandes de tracé et des nombres) : rien d'exécutable ne peut y être caché. Rendu dans l'éditeur, la 3D (Path2D) et les fichiers d'impression (SVG).
+- **Vectorisation** : imagetracerjs 1.2.6 (domaine public, chargée au clic), alimentée avec une palette calculée par SAWWA (couleurs exactes) ; la transparence est remplacée par une couleur repère avant le tracé puis retirée.

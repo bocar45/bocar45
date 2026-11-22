@@ -166,6 +166,13 @@ export function LayerShape({ layer: l, url, textRef }: { layer: Layer; url?: str
       ? <image href={url} x={-l.widthMm / 2} y={-l.heightMm / 2} width={l.widthMm} height={l.heightMm} preserveAspectRatio="none" />
       : <rect x={-l.widthMm / 2} y={-l.heightMm / 2} width={l.widthMm} height={l.heightMm} fill="#00000014" stroke="#00000033" strokeDasharray="3 2" />;
   }
+  if (l.type === "vector") {
+    return (
+      <svg x={-l.widthMm / 2} y={-l.heightMm / 2} width={l.widthMm} height={l.heightMm} viewBox={`0 0 ${l.viewWidth} ${l.viewHeight}`} preserveAspectRatio="none" overflow="visible">
+        {l.paths.map((p, i) => <path key={i} d={p.d} fill={p.fill} />)}
+      </svg>
+    );
+  }
   const { widthMm: w, heightMm: h } = l;
   if (l.shape === "circle") return <ellipse rx={w / 2} ry={h / 2} fill={l.fill} />;
   if (l.shape === "losange") return <polygon points={`0,${-h / 2} ${w / 2},0 0,${h / 2} ${-w / 2},0`} fill={l.fill} />;
