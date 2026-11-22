@@ -1,4 +1,5 @@
 import "server-only";
+import { logError } from "./log";
 import type { Technique } from "@sawwa/catalog";
 import { isSupabaseConfigured } from "./env";
 import { bestQuote, sanitizeDecorations, type DecorationInput } from "./quoting";
@@ -23,7 +24,7 @@ export async function loadStudioProduct(slug: string): Promise<StudioProduct | n
     .eq("slug", slug)
     .eq("status", "active")
     .maybeSingle();
-  if (error) throw new Error(`Produit indisponible : ${error.message}`);
+  if (error) { logError("studio_product_read_failed", error, { slug }); throw new Error("Produit indisponible."); }
   if (!p) return null;
   const views = (p.views ?? []) as { id: string; key: string; mockup_assets: { label?: string } | null; sort: number }[];
   const colors = new Map<string, { key: string; hex: string; sizes: string[] }>();

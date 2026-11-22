@@ -1,5 +1,6 @@
 import "server-only";
 import { TransitionError, transition, type Actor, type FulfillmentEvent, type FulfillmentState, type FulfillmentStatus } from "@sawwa/workflow";
+import { TRY_AGAIN, logError } from "./log";
 import { createServiceClient } from "./supabase/server";
 
 /**
@@ -30,7 +31,11 @@ export async function runTransition(
     p_payload: { ...payload, ...("reason" in event ? { reason: event.reason } : {}), ...("comment" in event ? { comment: event.comment } : {}) },
     p_extra: { ...extra, ...(sla && sla.kind === "start_sla" ? { sla_hours: sla.hours } : {}) },
   });
-  if (rpcError) return { error: rpcError.message.includes("conflict") ? "Cette commande vient d'être modifiée par quelqu'un d'autre. Rechargez la page." : rpcError.message };
+  if (rpcError) {
+    if (rpcError.message.includes("conflict")) return { error: "Cette commande vient d'être modifiée par quelqu'un d'autre. Rechargez la page." };
+    logError("fulfillment_transition_failed", rpcError, { fulfillmentId, event: event.type });
+    return { error: TRY_AGAIN };
+  }
   // Effects: notifications go through the notification module (WhatsApp/SMS/e-mail) once a provider is configured;
   // refunds are handled by finance for the pilot (the event history shows what is due).
   return { ok: true as const, effects: result.effects };

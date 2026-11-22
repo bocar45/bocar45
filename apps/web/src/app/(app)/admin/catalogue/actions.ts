@@ -6,7 +6,7 @@ import { isHexColor, isTechnique, parseSizes, publishBlockers, slugify, toKey, v
 import { audit } from "@/lib/audit";
 import { requirePlatformRole } from "@/lib/auth";
 import { int, optStr, str } from "@/lib/form";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { TRY_AGAIN, logError } from "@/lib/log";
 
 const guard = () => requirePlatformRole(["catalog"], "/admin/catalogue");
 const friendly = (msg: string) => {

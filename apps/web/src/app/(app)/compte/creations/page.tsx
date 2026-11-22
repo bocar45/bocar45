@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { Empty, PageHeader, fr } from "@/components/ui";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { READ_FAILED, logError } from "@/lib/log";
 
 export const metadata = { title: "Mes créations" };
 

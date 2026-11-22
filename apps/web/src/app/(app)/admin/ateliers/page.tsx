@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requirePlatformRole } from "@/lib/auth";
 import { decideVendor } from "./actions";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { READ_FAILED, logError } from "@/lib/log";
 
 export const metadata = { title: "Ateliers" };
 

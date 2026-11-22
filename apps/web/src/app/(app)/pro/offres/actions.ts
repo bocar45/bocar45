@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { parseOfferForm, type OfferZone } from "@/lib/offer-form";
 import { requireActiveVendor } from "@/lib/vendor";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { logError } from "@/lib/log";
 
 export async function saveOffer(productId: string, fd: FormData) {
   const { supabase, vendor, canManage } = await requireActiveVendor(`/pro/offres/${productId}`);

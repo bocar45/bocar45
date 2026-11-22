@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { PlatformRuleSet } from "@sawwa/pricing";
 import { requirePlatformRole } from "@/lib/auth";
 import { int, percentToBps } from "@/lib/form";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { TRY_AGAIN, logError } from "@/lib/log";
 
 export async function createRuleSet(fd: FormData) {
   const { supabase } = await requirePlatformRole(["finance"], "/admin/regles-prix");

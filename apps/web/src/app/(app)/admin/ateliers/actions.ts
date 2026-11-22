@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePlatformRole } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { logError } from "@/lib/log";
 
 const DECISIONS = { approve: "active", reject: "rejected", suspend: "suspended" } as const;
 export type VendorDecision = keyof typeof DECISIONS;

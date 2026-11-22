@@ -1,4 +1,5 @@
 import "server-only";
+import { logError } from "./log";
 import { createServiceClient } from "./supabase/server";
 
 /** Append to the audit log (service role: users cannot write it themselves). Throws if it fails. */
@@ -18,5 +19,5 @@ export async function audit(entry: {
     before: entry.before ?? null,
     after: entry.after ?? null,
   });
-  if (error) throw new Error(`Journal d'audit indisponible : ${error.message}`);
+  if (error) { logError("audit_write_failed", error, { action: entry.action }); throw new Error("Journal d'audit indisponible : l'action n'a pas été confirmée."); }
 }

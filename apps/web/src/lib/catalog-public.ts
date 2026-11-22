@@ -1,4 +1,5 @@
 import "server-only";
+import { logError } from "./log";
 import type { Technique } from "@sawwa/catalog";
 import { catalogPrice, type CatalogPrice, type PlatformRuleSet, type VendorPriceGrid } from "@sawwa/pricing";
 import { isSupabaseConfigured } from "./env";
@@ -45,7 +46,7 @@ export async function loadPublicCatalog(): Promise<{ categories: PublicCategory[
       .eq("vendor.status", "active"),
     db.from("price_rule_sets").select("rules").eq("status", "active").eq("currency", "XOF").maybeSingle(),
   ]);
-  for (const r of [cats, prods, offers, rules]) if (r.error) throw new Error(`Catalogue indisponible : ${r.error.message}`);
+  for (const r of [cats, prods, offers, rules]) if (r.error) { logError("public_catalog_read_failed", r.error); throw new Error("Catalogue indisponible."); }
 
   const ruleSet = (rules.data?.rules ?? null) as PlatformRuleSet | null;
   const offersByProduct = new Map<string, { grid: VendorPriceGrid; minQty: number; leadTimeDays: number }[]>();

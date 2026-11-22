@@ -7,7 +7,7 @@ import { runTransition } from "@/lib/fulfillment";
 import { str } from "@/lib/form";
 import { candidateVendors } from "@/lib/assignment";
 import { createServiceClient } from "@/lib/supabase/server";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { TRY_AGAIN, logError } from "@/lib/log";
 
 const refresh = (orderId: string) => { revalidatePath(`/admin/commandes/${orderId}`); revalidatePath("/admin/commandes"); };
 

@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { STATUS_LABEL } from "@/lib/fulfillment";
 import { fcfa } from "@/lib/orders";
 import { Empty, PageHeader } from "@/components/ui";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { READ_FAILED, logError } from "@/lib/log";
 
 export const metadata = { title: "Mes commandes" };
 

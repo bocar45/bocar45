@@ -11,7 +11,7 @@ import { bestQuote, sanitizeDecorations } from "@/lib/quoting";
 import { DELIVERY_OPTIONS, isDeliveryKey } from "@/lib/shipping";
 import { quoteStudio, type StudioDecoration } from "@/lib/studio-data";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { TRY_AGAIN, logError } from "@/lib/log";
 
 export async function getStudioQuote(slug: string, colorKey: string, quantity: number, decorations: StudioDecoration[]) {
   if (!(await rateLimit("quotePerIp", await clientIp()))) return { ok: false as const, reason: "rate_limited" as const, message: TOO_MANY };

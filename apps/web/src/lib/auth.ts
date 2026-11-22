@@ -1,4 +1,5 @@
 import "server-only";
+import { logError } from "./log";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 
@@ -22,7 +23,7 @@ export async function getSession() {
     .from("memberships")
     .select("role, organization:organizations(id, kind, status, name)")
     .eq("user_id", user.id);
-  if (error) throw new Error(`Lecture des rôles impossible : ${error.message}`);
+  if (error) { logError("memberships_read_failed", error, { userId: user.id }); throw new Error("Lecture des rôles impossible."); }
   const memberships = (data ?? []) as unknown as Membership[];
   return { user, memberships, supabase };
 }

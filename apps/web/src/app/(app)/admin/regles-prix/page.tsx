@@ -3,7 +3,7 @@ import { hasPlatformRole, requirePlatformRole } from "@/lib/auth";
 import { ActionForm } from "@/components/action-form";
 import { Empty, Field, PageHeader, Section, StatusPill, inputClass } from "@/components/ui";
 import { activateRuleSet, createRuleSet } from "./actions";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { READ_FAILED, logError } from "@/lib/log";
 
 export const metadata = { title: "Règles de prix" };
 

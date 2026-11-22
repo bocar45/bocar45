@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { requireUser, vendorMembership } from "@/lib/auth";
 import { TOO_MANY, rateLimit } from "@/lib/rate-limit";
-import { READ_FAILED, TRY_AGAIN, logError } from "@/lib/log";
+import { TRY_AGAIN, logError } from "@/lib/log";
 
 export type ApplyState = { error: string | null };
 

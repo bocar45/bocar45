@@ -3,6 +3,23 @@
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
 ## 2026-11-22 — E14 — À CORRIGER
+Commit examiné : 242378e (second passage ; corrections après 8e16463, fbfd4ae = BACKLOG et image de référence seulement), branche à jour avec `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (86, 15 fichiers, dont `no-raw-errors.test.ts`) · db ✅ (ALL RLS TESTS PASSED, section 13) · build ✅
+Limite : pas de Supabase réel ni de Docker (SMS/e-mails, limites du stockage, `/auth/callback` à rejouer en E11).
+Points du passage précédent :
+1. [~] Erreurs techniques : corrigé aux endroits cités. `lib/log.ts` (`logError`, une ligne JSON, même format que `instrumentation.ts`) ; `studio/[slug]/actions.ts:38,42` (`TRY_AGAIN`), `:124-126` (commande : journalisée, message français « Rien ne vous a été facturé »), `:200` ; `pro/candidature/actions.ts:19` ; pages `compte/creations` et `compte/commandes` (`READ_FAILED` + journal) ; même traitement dans admin, pro, studio (envoi d'image), `qc-upload.tsx`, route de production. Garde : `no-raw-errors.test.ts` parcourt `app/` et `components/`. **Mais** `lib/fulfillment.ts:33` renvoie encore `rpcError.message` brut (texte Postgres, non journalisé) dès que l'erreur n'est pas un conflit, et ce résultat est rendu tel quel au client par `compte/commandes/actions.ts:16` (`answerCorrection`), ainsi qu'à l'atelier et à l'admin. La garde ne voit pas `lib/` (motif `: rpcError.message }` hors de ses expressions). → point 1.
+2. [x] `save_vendor_offer` : paramètre `p_user` retiré, `created_by = auth.uid()` (migration `20261122000500`, l. 33), signature des `revoke`/`grant` mise à jour (l. 39-40), action sans `user.id` (`pro/offres/actions.ts:29-32`). Test 13a : `FAIL grid author must be the signed-in user` (agit en `…a1`, l. 397), passe.
+Remarques du passage précédent : raison `rate_limited` dédiée ✅ (`actions.ts:17`, `studio-data.ts:48`) ; limite abaissée à 8 000 px ✅ (`print-images.ts:9`) ; prévisualisation et `NEXT_PUBLIC_SITE_URL` documentées ✅ (`SETUP_SUPABASE_VERCEL.md:16`) ; adresse « unknown » inchangée (sans effet sur Vercel).
+Critères de l'étape : inchangés depuis le premier passage et toujours remplis (offre en une transaction, limitation de débit, codes envoyés par le serveur, contrôle des fichiers, images du propriétaire) ; erreurs journalisées [~] (point 1) ; 🧑‍💼 Sentry en attente du porteur, non bloquant.
+Critères communs : C1 ✅ · C2 ✅ · C3 ✅ (grep secrets vide hors docs/supabase/consigne ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ❌ (point 1) · C5 ✅ · C6 ✅. Aucune nouvelle dépendance.
+Corrections à faire (par priorité) :
+1. `apps/web/src/lib/fulfillment.ts:33` : en dehors du conflit, `logError("fulfillment_transition_failed", rpcError, { fulfillmentId, event: event.type })` et renvoyer `TRY_AGAIN` au lieu de `rpcError.message`. Étendre `no-raw-errors.test.ts` à `lib/` pour les valeurs renvoyées (motif `: \w*[eE]rror\??\.message\b` hors `.includes`, et `logError`/`log.ts` exclus) afin que la garde couvre ce chemin.
+Remarques non bloquantes :
+- Imports `READ_FAILED`/`TRY_AGAIN` inutilisés ajoutés dans plusieurs fichiers (`admin/ateliers/actions.ts`, `pro/offres/actions.ts`, `compte/*/page.tsx`, `studio/[slug]/actions.ts`…) : à nettoyer.
+- `lib/auth.ts:25`, `audit.ts:21`, `studio-data.ts:26`, `catalog-public.ts:48` lèvent des erreurs contenant le texte technique ; masquées par Next.js en production (page d'erreur), mais non journalisées par `logError` hors `onRequestError` : acceptable, à garder en tête.
+Décision : reprendre E14
+
+## 2026-11-22 — E14 — À CORRIGER
 Commit examiné : 8e16463 (depuis 14fd680 ; 12839e8 = verdict E10 et retouches de documentation), branche à jour avec `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (85, 14 fichiers) · db ✅ (ALL RLS TESTS PASSED, section 13) · build ✅ (`/connexion`, `/api/production/[fulfillmentId]` construites)
 Limite : pas de Supabase réel ni de Docker. Envoi réel des SMS/e-mails, limites du stockage et retour `/auth/callback` non joués (à rejouer en E11).
