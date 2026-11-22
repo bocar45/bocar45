@@ -24,6 +24,7 @@ L'aperçu 3D est un **panneau à côté du canvas** sur desktop (mise à jour en
 | Rotation libre | Glisser pour tourner, pincer pour zoomer, limites d'angle pour rester flatteur |
 | Vues rapides | Face · Dos · Profil gauche · Profil droit · Zoom sur la zone sélectionnée |
 | Mannequins | **De vrais êtres humains numériques, photoréalistes** (pas de mannequin de vitrine, pas de dessin). Un **casting** de 8 personnes au lancement : homme et femme, peau très foncée, brune, métisse, claire ; traits africains, arabes, européens ; coiffures variées (locks, tresses, cheveux crépus, ras, lisses), et une femme voilée en option. Voir §3 « Casting » |
+| Fond de scène | **Blanc** (par défaut, rendu catalogue propre) ou **ivoire** (ambiance SAWWA), au choix ; sol avec ombre douce. Même choix pour la photo studio téléchargée |
 | Taille portée | S/M/L/XL : le vêtement est ajusté sur le corps |
 | Animations | Pose neutre · Tour sur soi-même · Marche · Bras croisés (mise en valeur du devant) · Mouvement de dos |
 | Rotation automatique | Tour lent en boucle à l'ouverture (« turntable »), désactivée si l'utilisateur interagit ou si `prefers-reduced-motion` |
@@ -44,8 +45,8 @@ L'aperçu 3D est un **panneau à côté du canvas** sur desktop (mise à jour en
 | 4 | Homme | brun | locks |
 | 5 | Femme d'origine arabe / maghrébine | mate | cheveux longs ; variante voilée |
 | 6 | Homme d'origine arabe / maghrébine | mate | barbe courte |
-| 7 | Femme | claire | cheveux lisses |
-| 8 | Homme | clair | cheveux courts |
+| 7 | Femme blanche (européenne) | claire | cheveux lisses |
+| 8 | Homme blanc (européen) | clair | cheveux courts |
 Plus tard : enfants, morphologies plus rondes, seniors.
 
 **D'où viennent ces personnes** (par ordre de préférence)
