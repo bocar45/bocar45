@@ -146,7 +146,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Capacité par jour et fermetures (`/pro/disponibilites`) prises en compte à l'affectation : charge en cours + commande ÷ capacité, jours ouvrés du lundi au samedi, fermetures sautées ; l'admin voit « prêt le… / surchargé / fermé jusqu'au… », les ateliers disponibles sont proposés en premier, l'affectation à un atelier fermé est refusée (`lib/capacity.ts`, tests). Marge de l'affectation calculée avec `splitGross` (règle 3).
 - [x] Plusieurs utilisateurs par atelier : invitation par numéro de téléphone (7 jours), acceptation par la personne connectée avec ce numéro, rôles propriétaire / gérant / opérateur ; l'opérateur ne voit ni l'argent ni les offres et ne gère ni l'équipe ni les disponibilités ; au moins un propriétaire garanti (`/pro/equipe`). Décision D24.
 
-## E22 — IA 🔎 (détourage fait ; génération 🧑‍💼 budget)
+## E22 — IA ✅ partie gratuite (détourage) ; génération 🧑‍💼 budget
 - [x] Détourage automatique dans le navigateur (« ✨ Détourer la photo ») : modèle U²-Net léger (Apache 2.0, 4,6 Mo) exécuté sur l'appareil par ONNX Runtime WebAssembly, servi par SAWWA (pas de CDN tiers, aucune image envoyée, aucun coût par image) ; ≈ 8 Mo téléchargés au premier usage puis en cache ; nouvelle image recadrée sur le sujet, taille réelle et position conservées, annulable ; ≈ 3 s mesurées. Décision D25.
 - [ ] 🧑‍💼 Génération de motifs avec quotas, cache, suivi des coûts et modération : choix du fournisseur et budget par le porteur.
 - [ ] Agrandissement sans perte (reporté depuis E18c) : avec la génération (même fournisseur), ou modèle local si la qualité suffit.

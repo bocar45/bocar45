@@ -2,6 +2,22 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E22 (partie gratuite : détourage, 2e passage) — VALIDÉ
+Commit examiné : 1f7025d (depuis a0330bf), `git status` propre après build, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (145) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.
+Vérification navigateur : non refaite (mesure de l'auteur au 1er passage).
+Critères de l'étape :
+- [x] Détourage dans le navigateur, modèle et moteur servis par SAWWA, erreurs claires, recadrage annulable : acquis au 1er passage, inchangés.
+- [x] Moteur non versionné : `.gitignore:13` = `apps/web/public/ort/` (commité) ; `git check-ignore -v apps/web/public/ort/ort-wasm-simd-threaded.wasm` → `.gitignore:13` ; aucun fichier non suivi après `pnpm build`.
+- [x] Remarque traitée : `hasSubject` (seuil 0,5 sur la sortie brute, `segment-ops.ts:44`) appliqué avant `applyMask` (`segment.ts:41`) ; `null` → « Aucun sujet net trouvé… » (`image-tools.tsx:99`) ; test ajouté (`segment-ops.test.ts:29`).
+- 🧑‍💼 Génération de motifs : en attente du budget du porteur. Agrandissement : reporté.
+Critères communs : C1 ✅ · C2 ✅ (sans objet : ni argent, ni prix, ni statut) · C3 ✅ · C4 ✅ · C5 ✅ · C6 ✅ (D25, ROADMAP, BACKLOG ; poussé ; dépendance `onnxruntime-web` justifiée dans D25).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- Le `.wasm` de 15 Mo reste dans l'historique (d139b9e) : réécriture éventuelle à la décision du porteur.
+- L'auteur a commité l'entrée « À CORRIGER » de ce journal dans 1f7025d : acceptable, contenu inchangé.
+Décision : passer à E18b (partie code ; la mise en vente attend un atelier capable 🧑‍💼)
+
 ## 2026-11-22 — E22 (partie gratuite : détourage) — À CORRIGER
 Commit examiné : a0330bf (depuis cf8e4b0), branche à jour avec `origin`, **mais `git status` non propre : `.gitignore` modifié et non commité**
 Contrôles : typecheck ✅ · tests ✅ (144, 25 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0, « onnxruntime-web files copied to public/ort »). Tout relancé.
