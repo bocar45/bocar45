@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import {
-  FONTS, blocking, decorationsFor, effectiveDpi, emptyDocument, parseDesign, preflight,
+  FONTS, MAX_DOCUMENT_CHARS, blocking, decorationsFor, effectiveDpi, emptyDocument, parseDesign, preflight,
   type DesignDocument, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
 } from "@sawwa/design";
 import { DELIVERY_OPTIONS, type DeliveryKey } from "@/lib/shipping";
@@ -210,6 +210,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
         }
       }
       if (next !== doc) { setUrls((u) => ({ ...u, ...newUrls })); history.commit(next); }
+      if (JSON.stringify(next).length > MAX_DOCUMENT_CHARS) throw new Error("Création trop lourde à enregistrer : remplacez un élément vectorisé très détaillé par l'image d'origine, ou vectorisez avec moins de couleurs.");
       const r = await save({ id: designId, slug: product.slug, title, document: next });
       if ("error" in r) throw new Error(r.error);
       setDesignId(r.id);

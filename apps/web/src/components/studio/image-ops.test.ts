@@ -66,11 +66,63 @@ describe("vectorisation preparation", () => {
   });
 });
 
+/** Same logo drawn twice as large: the white eye is 4 × 4 px, like a real (small) detail. */
+function bigLogo(): Pixels {
+  const src = logo(), img = pixels(40, 40);
+  for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) {
+    const i = ((y >> 1) * 20 + (x >> 1)) * 4;
+    img.data.set(src.data.slice(i, i + 4), (y * 40 + x) * 4);
+  }
+  return img;
+}
+
+const BLUE = [47, 75, 124], OCRE = [201, 146, 62], BROWN = [42, 26, 18];
+/**
+ * A realistic exported logo: white background, blue disc, brown triangle, ocre bar, thin brown "text" strokes,
+ * drawn at 4× and box-filtered down, so every edge is anti-aliased (mixed colours that are not part of the logo).
+ */
+function antialiasedLogo(): Pixels {
+  const S = 4, W = 160, H = 120;
+  const colourAt = (x: number, y: number): number[] => {
+    if (y > 92 && y < 100 && ((x > 40 && x < 44) || (x > 60 && x < 64) || (x > 80 && x < 84))) return BROWN; // text
+    if (y > 70 && y < 80 && x > 30 && x < 130) return OCRE;
+    const tx = x - 80, ty = y - 20;
+    if (ty > 0 && ty < 40 && Math.abs(tx) < ty * 0.6) return BROWN;
+    if ((x - 80) ** 2 + (y - 38) ** 2 < 30 ** 2) return BLUE;
+    return [255, 255, 255];
+  };
+  const img = pixels(W, H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const acc = [0, 0, 0];
+    for (let sy = 0; sy < S; sy++) for (let sx = 0; sx < S; sx++) {
+      const c = colourAt(x + (sx + 0.5) / S, y + (sy + 0.5) / S);
+      acc[0]! += c[0]!; acc[1]! += c[1]!; acc[2]! += c[2]!;
+    }
+    img.data.set([...acc.map((v) => Math.round(v / (S * S))), 255], (y * W + x) * 4);
+  }
+  return img;
+}
+const close = (pal: number[][], expected: number[][]) =>
+  expected.every((e) => pal.some((c) => Math.max(...c.map((v, k) => Math.abs(v - e[k]!))) <= 8));
+
 describe("palette for vectorisation", () => {
   it("finds the real colours of a logo, not averages", () => {
-    const pal = dominantColors(logo(), 2).map((c) => c.join());
+    const pal = dominantColors(bigLogo(), 2).map((c) => c.join());
     expect(pal.sort()).toEqual(["255,255,255", "47,75,124"]);
-    const onlyLogo = dominantColors(removeColor(logo(), [255, 255, 255], 10), 3).map((c) => c.join());
+    const onlyLogo = dominantColors(removeColor(bigLogo(), [255, 255, 255], 10), 3).map((c) => c.join());
     expect(onlyLogo.sort()).toEqual(["255,255,255", "47,75,124"]); // eye kept, only 2 distinct colours exist
+  });
+  it("ignores anti-aliased edges: 3 colours asked → exactly the 3 colours of the logo", () => {
+    // as the studio does it: background colour removed everywhere before measuring the palette
+    const direct = dominantColors(removeColor(antialiasedLogo(), [255, 255, 255], 12, false), 3);
+    expect(direct).toHaveLength(3);
+    expect(close(direct, [BLUE, OCRE, BROWN])).toBe(true);
+    // after "Retirer le fond" (only the background touching the border)
+    const noBg = dominantColors(removeColor(antialiasedLogo(), [255, 255, 255], 20), 3);
+    expect(noBg).toHaveLength(3);
+    expect(close(noBg, [BLUE, OCRE, BROWN])).toBe(true);
+    // asking for more colours never invents an edge grey
+    const more = dominantColors(removeColor(antialiasedLogo(), [255, 255, 255], 12, false), 5);
+    expect(more).toHaveLength(3);
   });
 });

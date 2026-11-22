@@ -79,6 +79,12 @@ describe("vector layers (E18c)", () => {
       expect(parseDesign(bad).ok, d).toBe(false);
     }
   });
+  it("refuses a vector layer too detailed to store and send", () => {
+    const big = Array.from({ length: 4 }, () => ({ d: `M0 0 ${"L1 1 ".repeat(16_000)}Z`, fill: "#000000" }));
+    const doc = { ...emptyDocument("tee", "ivoire"), surfaces: [{ zoneKey: "front", technique: "dtg", layers: [vector({ paths: big })] }] };
+    expect(parseDesign(doc).ok).toBe(false);
+    expect(parseDesign({ ...doc, surfaces: [{ ...doc.surfaces[0]!, layers: [vector({ paths: big.slice(0, 3) })] }] }).ok).toBe(true);
+  });
   it("counts each vector colour for embroidery and screen printing", () => {
     const s: Surface = { zoneKey: "chest", technique: "embroidery", layers: [vector()] };
     expect(preflight(s, { maxWidthMm: 300, maxHeightMm: 300 })).toEqual([]);

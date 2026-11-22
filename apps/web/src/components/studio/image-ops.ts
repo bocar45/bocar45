@@ -189,38 +189,57 @@ export function tracedPaths(svg: string, background: [number, number, number] | 
 }
 
 /**
- * Main colours of the visible pixels (k-means, deterministic farthest-point start). Used as the exact palette for
- * vectorisation, so a logo keeps its real colours instead of averaged ones.
+ * Main colours of a logo, used as the exact palette for vectorisation so a logo keeps its real colours.
+ * Only "interior" pixels count (same colour as their 4 neighbours): the anti-aliased edges, which mix two colours,
+ * never become a colour of their own. Colours are picked by frequency (a colour must cover ≥ 0.5 % of the interior),
+ * and each one is the most frequent exact colour of its group, never an average.
  */
 export function dominantColors(img: Pixels, n: number): [number, number, number][] {
-  const pts: [number, number, number][] = [];
-  const step = Math.max(1, Math.floor((img.width * img.height) / 40000));
-  for (let p = 0; p < img.width * img.height; p += step) {
-    const i = p * 4;
-    if (img.data[i + 3]! >= 128) pts.push([img.data[i]!, img.data[i + 1]!, img.data[i + 2]!]);
+  const { width: w, height: h, data } = img;
+  const step = Math.max(1, Math.floor(Math.sqrt((w * h) / 60000)));
+  const near = (i: number, j: number) =>
+    data[j + 3]! >= 128 && Math.abs(data[i]! - data[j]!) + Math.abs(data[i + 1]! - data[j + 1]!) + Math.abs(data[i + 2]! - data[j + 2]!) <= 24;
+  const pts: number[] = []; // packed 0xRRGGBB
+  for (let y = 1; y < h - 1; y += step) for (let x = 1; x < w - 1; x += step) {
+    const i = (y * w + x) * 4;
+    if (data[i + 3]! < 128) continue;
+    if (!near(i, i - 4) || !near(i, i + 4) || !near(i, i - w * 4) || !near(i, i + w * 4)) continue;
+    pts.push((data[i]! << 16) | (data[i + 1]! << 8) | data[i + 2]!);
+  }
+  if (pts.length === 0) {
+    // tiny or noisy image: fall back to every opaque pixel
+    for (let p = 0; p < w * h; p++) { const i = p * 4; if (data[i + 3]! >= 128) pts.push((data[i]! << 16) | (data[i + 1]! << 8) | data[i + 2]!); }
   }
   if (pts.length === 0) return [];
-  const d2 = (a: number[], b: number[]) => (a[0]! - b[0]!) ** 2 + (a[1]! - b[1]!) ** 2 + (a[2]! - b[2]!) ** 2;
-  // start from the most frequent colour, then repeatedly the point farthest from the chosen centres
-  const freq = new Map<string, number>();
-  for (const q of pts) { const k = q.map((v) => v >> 4).join(); freq.set(k, (freq.get(k) ?? 0) + 1); }
-  const topKey = [...freq.entries()].sort((a, b) => b[1] - a[1])[0]![0];
-  const centers: number[][] = [pts.find((q) => q.map((v) => v >> 4).join() === topKey)!.slice()];
-  while (centers.length < n) {
-    let far = pts[0]!, fd = -1;
-    for (const q of pts) { const m = Math.min(...centers.map((c) => d2(q, c))); if (m > fd) { fd = m; far = q; } }
-    if (fd < 400) break; // no distinct colour left (distance < 20)
-    centers.push(far.slice());
+  const rgb = (v: number): [number, number, number] => [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  const dist = (a: number[], b: number[]) => Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!);
+  // histogram of coarse buckets (4 bits per channel), each bucket remembers its mean colour
+  const buckets = new Map<number, { count: number; sum: [number, number, number] }>();
+  for (const v of pts) {
+    const k = ((v >> 20) & 15) << 8 | ((v >> 12) & 15) << 4 | ((v >> 4) & 15);
+    const b = buckets.get(k) ?? { count: 0, sum: [0, 0, 0] };
+    const c = rgb(v);
+    b.count++; b.sum[0] += c[0]; b.sum[1] += c[1]; b.sum[2] += c[2];
+    buckets.set(k, b);
   }
-  for (let it = 0; it < 10; it++) {
-    const acc = centers.map(() => [0, 0, 0, 0]);
-    for (const q of pts) {
-      let bi = 0, bd = Infinity;
-      centers.forEach((c, ci) => { const dd = d2(q, c); if (dd < bd) { bd = dd; bi = ci; } });
-      const a = acc[bi]!; a[0]! += q[0]; a[1]! += q[1]; a[2]! += q[2]; a[3]! += 1;
-      acc[bi] = a;
-    }
-    acc.forEach((a, ci) => { if (a[3]) centers[ci] = [a[0]! / a[3]!, a[1]! / a[3]!, a[2]! / a[3]!]; });
+  const minCount = Math.max(1, pts.length * 0.005);
+  const centers: [number, number, number][] = [];
+  for (const b of [...buckets.values()].sort((a, z) => z.count - a.count)) {
+    if (centers.length >= n || b.count < minCount) break;
+    const c: [number, number, number] = [b.sum[0] / b.count, b.sum[1] / b.count, b.sum[2] / b.count];
+    if (centers.every((o) => dist(o, c) > 40)) centers.push(c);
   }
-  return centers.map((c) => c.map((v) => Math.round(v)) as [number, number, number]);
+  // snap each centre on the most frequent exact colour of its group
+  const groups = centers.map(() => new Map<number, number>());
+  for (const v of pts) {
+    const c = rgb(v);
+    let bi = 0, bd = Infinity;
+    centers.forEach((o, ci) => { const d = dist(c, o); if (d < bd) { bd = d; bi = ci; } });
+    if (bd <= 40) groups[bi]!.set(v, (groups[bi]!.get(v) ?? 0) + 1);
+  }
+  return groups.map((g, ci) => {
+    let best = -1, bc = 0;
+    for (const [v, cnt] of g) if (cnt > bc) { bc = cnt; best = v; }
+    return best >= 0 ? rgb(best) : (centers[ci]!.map(Math.round) as [number, number, number]);
+  });
 }

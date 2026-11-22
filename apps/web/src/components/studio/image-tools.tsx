@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ImageLayer, Layer, VectorLayer } from "@sawwa/design";
+import { MAX_VECTOR_CHARS, vectorChars, type ImageLayer, type Layer, type VectorLayer } from "@sawwa/design";
 import { putAsset } from "./asset-store";
 import { TRACE_KEY, borderColor, dominantColors, cropPercent, flattenTransparency, halftone, hexToRgb, invert, opaqueBounds, crop, pixels, removeColor, tracedPaths, type Pixels, type Rect } from "./image-ops";
 
@@ -21,14 +21,17 @@ async function decode(url: string): Promise<Pixels> {
   return pixels(w, h, ctx.getImageData(0, 0, w, h).data);
 }
 
-async function encode(px: Pixels): Promise<{ src: string; url: string }> {
+/** An error whose message is written for the customer (shown as is). */
+class ToolError extends Error {}
+
+async function encode(px: Pixels): Promise<{ src: string; url: string; kept: boolean }> {
   const c = document.createElement("canvas");
   c.width = px.width; c.height = px.height;
   c.getContext("2d")!.putImageData(new ImageData(new Uint8ClampedArray(px.data), px.width, px.height), 0, 0);
   const blob = await new Promise<Blob>((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error("encode"))), "image/png"));
   const id = (crypto.randomUUID?.() ?? `${Date.now()}`).replace(/-/g, "").slice(0, 20);
-  await putAsset(id, blob).catch(() => undefined);
-  return { src: `idb:${id}`, url: URL.createObjectURL(blob) };
+  const kept = await putAsset(id, blob).then(() => true, () => false);
+  return { src: `idb:${id}`, url: URL.createObjectURL(blob), kept };
 }
 
 /** Layer geometry after keeping only `r` (source pixels) of an image: same mm per pixel, same place on the product. */
@@ -55,13 +58,14 @@ export function ImageTools({ layer, url, onReplace, onUrl }: {
   const run = async (label: string, op: (px: Pixels) => Promise<void>) => {
     if (!url) { setError("Image indisponible : rechargez la page."); return; }
     setBusy(label); setError(null);
-    try { await op(await decode(url)); } catch { setError("Cette opération n'a pas pu être appliquée à l'image. Essayez avec une autre image ou un autre réglage."); }
+    try { await op(await decode(url)); } catch (e) { setError(e instanceof ToolError ? e.message : "Cette opération n'a pas pu être appliquée à l'image. Essayez avec une autre image ou un autre réglage."); }
     finally { setBusy(null); }
   };
   const replacePixels = async (px: Pixels, name: string, geometry?: Partial<ImageLayer>) => {
     const out = await encode(px);
     onUrl(out.src, out.url);
     onReplace({ ...layer, ...geometry, src: out.src, name, pxWidth: px.width, pxHeight: px.height });
+    if (!out.kept) setError("Image modifiée, mais cet appareil n'a pas pu la garder en mémoire : enregistrez la création dans votre compte avant de recharger la page.");
   };
   const base = layer.name.replace(/\.[a-z]+$/i, "");
 
@@ -154,6 +158,7 @@ export function ImageTools({ layer, url, onReplace, onUrl }: {
           });
           const paths = tracedPaths(svg, dropBg && !isKey ? bg : null);
           if (paths.length === 0) throw new Error("no paths");
+          if (vectorChars(paths) > MAX_VECTOR_CHARS) throw new ToolError("Image trop détaillée pour être vectorisée : choisissez moins de couleurs, ou gardez-la en image.");
           const vector: VectorLayer = {
             id: layer.id, type: "vector", name: `${base} (vectoriel)`, viewWidth: src.width, viewHeight: src.height, paths,
             xMm: layer.xMm, yMm: layer.yMm, rotation: layer.rotation, widthMm: layer.widthMm, heightMm: layer.heightMm,
