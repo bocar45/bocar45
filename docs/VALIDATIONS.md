@@ -2,6 +2,24 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E24b (tests de charge locaux) — VALIDÉ
+Commit examiné : cc452e4 (depuis c81ce3c), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (167, 28 fichiers) · db ✅ (ALL RLS TESTS PASSED + « rate limiter under concurrency: 10 / 40 allowed (OK) ») · build ✅ (code de sortie 0). Tout relancé. `pnpm bench:engines` relancé aussi (code 0, ≈ 32 s).
+Critères de l'étape :
+- [x] Outils sans dépendance. `scripts/load/http-load.mjs` n'utilise que `fetch` et `performance` de Node. `scripts/load/engine.bench.ts` passe par vitest, déjà présent. `package.json` déclare `bench:engines` et `load:http`. Le bench relancé redonne les chiffres de `PERFORMANCE.md` : prix ≈ 295 000/s (0,0034 ms), contrôle ≈ 108 000/s (0,0093 ms), fichier 300 dpi 3,12 s, pic mémoire 1 450 Mo. La charge HTTP n'a pas été relancée : les chiffres de pages sont ceux de l'auteur.
+- [x] Limitation de débit sous accès simultanés. `scripts/db-test.sh:22-29` lance 40 `psql` en parallèle sur une limite de 10 et échoue si le nombre d'accès acceptés n'est pas exactement 10. Le contrôle est vu au vert dans `pnpm db:test`.
+- [x] Mémoire des fichiers d'impression. `packages/render/src/png.ts:67-77` (`printDpiFor` : 300, 200 puis 150 dpi, plancher à 150). Le test `render.test.ts:161-170` couvre A3, manche, grandes pièces, budget de 40 Mpx et plancher. La route `api/production/.../route.ts:120-124` règle le rendu, le bloc pHYs et le nom de fichier `-${dpi}dpi`. La fiche affiche `PNG ${printDpi} dpi` (`sheet.ts:84`, `route.ts:144`). La page atelier indique « PNG haute résolution ». Décision D28 ajoutée.
+- 🧑‍💼 Charge avec la vraie base : en attente du porteur (après E11). Hors code, ne bloque pas.
+Critères communs : C1 ✅ · C2 ✅ (aucun calcul de prix ni transition ; le bench appelle `packages/pricing` ; la route garde ses contrôles d'accès existants) · C3 ✅ (`git grep` des secrets : seulement `set role service_role` dans le script de test ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ (aucun nouveau message client) · C5 ✅ (test unitaire `printDpiFor`, test de concurrence SQL) · C6 ✅ (PERFORMANCE.md, D28, ROADMAP, BACKLOG 🔎 ; poussé ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- Le « pic mémoire » du bench est le RSS de tout le processus vitest, et il augmente d'un passage à l'autre (1 450 Mo puis 2 334 Mo au 2e teardown). Ce n'est pas le coût d'un rendu isolé. Les chiffres 150 et 200 dpi de `PERFORMANCE.md` (« 0,4–0,6 Go ») ne sont reproductibles par aucune commande : ajouter un cas de bench au dpi réellement servi (`printDpiFor`).
+- `printDpiFor` est calculé sur `max_width_mm × max_height_mm`, sans le fond perdu des pièces de patron. L'écart est faible, mais le fichier réel dépasse légèrement le budget.
+- Le calcul `printDpiFor(..., Number(process.env.PRINT_MAX_MEGAPIXELS) || 25)` est dupliqué dans la route (l.120 et l.144) : le factoriser. `PRINT_MAX_MEGAPIXELS` n'est pas mentionnée dans `SETUP_SUPABASE_VERCEL.md` ni dans `.env.example`.
+- La fiche PDF ne précise plus « transparent » pour les zones hors patron (« PNG transparent 300 dpi » est devenu « PNG N dpi »).
+- La page atelier ne montre pas la résolution, seulement « haute résolution ». Elle apparaît dans la fiche et le nom du fichier, ce qui suffit pour le critère.
+Décision : passer à E24c (référencement).
+
 ## 2026-11-22 — E24a (sécurité avant lancement) — VALIDÉ
 Commit examiné : 3d1880e (depuis 5198e02), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (166, 28 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.

@@ -162,7 +162,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Montant atelier retiré du droit de lecture général de `fulfillments` (privilège de colonne) et exposé par la vue `fulfillment_costs` (équipe SAWWA, propriétaire et gérants) ; client et opérateur refusés (tests section 20) ; tableau de bord, export, pages commande adaptés. Décision D27.
 - [x] Contours des pièces de patron figés avec la commande (`quote_snapshot.patterns`) et utilisés en priorité pour la production.
 
-## E24b — Tests de charge locaux 🔎
+## E24b — Tests de charge locaux ✅
 - [x] Outils sans dépendance : `pnpm bench:engines` (moteurs), `pnpm load:http` (charge HTTP), limitation de débit sous accès simultanés dans `pnpm db:test` (10 / 40 acceptés). Résultats et budgets dans `docs/PERFORMANCE.md`.
 - [x] Constat corrigé : un fichier 300 dpi d'une grande pièce prenait 1,46 Go → résolution choisie selon un budget de pixels (300 dpi habituel, 150–200 dpi pour les grandes pièces, jamais moins de 150), annoncée sur la fiche et dans le nom du fichier. Décision D28.
 - [ ] 🧑‍💼 Charge avec la vraie base (après E11).

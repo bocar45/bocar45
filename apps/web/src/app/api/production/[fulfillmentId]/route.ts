@@ -12,6 +12,8 @@ import { patternOf } from "@/lib/pattern-zone";
 
 /** Fabric roll width assumed for the cutting plan until the pilot workshop gives its own (mm). */
 const FABRIC_WIDTH_MM = 1500;
+/** Resolution of a print file within the server's memory budget (D28). */
+const dpiFor = (zone: { max_width_mm: number; max_height_mm: number }) => printDpiFor(zone.max_width_mm, zone.max_height_mm, Number(process.env.PRINT_MAX_MEGAPIXELS) || 25);
 import { UnprintableImageError, toPrintableImage } from "@/lib/print-images";
 import { TOO_MANY, rateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -117,7 +119,7 @@ async function generate(request: NextRequest, fulfillmentId: string) {
     if (copy && !(pattern?.mirror && pattern.quantity > 1)) return fail("Cette pièce n'a pas de seconde copie en miroir.", 400);
     if (copy) pieceLabel += "-copie2-miroir";
     // E24b: highest resolution that fits the server's memory (300 dpi for usual prints, 150–200 for large all-over pieces)
-    const dpi = printDpiFor(zone.max_width_mm, zone.max_height_mm, Number(process.env.PRINT_MAX_MEGAPIXELS) || 25);
+    const dpi = dpiFor(zone);
     const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm, pattern }, { dpi, images, allOver: doc.allOver ?? null, mirror: copy });
     return new NextResponse(new Uint8Array(setPngDpi(new Uint8Array(rasterize(svg)), dpi)), {
       headers: { "Content-Type": "image/png", "Content-Disposition": `attachment; filename="${reference}-${zone.key}${pieceLabel}-${dpi}dpi.png"`, "Cache-Control": "private, no-store" },
@@ -141,7 +143,8 @@ async function generate(request: NextRequest, fulfillmentId: string) {
       anchorNote: pattern ? `Pièce de patron : imprimer le rectangle entier (fond perdu ${pattern.bleedMm} mm), couper sur le trait (couture ${pattern.seamMm} mm)${pattern.quantity > 1 ? `, ${pattern.quantity} pièces${pattern.mirror ? " dont une en miroir (fichier « copie 2 »)" : ""}` : ""}` : zone.anchor?.note ?? null,
       colors: d.technique === "embroidery" || d.technique === "screen_print" ? d.colors : null,
       previewPng: new Uint8Array(rasterize(svg, "#F2E9D8")),
-      printDpi: printDpiFor(zone.max_width_mm, zone.max_height_mm, Number(process.env.PRINT_MAX_MEGAPIXELS) || 25),
+      printDpi: dpiFor(zone),
+      transparent: !pattern,
     };
   });
   // E18b: cutting plan for all-over pieces, per garment, on a 150 cm roll
