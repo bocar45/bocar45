@@ -28,6 +28,8 @@
 | Marché Sénégal | `docs/MARCHE_SENEGAL.md` |
 | Recrutement ateliers | `docs/RECRUTEMENT_ATELIERS.md` |
 | Mise en route Supabase/Vercel | `docs/SETUP_SUPABASE_VERCEL.md` |
+| Étapes et critères | `docs/BACKLOG.md` |
+| Verdicts du validateur | `docs/VALIDATIONS.md` |
 
 ## Stack
 Next.js (Vercel) + Supabase (Postgres, Auth, Storage). Migrations SQL dans `supabase/migrations`. La RLS est une deuxième barrière : les règles métier restent dans `packages/`.
@@ -49,7 +51,10 @@ Next.js (Vercel) + Supabase (Postgres, Auth, Storage). Migrations SQL dans `supa
 8. Nouvelle dépendance = justification d'une ligne dans le compte rendu.
 9. Décision structurante → l'ajouter à `docs/DECISIONS.md` (format ADR court).
 
-## Méthode de travail
+## Méthode de travail : étape par étape, validée
+- La liste des étapes et leurs critères : `docs/BACKLOG.md`. Une étape à la fois.
+- Fin d'étape : passer l'étape en 🔎, commiter, puis lancer l'agent **`sawwa-validateur`** (`.claude/agents/`). On ne passe à l'étape suivante qu'après le verdict **VALIDÉ** (journal : `docs/VALIDATIONS.md`). Procédure complète : skill `etape-suivante`.
+
 - Une tâche = une branche = un périmètre court. Lire les fichiers ciblés, pas tout le repo.
 - Compte rendu de fin de tâche : fait / non fait / décisions / prochaine étape (≤ 10 lignes).
 - Mettre à jour `docs/ROADMAP.md` (case cochée) à chaque livraison.
