@@ -60,6 +60,8 @@ export async function saveOffer(productId: string, fd: FormData) {
       .insert({ offer_id: offer.id, version: parsed.grid.version, currency: "XOF", grid: parsed.grid, created_by: user.id });
     if (error) return { error: `Grille de prix non enregistrée : ${error.message}` };
   }
+  revalidatePath("/catalogue", "layout");
+  revalidatePath("/produits/[slug]", "page");
   revalidatePath(`/pro/offres/${productId}`);
   revalidatePath("/pro/offres");
   return { ok: unchanged ? "Offre enregistrée (prix inchangés)." : `Offre enregistrée. Grille de prix version ${parsed.grid.version}.` };

@@ -1,5 +1,17 @@
 # Livrable C — Direction artistique et design system
 
+> **Mise à jour 22/11/2026 — direction « atelier contemporain ouest-africain » (appliquée dans `apps/web`).**
+> Retour du porteur : la première version était trop fade. Nouvelle règle : la marque s'affirme.
+> - **Aplats francs** : sections en brun nuit (#2A1A12), terracotta (#B5562A), ocre (#C9923E), indigo nuit (#1D2F50), olive (#68705A) ; l'ivoire sert de respiration, pas de fond unique.
+> - **Losange ocre** = signature (puces, eyebrows, séparateurs), repris du logo.
+> - **Bande tissée** (`.bande`) entre les sections, inspirée du tissage en bandes ; **trame** discrète (chevrons + quarts de cercle du symbole) sur les aplats.
+> - **Typographie éditoriale** : Fraunces très grand, l'italique terracotta porte l'emphase (« Donner forme *aux idées.* ») ; Manrope pour l'interface.
+> - **Illustrations produits** (`ProductArt`) en attendant les vraies photos/mockups, colorées selon la variante, fond qui s'adapte pour rester contrasté.
+> - **Logo réel** (fichiers détourés provisoires dans `public/brand/`) jusqu'à la vectorisation.
+> - Pas de mode sombre automatique : la marque assume ses propres aplats sombres et clairs.
+> L'espace pro et l'admin restent plus sobres (outils de travail), mais partagent en-tête, couleurs et boutons.
+
+
 Visualisation : `design/maquettes.html` (palette, typographie, trame, maquettes des trois portails).
 
 ## 1. Logo SW

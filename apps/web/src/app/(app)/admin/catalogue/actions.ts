@@ -74,6 +74,8 @@ export async function setProductStatus(id: string, status: "draft" | "active" | 
   const { error } = await supabase.from("base_products").update({ status }).eq("id", id);
   if (error) return { error: friendly(error.message) };
   await audit({ actorUserId: user.id, action: `product.${status}`, entityType: "base_product", entityId: id, before: { status: p.status }, after: { status } });
+  revalidatePath("/catalogue", "layout");
+  revalidatePath("/produits/[slug]", "page");
   revalidatePath(`/admin/catalogue/${id}`);
   return { ok: status === "active" ? "Produit publié." : "Statut mis à jour." };
 }

@@ -43,6 +43,8 @@ export async function activateRuleSet(id: string) {
   const { supabase } = await requirePlatformRole(["finance"], "/admin/regles-prix");
   const { error } = await supabase.rpc("activate_price_rule_set", { p_id: id });
   if (error) return { error: error.message };
+  revalidatePath("/catalogue", "layout");
+  revalidatePath("/produits/[slug]", "page");
   revalidatePath("/admin/regles-prix");
   return { ok: "Version activée. Les commandes déjà validées gardent leur prix." };
 }

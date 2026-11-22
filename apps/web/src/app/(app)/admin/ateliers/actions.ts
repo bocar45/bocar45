@@ -20,4 +20,6 @@ export async function decideVendor(orgId: string, decision: VendorDecision) {
 
   await audit({ actorUserId: user.id, action: `vendor.${decision}`, entityType: "organization", entityId: orgId, before: { status: before.status }, after: { status } });
   revalidatePath("/admin/ateliers");
+  revalidatePath("/catalogue", "layout");
+  revalidatePath("/produits/[slug]", "page");
 }

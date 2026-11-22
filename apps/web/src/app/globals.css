@@ -1,38 +1,49 @@
 @import "tailwindcss";
 
-/* SAWWA tokens — see docs/DESIGN_SYSTEM.md */
+/* SAWWA — direction « atelier contemporain ouest-africain ».
+   Aplats francs (brun nuit, terracotta, ocre, indigo, olive), losange comme signature,
+   bandes tissées en séparateurs, typographie éditoriale. Voir docs/DESIGN_SYSTEM.md. */
 :root {
+  --nuit: #1c120c;
   --brun: #2a1a12;
+  --brun-2: #3a261b;
   --ivoire: #f2e9d8;
   --paper: #fbf7ef;
+  --sable: #e6d6bb;
   --terra: #b5562a;
   --terra-700: #93421d;
-  --ocre: #b07a2a;
-  --olive-700: #525944;
+  --terra-300: #e08a5f;
+  --ocre: #c9923e;
+  --ocre-700: #8a5f1c;
   --indigo: #2f4b7c;
+  --indigo-900: #1d2f50;
+  --olive: #68705a;
+  --olive-700: #525944;
   --error: #a4262c;
+
   --bg: var(--ivoire);
   --surface: var(--paper);
-  --fg: #24221f;
-  --muted: #6b5f50;
+  --fg: #24170f;
+  --muted: #6b5a49;
   --line: #dccfb8;
   --action: var(--terra-700);
   --on-action: #ffffff;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1a1917;
-    --surface: #24221f;
-    --fg: #f2e9d8;
-    --muted: #b9ad99;
-    --line: #3b3732;
-    --action: #d08a6c;
-    --on-action: #1a1917;
-    color-scheme: dark;
-  }
-}
 
 @theme inline {
+  --color-nuit: var(--nuit);
+  --color-brun: var(--brun);
+  --color-brun-2: var(--brun-2);
+  --color-ivoire: var(--ivoire);
+  --color-sable: var(--sable);
+  --color-terra: var(--terra);
+  --color-terra-700: var(--terra-700);
+  --color-terra-300: var(--terra-300);
+  --color-ocre: var(--ocre);
+  --color-ocre-700: var(--ocre-700);
+  --color-indigo: var(--indigo);
+  --color-indigo-900: var(--indigo-900);
+  --color-olive: var(--olive);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-fg: var(--fg);
@@ -40,8 +51,6 @@
   --color-line: var(--line);
   --color-action: var(--action);
   --color-on-action: var(--on-action);
-  --color-terra: var(--terra);
-  --color-ocre: var(--ocre);
   --color-ok: var(--olive-700);
   --color-error: var(--error);
   --font-display: var(--font-fraunces), Georgia, serif;
@@ -54,3 +63,78 @@ body {
 }
 h1, h2, h3 { text-wrap: balance; }
 :focus-visible { outline: 3px solid var(--indigo); outline-offset: 2px; }
+::selection { background: var(--terra); color: var(--ivoire); }
+
+/* Display type: Fraunces with soft optical axis; italics carry the emphasis. */
+.display {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 100, "WONK" 0;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+}
+.display em { font-style: italic; font-variation-settings: "SOFT" 100, "WONK" 1; color: var(--terra-300); }
+.on-light .display em, .display.on-light em { color: var(--terra); }
+
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Bande tissée : strips of colour like a woven band, used between sections. */
+.bande {
+  height: 18px;
+  background:
+    repeating-linear-gradient(90deg,
+      var(--terra) 0 64px, var(--ocre) 64px 76px, var(--brun) 76px 132px,
+      var(--ivoire) 132px 138px, var(--indigo) 138px 186px, var(--ocre) 186px 194px,
+      var(--olive) 194px 236px, var(--brun) 236px 244px);
+  box-shadow: inset 0 3px 0 rgba(0,0,0,.18), inset 0 -3px 0 rgba(0,0,0,.18);
+}
+.bande-fine {
+  height: 6px;
+  background: repeating-linear-gradient(90deg, var(--terra) 0 24px, var(--ocre) 24px 30px, var(--brun) 30px 54px, var(--ocre) 54px 60px);
+}
+
+/* Trame : chevrons and quarter circles from the SW symbol, as a texture. */
+.trame {
+  --trame-color: rgba(242, 233, 216, 0.045);
+  background-image:
+    linear-gradient(135deg, var(--trame-color) 25%, transparent 25%),
+    linear-gradient(225deg, var(--trame-color) 25%, transparent 25%),
+    radial-gradient(circle at 0 100%, transparent 32px, var(--trame-color) 33px 36px, transparent 37px);
+  background-size: 72px 72px, 72px 72px, 72px 72px;
+  background-position: 0 0, 36px 0, 0 0;
+}
+.trame-dark { --trame-color: rgba(42, 26, 18, 0.06); }
+
+/* Losange : the diamond from the logo. */
+.losange {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  background: var(--ocre);
+  transform: rotate(45deg);
+  flex: none;
+}
+
+.marquee { display: flex; gap: 3rem; width: max-content; animation: marquee 40s linear infinite; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .marquee { animation: none; }
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  border-radius: 999px; padding: 0.85rem 1.4rem; font-weight: 800;
+  transition: transform .15s ease, background-color .15s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-terra { background: var(--terra); color: #fff; }
+.btn-terra:hover { background: var(--terra-700); }
+.btn-ivoire { background: var(--ivoire); color: var(--brun); }
+.btn-ghost-light { border: 1.5px solid rgba(242,233,216,.5); color: var(--ivoire); }
+.btn-ghost-light:hover { border-color: var(--ivoire); }
+.btn-brun { background: var(--brun); color: var(--ivoire); }
+@media (prefers-reduced-motion: reduce) { .btn, .btn:hover { transition: none; transform: none; } }

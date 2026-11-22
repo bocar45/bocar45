@@ -34,6 +34,8 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Phase 2 — règles de prix SAWWA versionnées (finance), activation tracée, versions activées figées
 - [x] Phase 2 — espace atelier : offres (variantes, zones × techniques, grille de prix par palier, frais fixes), grille versionnée immuable ; réservé aux ateliers actifs (RLS)
 - [x] Phase 2 — fiche atelier admin : simulation des prix publics par le moteur de prix
+- [x] Refonte visuelle du site (direction « atelier contemporain ouest-africain », logo réel, aplats, bandes tissées)
+- [x] Phase 3 (début) — catalogue public par catégorie et fiches produits ; prix « dès » et prix par quantité calculés par le moteur sur les offres actives (seuls les prix publics quittent le serveur), cache 10 min + rafraîchissement à chaque modification admin/atelier
 - [ ] Phase 2 — créer les projets Supabase/Vercel (porteur), types générés, enregistrement d'offre atomique (RPC), test des écrans de bout en bout sur un vrai projet Supabase
 
 ## Critères d'acceptation par jalon
