@@ -2,6 +2,28 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E24c (référencement, contre-validation) — VALIDÉ
+Commit examiné : e9489f0 (depuis 4023046), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (171) · db ✅ (ALL RLS TESTS PASSED) · build ✅. Tout relancé, deux fois pour le build : une fois sans `NEXT_PUBLIC_SITE_URL` (l'avertissement s'affiche), une fois avec.
+Vérification serveur : port 3999, curl, puis serveur arrêté.
+Critères de l'étape :
+- [x] Correction 1, adresses des modèles dans le plan du site.
+  - `studio/[slug]/page.tsx:18-26` ajoute un `generateMetadata`. Avec un modèle publié, il renvoie `templateMetadata` (`seo.ts:61-65`) : canonique `/studio/<produit>?modele=<slug>`, titre « modèle — produit », description et Open Graph complet. Sans modèle, la canonique est `/studio/<produit>`.
+  - `sitemap.ts:26` construit l'adresse avec cette même fonction. `seo.test.ts` vérifie que la canonique, le titre et l'OG sont ceux attendus.
+  - Curl sans Supabase : `/studio/t-shirt?modele=x` et `/studio/t-shirt` donnent tous deux la canonique `/studio/t-shirt`. C'est le repli voulu pour un modèle inconnu.
+  - Le cas d'un modèle réellement publié n'a pas pu être rendu sans Supabase. Il est couvert par le test unitaire et par le partage de la fonction entre la page et le plan du site.
+- [x] Métadonnées, robots.txt / noindex, données structurées, pages légales : inchangés depuis l'examen de 4023046, toujours conformes.
+  - `SHARE` (`seo.ts:16`) est réutilisé sur la racine, les fiches produit et les modèles. Curl montre `og:image` et `og:site_name` sur `/`, `/cgv` et `/studio/*`.
+  - `/pro/candidature` reste en `noindex` : la justification est acceptée, la page appelle `requireUser` (l. 9) et un robot serait renvoyé vers `/connexion`.
+- 🧑‍💼 Relecture juridique, informations de l'entreprise et déclaration CDP : en attente du porteur, hors code.
+Critères communs : C1 ✅ · C2 ✅ (aucun calcul de prix ni transition ajouté) · C3 ✅ (aucun secret, aucune donnée fictive) · C4 ✅ (la recherche du modèle est protégée par `.catch(() => null)` et un repli générique) · C5 ✅ (test `templateMetadata`) · C6 ✅ (BACKLOG 🔎, ROADMAP, SETUP ; poussé ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- `listTemplates` est limité à 60 résultats (`templates.ts:41`). Au-delà, des modèles publiés manqueront au plan du site, il faudra paginer.
+- `publishedTemplate` exige aussi `document.product === productSlug` (`templates.ts:61`), ce que `listTemplates` ne vérifie pas. Un modèle incohérent figurerait dans le plan du site alors que sa page renvoie la canonique générique. C'est un cas marginal.
+- La description par défaut d'un modèle promet « voyez le résultat en 3D » : à vérifier pour les produits qui n'ont pas de rendu 3D.
+Décision : passer à E24d (version anglaise).
+
 ## 2026-11-22 — E24c (référencement) — À CORRIGER
 Commit examiné : 4023046 (depuis 9f79355), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (170, 29 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0, avec `NEXT_PUBLIC_SITE_URL=https://sawwa.sn`). Tout relancé.

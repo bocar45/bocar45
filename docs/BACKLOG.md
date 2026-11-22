@@ -167,7 +167,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Constat corrigé : un fichier 300 dpi d'une grande pièce prenait 1,46 Go → résolution choisie selon un budget de pixels (300 dpi habituel, 150–200 dpi pour les grandes pièces, jamais moins de 150), annoncée sur la fiche et dans le nom du fichier. Décision D28.
 - [ ] 🧑‍💼 Charge avec la vraie base (après E11).
 
-## E24c — Référencement 🔎
+## E24c — Référencement ✅
 - [x] Métadonnées : adresse canonique du site (`NEXT_PUBLIC_SITE_URL`), titres et descriptions, Open Graph et carte de partage, fiches produit avec adresse canonique.
 - [x] `robots.txt` (espaces compte, atelier, admin, API et connexion exclus) et en-tête « noindex » sur tous ces espaces ; plan du site dynamique (pages, catégories, produits, modèles publiés).
 - [x] Données structurées : Organisation (accueil), Produit avec fourchette de prix publique en FCFA (fiches), protégées contre l'injection (testé).
