@@ -332,7 +332,7 @@ reset role;
 begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
 do $$ declare ok boolean := false; begin
-  begin perform public.resubmit_design((select id from public.orders), auth.uid(), '{}', 'x', '[]', '[]', 0, '{"status":"proof_review","proofRound":2}');
+  begin perform public.resubmit_design((select id from public.orders), auth.uid(), '{}', 'x', '[]', '[]', 0, '{"status":"proof_review","proofRound":2}', '{}', null);
   exception when insufficient_privilege then ok := true; end;
   if not ok then raise exception 'FAIL customer called resubmit_design'; end if;
 end $$;
@@ -340,12 +340,13 @@ rollback;
 -- another customer's id is refused
 set role service_role;
 do $$ declare ok boolean := false; begin
-  begin perform public.resubmit_design((select id from public.orders), '00000000-0000-0000-0000-0000000000c2', '{}', 'x', '[]', '[]', 0, '{"status":"proof_review","proofRound":2}');
+  begin perform public.resubmit_design((select id from public.orders), '00000000-0000-0000-0000-0000000000c2', '{}', 'x', '[]', '[]', 0, '{"status":"proof_review","proofRound":2}', '{}', null);
   exception when insufficient_privilege then ok := true; end;
   if not ok then raise exception 'FAIL resubmit for another customer'; end if;
 end $$;
 select public.resubmit_design((select id from public.orders), '00000000-0000-0000-0000-0000000000c1', '{"schemaVersion":1,"v":2}', 'def', '[]',
-  '[{"zoneKey":"front","technique":"dtf","widthMm":100,"heightMm":100}]', 1500, '{"status":"proof_review","proofRound":2}');
+  '[{"zoneKey":"front","technique":"dtf","widthMm":100,"heightMm":100}]', 1500, '{"status":"proof_review","proofRound":2}',
+  '{"total":23100,"vendorId":"x","ruleSetVersion":2}', 13500);
 reset role;
 do $$ begin
   if (select count(*) from public.design_versions) <> 2 then raise exception 'FAIL new version'; end if;
@@ -353,12 +354,15 @@ do $$ begin
   if (select v.number from public.order_items i join public.design_versions v on v.id = i.design_version_id) <> 2 then raise exception 'FAIL item not on new version'; end if;
   if (select count(*) from public.order_item_versions) <> 2 then raise exception 'FAIL version history'; end if;
   if (select surcharge from public.order_item_versions where proof_round = 2) <> 1500 then raise exception 'FAIL surcharge recorded'; end if;
+  if (select quote->>'total' from public.order_item_versions where proof_round = 2) <> '23100' then raise exception 'FAIL correction quote not frozen'; end if;
+  if (select quote->>'ruleSetVersion' from public.order_item_versions where proof_round = 0) <> '1' then raise exception 'FAIL first version quote not frozen'; end if;
+  if (select vendor_cost from public.fulfillments) <> 13500 then raise exception 'FAIL vendor cost not updated'; end if;
   if not exists (select 1 from public.status_events where event = 'resubmit_design') then raise exception 'FAIL resubmit event'; end if;
 end $$;
 -- a second resubmit is refused (no longer waiting for a correction)
 set role service_role;
 do $$ declare ok boolean := false; begin
-  begin perform public.resubmit_design((select id from public.orders), '00000000-0000-0000-0000-0000000000c1', '{}', 'x', '[]', '[]', 0, '{"status":"proof_review","proofRound":3}');
+  begin perform public.resubmit_design((select id from public.orders), '00000000-0000-0000-0000-0000000000c1', '{}', 'x', '[]', '[]', 0, '{"status":"proof_review","proofRound":3}', '{}', null);
   exception when serialization_failure then ok := true; end;
   if not ok then raise exception 'FAIL double resubmit'; end if;
 end $$;
@@ -375,6 +379,15 @@ begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
 do $$ begin
   if exists (select 1 from public.design_versions) or exists (select 1 from public.order_item_versions) then raise exception 'FAIL other workshop sees versions'; end if;
+end $$;
+rollback;
+-- finance sees the versions and the surcharge to collect
+insert into auth.users (id, phone) values ('00000000-0000-0000-0000-0000000000f2', '+221770000011');
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000f1');
+do $$ begin
+  if (select count(*) from public.design_versions) <> 2 then raise exception 'FAIL finance cannot read versions'; end if;
+  if (select sum(surcharge) from public.order_item_versions) <> 1500 then raise exception 'FAIL finance cannot see surcharge'; end if;
 end $$;
 rollback;
 -- history is append-only

@@ -19,11 +19,12 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
   const { vue } = await searchParams;
   const tab: Tab = vue && vue in TABS ? (vue as Tab) : "payer";
   const { data, error } = await supabase
-    .from("orders").select("id, number, total, payment_status, shipping_address, created_at, fulfillments(status, sla_due_at, vendor:organizations(name))")
+    .from("orders").select("id, number, total, payment_status, shipping_address, created_at, fulfillments(status, sla_due_at, vendor:organizations(name)), items:order_items(versions:order_item_versions(surcharge))")
     .order("created_at", { ascending: false }).limit(300);
   const rows = (data ?? []).map((o) => {
     const f = (o.fulfillments as unknown as { status: string; sla_due_at: string | null; vendor: { name: string } | null }[])[0];
-    return { ...o, status: f?.status ?? "pending_assignment", vendor: f?.vendor?.name ?? null, sla: f?.sla_due_at ?? null };
+    const surcharge = (o.items as unknown as { versions: { surcharge: number }[] }[]).flatMap((i) => i.versions).reduce((n, v) => n + Number(v.surcharge), 0);
+    return { ...o, status: f?.status ?? "pending_assignment", vendor: f?.vendor?.name ?? null, sla: f?.sla_due_at ?? null, surcharge };
   });
   const counts = Object.fromEntries((Object.keys(TABS) as Tab[]).map((t) => [t, rows.filter((r) => TABS[t].match(r.payment_status, r.status)).length]));
   const shown = rows.filter((r) => TABS[tab].match(r.payment_status, r.status));
@@ -51,7 +52,7 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
                   <tr key={r.id} className="border-b border-line">
                     <td className="p-2"><Link className="font-semibold underline tabular-nums" href={`/admin/commandes/${r.id}`}>{r.number}</Link><div className="text-xs text-muted">{new Date(r.created_at).toLocaleDateString("fr-SN")}</div></td>
                     <td className="p-2">{(r.shipping_address as { name?: string }).name}</td>
-                    <td className="p-2">{r.payment_status === "awaiting_payment" ? "Paiement attendu" : STATUS_LABEL[r.status]}</td>
+                    <td className="p-2">{r.payment_status === "awaiting_payment" ? "Paiement attendu" : STATUS_LABEL[r.status]}{r.surcharge > 0 && <span className="ml-2 rounded-full bg-ocre/25 px-2 py-0.5 text-xs font-bold">Supplément {fcfa(r.surcharge)}</span>}</td>
                     <td className="p-2">{r.vendor ?? "—"}</td>
                     <td className={`p-2 tabular-nums ${late ? "font-bold text-error" : ""}`}>{r.sla ? `${late ? "En retard · " : ""}${new Date(r.sla).toLocaleString("fr-SN", { dateStyle: "short", timeStyle: "short" })}` : "—"}</td>
                     <td className="p-2 text-right tabular-nums">{fcfa(r.total)}</td>

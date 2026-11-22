@@ -105,6 +105,9 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Ensuite** : webhook de l'agrégateur → `mark_order_paid` automatique ; tarifs de livraison gérés dans l'admin (`shipping_rates`).
 
 ## D16 🟢 Prix d'une correction (décision CTO, 22/11/2026)
+- **Base de comparaison** : la version commandée et la version corrigée sont chiffrées toutes les deux **avec l'atelier affecté et les règles du jour**. Le supplément mesure donc seulement l'effet de la correction (ex. marquage agrandi), jamais l'écart entre l'atelier retenu au prix initial et l'atelier affecté (cet écart reste à la charge de SAWWA). Si la version commandée ne peut plus être chiffrée chez cet atelier, le montant convenu sert de référence.
+- **Faisabilité** : une correction que l'atelier affecté ne sait pas produire est refusée avec un message clair, même si un autre atelier le pourrait (pas de réaffectation silencieuse).
 - Une correction qui coûte **autant ou moins** est acceptée sans remboursement de la différence (le prix convenu reste dû).
 - Une correction qui coûte **plus** exige l'accord explicite du client sur le montant exact du supplément ; le supplément est enregistré et signalé à la finance (encaissement manuel pendant le pilote).
 - La couleur et la répartition par tailles ne changent pas pendant une correction (ce serait une nouvelle commande).
+- Chaque version garde son **devis figé** (`order_item_versions.quote`) ; le coût atelier de l'ordre est mis à jour avec celui de la version corrigée.

@@ -31,9 +31,10 @@ export async function loadVersions(client: SupabaseClient, orderItemId: string, 
     .from("order_item_versions")
     .select("proof_round, surcharge, created_at, version:design_versions(id, number, document)")
     .eq("order_item_id", orderItemId);
-  const rows = (data ?? []).map((r) => {
-    const v = r.version as unknown as { id: string; number: number; document: unknown };
-    return { id: v.id, number: v.number, proofRound: r.proof_round as number, surcharge: Number(r.surcharge), createdAt: r.created_at as string, doc: readDoc(v.document) };
+  const rows = (data ?? []).flatMap((r) => {
+    const v = r.version as unknown as { id: string; number: number; document: unknown } | null;
+    if (!v) return []; // version not readable by this person: skip it rather than fail the page
+    return [{ id: v.id, number: v.number, proofRound: r.proof_round as number, surcharge: Number(r.surcharge), createdAt: r.created_at as string, doc: readDoc(v.document) }];
   });
   const urls: Record<string, string> = {};
   for (const r of rows) if (r.doc) Object.assign(urls, await signedDesignUrls(signer, r.doc));

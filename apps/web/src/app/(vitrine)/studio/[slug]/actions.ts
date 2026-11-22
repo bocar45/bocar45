@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { blocking, decorationsFor, parseDesign, preflight, type DesignDocument } from "@sawwa/design";
 import { transition, type FulfillmentStatus } from "@sawwa/workflow";
-import { correctionPricing } from "@/lib/correction";
+import { planCorrection } from "@/lib/correction";
 import { normalizeSenegalPhone } from "@/lib/phone";
 import { bestQuote, sanitizeDecorations } from "@/lib/quoting";
 import { DELIVERY_OPTIONS, isDeliveryKey } from "@/lib/shipping";
@@ -128,10 +128,10 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, total, shipping, shipping_address, items:order_items(color_key, sizes, quantity, product:base_products(id, slug, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques))), fulfillments(id, status, vendor_id, proof_round, held_from)")
+    .select("id, total, shipping, shipping_address, items:order_items(color_key, sizes, quantity, decorations, product:base_products(id, slug, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques))), fulfillments(id, status, vendor_id, proof_round, held_from)")
     .eq("id", input.orderId).maybeSingle();
   if (!order) return { error: "Commande introuvable." };
-  const item = (order.items as unknown as { color_key: string; sizes: Record<string, number>; quantity: number; product: { id: string; slug: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[] }[] } }[])[0];
+  const item = (order.items as unknown as { color_key: string; sizes: Record<string, number>; quantity: number; decorations: ReturnType<typeof sanitizeDecorations>; product: { id: string; slug: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[] }[] } }[])[0];
   const f = (order.fulfillments as { id: string; status: string; vendor_id: string | null; proof_round: number; held_from: string | null }[])[0];
   if (!item || !f) return { error: "Commande incomplète." };
   if (f.status !== "changes_requested") return { error: "Cette commande n'attend pas de correction." };
@@ -149,13 +149,22 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
   const decorations = sanitizeDecorations(decorationsFor(doc, zoneSizes), item.product.zones);
   if (decorations.length === 0) return { error: "Votre création est vide." };
 
-  const { best } = await bestQuote({
-    productId: item.product.id, categorySlug: item.product.category?.slug ?? "default", colorKey: doc.colorKey,
-    sizes: item.sizes, quantity: item.quantity, decorations, shipping: order.shipping,
+  // Both versions are priced with the workshop already assigned (D16): feasibility and surcharge are its own.
+  if (!f.vendor_id) return { error: "Cette commande n'a pas d'atelier affecté. Contactez l'équipe SAWWA." };
+  const basis = { productId: item.product.id, categorySlug: item.product.category?.slug ?? "default", colorKey: doc.colorKey, sizes: item.sizes, quantity: item.quantity, shipping: order.shipping, vendorId: f.vendor_id };
+  const [before, after] = await Promise.all([bestQuote({ ...basis, decorations: item.decorations }), bestQuote({ ...basis, decorations })]);
+  const plan = planCorrection({
+    agreedTotal: order.total, before: before.best?.quote.total.amount ?? null, after: after.best?.quote.total.amount ?? null,
+    acceptedSurcharge: input.acceptedSurcharge,
   });
-  if (!best) return { error: "Aucun atelier ne peut fabriquer cette version (taille du marquage ou technique). Modifiez-la." };
-  const pricing = correctionPricing(order.total, best.quote.total.amount, input.acceptedSurcharge);
-  if (!pricing.ok) return { error: pricing.message, surcharge: pricing.surcharge };
+  if (!plan.ok) return { error: plan.message, ...(plan.surcharge ? { surcharge: plan.surcharge } : {}) };
+  const q = after.best!.quote;
+  const frozenQuote = {
+    ...q.snapshot, vendorId: f.vendor_id, total: q.total.amount, goodsSubtotal: q.goodsSubtotal.amount, tax: q.tax.amount,
+    shipping: q.shipping.amount, setupFee: q.setupFee.amount, vendorCost: q.vendorCost.amount,
+    lines: q.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })),
+    comparedWith: plan.priceBefore, surcharge: plan.surcharge,
+  };
 
   let next;
   try {
@@ -170,8 +179,9 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
   const { error } = await createServiceClient().rpc("resubmit_design", {
     p_order: order.id, p_customer: user.id, p_document: doc,
     p_sha256: createHash("sha256").update(JSON.stringify(doc)).digest("hex"), p_preflight: issues,
-    p_decorations: decorations, p_surcharge: pricing.surcharge, p_state: next.state,
+    p_decorations: decorations, p_surcharge: plan.surcharge, p_state: next.state,
+    p_quote: frozenQuote, p_vendor_cost: q.vendorCost.amount,
   });
   if (error) return { error: error.message.includes("conflict") ? "Cette commande vient de changer. Rechargez la page." : `Renvoi impossible : ${error.message}` };
-  return { ok: true as const, surcharge: pricing.surcharge };
+  return { ok: true as const, surcharge: plan.surcharge };
 }

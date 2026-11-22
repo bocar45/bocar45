@@ -155,7 +155,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   };
 
   // ── Save to the customer account: upload on-device images, then store the document ──
-  const saveToAccount = async (): Promise<string | null> => {
+  /** Returns the saved design id and the exact document stored (images replaced by their storage paths). */
+  const saveToAccount = async (): Promise<{ id: string; doc: DesignDocument } | null> => {
     if (!userId) {
       router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}`)}`);
       return null;
@@ -185,7 +186,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
       if ("error" in r) throw new Error(r.error);
       setDesignId(r.id);
       setNotice("Création enregistrée dans votre compte.");
-      return r.id;
+      return { id: r.id, doc: next };
     } catch (e) {
       setNotice((e as Error).message);
       return null;
@@ -245,7 +246,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
         <div className="flex items-center gap-1.5" role="group" aria-label="Couleur du produit">
           {product.colors.map((c) => (
             <button key={c.key} type="button" onClick={() => history.commit((d) => ({ ...d, colorKey: c.key }))} aria-pressed={c.key === color.key} aria-label={c.key}
-              className={`size-7 rounded-full border-2 ${c.key === color.key ? "border-terra ring-2 ring-terra ring-offset-1" : "border-brun/20"}`} style={{ background: c.hex }} />
+              disabled={Boolean(correction) && c.key !== color.key} title={correction ? "La couleur ne change pas pendant une correction" : undefined}
+              className={`size-7 rounded-full border-2 disabled:cursor-not-allowed disabled:opacity-30 ${c.key === color.key ? "border-terra ring-2 ring-terra ring-offset-1" : "border-brun/20"}`} style={{ background: c.hex }} />
           ))}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -397,9 +399,10 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           {correction && resubmit && (
             <CorrectionPanel correction={correction} issues={allIssues.length} blocked={blocking(allIssues) || decorations.length === 0}
               onSend={async (acceptWarnings, acceptedSurcharge) => {
-                const id = await saveToAccount();
-                if (!id) return { error: "Enregistrez d'abord votre création." };
-                const r = await resubmit({ orderId: correction.orderId, document: history.value, acceptWarnings, acceptedSurcharge });
+                const saved = await saveToAccount();
+                if (!saved) return { error: "Enregistrez d'abord votre création." };
+                // Send exactly what was saved (images already on storage), not a possibly stale state.
+                const r = await resubmit({ orderId: correction.orderId, document: saved.doc, acceptWarnings, acceptedSurcharge });
                 if ("error" in r) return r;
                 router.push(`/compte/commandes/${correction.orderId}`);
                 return null;
@@ -409,9 +412,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             <OrderPanel sizes={color.sizes} issues={allIssues.length} price={price}
               onQuantity={setQuantity} onCancel={() => setOrdering(false)}
               onConfirm={async (form) => {
-                const id = await saveToAccount();
-                if (!id) return "Enregistrez d'abord votre création.";
-                const r = await order({ designId: id, ...form });
+                const saved = await saveToAccount();
+                if (!saved) return "Enregistrez d'abord votre création.";
+                const r = await order({ designId: saved.id, ...form });
                 if ("error" in r) return r.error;
                 try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
                 router.push(`/compte/commandes/${r.orderId}`);

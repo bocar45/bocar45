@@ -6,6 +6,7 @@ create table public.order_item_versions (
   design_version_id uuid not null references public.design_versions (id),
   proof_round int not null,
   surcharge bigint not null default 0 check (surcharge >= 0), -- supplément TTC accepté par le client (encaissé par la finance)
+  quote jsonb not null default '{}', -- devis figé de cette version (règles, grille, atelier, montants) — règle 7
   created_at timestamptz not null default now(),
   primary key (order_item_id, design_version_id)
 );
@@ -43,7 +44,7 @@ begin
     values (v_order, v_version, v_product, item->>'color_key', item->'sizes', (item->>'quantity')::int,
             (item->>'unit_price')::bigint, (item->>'line_total')::bigint, item->'decorations')
     returning id into v_item;
-    insert into public.order_item_versions (order_item_id, design_version_id, proof_round) values (v_item, v_version, 0);
+    insert into public.order_item_versions (order_item_id, design_version_id, proof_round, quote) values (v_item, v_version, 0, p_quote);
   end loop;
 
   insert into public.fulfillments (order_id) values (v_order) returning id into v_fulfillment;
@@ -58,7 +59,7 @@ end $$;
  */
 create function public.resubmit_design(
   p_order uuid, p_customer uuid, p_document jsonb, p_sha256 text, p_preflight jsonb,
-  p_decorations jsonb, p_surcharge bigint, p_state jsonb
+  p_decorations jsonb, p_surcharge bigint, p_state jsonb, p_quote jsonb, p_vendor_cost bigint
 ) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare v_item public.order_items; v_design uuid; v_version uuid; v_f uuid;
@@ -70,7 +71,8 @@ begin
   select design_id into v_design from public.design_versions where id = v_item.design_version_id;
 
   update public.fulfillments set status = p_state->>'status', proof_round = (p_state->>'proofRound')::int,
-    sla_due_at = now() + interval '24 hours'
+    sla_due_at = now() + interval '24 hours',
+    vendor_cost = coalesce(p_vendor_cost, vendor_cost)
   where order_id = p_order and status = 'changes_requested'
   returning id into v_f;
   if not found then raise exception 'conflict: order is not waiting for a correction' using errcode = '40001'; end if;
@@ -79,15 +81,15 @@ begin
   values (v_design, (select max(number) from public.design_versions where design_id = v_design) + 1, p_document, p_sha256, p_preflight)
   returning id into v_version;
   update public.order_items set design_version_id = v_version, decorations = p_decorations where id = v_item.id;
-  insert into public.order_item_versions (order_item_id, design_version_id, proof_round, surcharge)
-  values (v_item.id, v_version, (p_state->>'proofRound')::int, greatest(p_surcharge, 0));
+  insert into public.order_item_versions (order_item_id, design_version_id, proof_round, surcharge, quote)
+  values (v_item.id, v_version, (p_state->>'proofRound')::int, greatest(p_surcharge, 0), p_quote);
   insert into public.status_events (fulfillment_id, order_id, event, from_status, to_status, actor_user_id, actor_role, payload)
   values (v_f, p_order, 'resubmit_design', 'changes_requested', p_state->>'status', p_customer, 'customer',
           jsonb_build_object('design_version', v_version, 'surcharge', greatest(p_surcharge, 0)));
   return v_version;
 end $$;
-revoke execute on function public.resubmit_design(uuid, uuid, jsonb, text, jsonb, jsonb, bigint, jsonb) from public, anon, authenticated;
-grant execute on function public.resubmit_design(uuid, uuid, jsonb, text, jsonb, jsonb, bigint, jsonb) to service_role;
+revoke execute on function public.resubmit_design(uuid, uuid, jsonb, text, jsonb, jsonb, bigint, jsonb, jsonb, bigint) from public, anon, authenticated;
+grant execute on function public.resubmit_design(uuid, uuid, jsonb, text, jsonb, jsonb, bigint, jsonb, jsonb, bigint) to service_role;
 
 -- Fonctions de contrôle (security definer : évitent que les règles d'accès se bloquent en chaîne).
 create function app.is_order_customer(p_order uuid) returns boolean
@@ -112,5 +114,5 @@ create policy order_item_versions_read on public.order_item_versions for select 
 drop policy versions_read on public.design_versions;
 create policy versions_read on public.design_versions for select to authenticated
   using (exists (select 1 from public.designs d where d.id = design_id and d.owner_id = auth.uid())
-         or app.has_platform_role('{ops,support}')
+         or app.has_platform_role('{ops,support,finance}')
          or app.vendor_can_read_version(id));
