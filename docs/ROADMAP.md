@@ -28,7 +28,9 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Phase 1 (partiel) — DA, audit logo, maquettes, kit de recrutement ateliers
 - [ ] Phase 1 — vectorisation du logo, recrutement de 2 ateliers, casting 3D
 - [x] Phase 2 (début) — monorepo, CI, `domain` (Money XOF), `pricing` (moteur de prix), `workflow` (machine à états) avec tests
-- [ ] Phase 2 — application Next.js, base de données, comptes et rôles, admin catalogue
+- [x] Phase 2 — Supabase + Vercel choisis (D8b) ; migration 1 (identité, rôles, catalogue, ateliers, règles de prix, audit) avec RLS testée (`pnpm db:test`)
+- [x] Phase 2 — application Next.js : connexion par téléphone + code (e-mail en secours), compte, candidature atelier, validation des ateliers par l'admin avec journal d'audit
+- [ ] Phase 2 — créer les projets Supabase/Vercel (porteur), admin catalogue (produits, vues, zones), offres et grilles de prix des ateliers, types générés
 
 ## Critères d'acceptation par jalon
 **Phase 1**

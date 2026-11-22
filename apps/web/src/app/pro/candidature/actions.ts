@@ -1,0 +1,18 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { requireUser, vendorMembership } from "@/lib/auth";
+
+export type ApplyState = { error: string | null };
+
+export async function applyAsVendor(_: ApplyState, form: FormData): Promise<ApplyState> {
+  const { supabase, memberships } = await requireUser("/pro/candidature");
+  if (vendorMembership(memberships)) redirect("/pro");
+  const name = String(form.get("name") ?? "").trim();
+  const ninea = String(form.get("ninea") ?? "").trim() || null;
+  if (name.length < 2) return { error: "Indiquez le nom de l'atelier." };
+  if (ninea && !/^[0-9A-Z]{7,15}$/i.test(ninea.replace(/\s/g, ""))) return { error: "NINEA invalide." };
+  const { error } = await supabase.rpc("apply_as_vendor", { p_name: name, p_ninea: ninea });
+  if (error) return { error: `Enregistrement impossible : ${error.message}` };
+  redirect("/pro");
+}

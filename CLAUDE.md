@@ -27,13 +27,17 @@
 | Benchmark, catalogue, modèles | `docs/BENCHMARK_CATALOGUE.md` |
 | Marché Sénégal | `docs/MARCHE_SENEGAL.md` |
 | Recrutement ateliers | `docs/RECRUTEMENT_ATELIERS.md` |
+| Mise en route Supabase/Vercel | `docs/SETUP_SUPABASE_VERCEL.md` |
+
+## Stack
+Next.js (Vercel) + Supabase (Postgres, Auth, Storage). Migrations SQL dans `supabase/migrations`. La RLS est une deuxième barrière : les règles métier restent dans `packages/`.
 
 ## Commandes
-`pnpm install` · `pnpm test` · `pnpm typecheck`
+`pnpm install` · `pnpm test` · `pnpm typecheck` · `pnpm db:test` (migrations + RLS sur un Postgres local) · `pnpm --filter web dev`
 
 ## Règles non négociables
 1. Rien de déployé, publié, acheté, supprimé ou configuré sur un service externe sans accord explicite.
-2. Aucun paiement réel : Stripe en mode test uniquement jusqu'à validation.
+2. Aucun paiement réel : agrégateur de paiement en mode test (sandbox) uniquement jusqu'à validation.
 3. Montants en **entiers (unités mineures) + code devise** via `packages/domain` (`Money`). XOF = 0 décimale. Jamais de float pour l'argent.
 4. Tout calcul de prix passe par `packages/pricing`. Aucun calcul dans l'UI ni dans les routes.
 5. Toute transition de statut de commande passe par `packages/workflow`.

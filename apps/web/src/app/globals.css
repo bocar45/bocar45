@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* SAWWA tokens — see docs/DESIGN_SYSTEM.md */
+:root {
+  --brun: #2a1a12;
+  --ivoire: #f2e9d8;
+  --paper: #fbf7ef;
+  --terra: #b5562a;
+  --terra-700: #93421d;
+  --ocre: #b07a2a;
+  --olive-700: #525944;
+  --indigo: #2f4b7c;
+  --error: #a4262c;
+  --bg: var(--ivoire);
+  --surface: var(--paper);
+  --fg: #24221f;
+  --muted: #6b5f50;
+  --line: #dccfb8;
+  --action: var(--terra-700);
+  --on-action: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1917;
+    --surface: #24221f;
+    --fg: #f2e9d8;
+    --muted: #b9ad99;
+    --line: #3b3732;
+    --action: #d08a6c;
+    --on-action: #1a1917;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-action: var(--action);
+  --color-on-action: var(--on-action);
+  --color-terra: var(--terra);
+  --color-ocre: var(--ocre);
+  --color-ok: var(--olive-700);
+  --color-error: var(--error);
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+h1, h2, h3 { text-wrap: balance; }
+:focus-visible { outline: 3px solid var(--indigo); outline-offset: 2px; }

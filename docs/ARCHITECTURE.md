@@ -12,17 +12,17 @@ La logique métier vit dans des **paquets purs** (sans framework), testés indé
 | Web | **Next.js (App Router)** | SEO du catalogue (rendu serveur), une seule app pour client + pro + admin (groupes de routes), écosystème React | Remix (bon, écosystème plus petit) ; SPA pure (SEO faible) |
 | UI | Tailwind + Radix/shadcn | Accessibilité, design system maîtrisé, pas de dépendance à un kit visuel | MUI/Ant (look générique, lourd) |
 | API | Route handlers Next.js `/api/v1` avec contrats **Zod** → OpenAPI | API publique propre pour une future app mobile et des intégrations ateliers | tRPC seul (pas d'API publique) |
-| Base | **PostgreSQL 16** + **Drizzle ORM** + migrations versionnées | Relationnel (commandes, argent, workflow), JSONB pour les designs, RLS | Mongo (pas de transactions fortes pour l'argent) |
-| Tâches asynchrones | **pg-boss** (file dans Postgres) | Zéro service de plus ; suffisant jusqu'à des dizaines de milliers de tâches/jour | Redis + BullMQ (à introduire si besoin) |
-| Stockage | **S3-compatible : Cloudflare R2** | Pas de frais de sortie (images, mockups, GLB très consultés), URLs signées | S3 (frais de sortie) |
+| Base | **Supabase PostgreSQL** + migrations SQL (`supabase/migrations`) + types générés | Relationnel (commandes, argent, workflow), JSONB pour les designs, RLS en défense en profondeur | Mongo (pas de transactions fortes pour l'argent) |
+| Tâches asynchrones | **Supabase Queues (pgmq) + pg_cron**, exécutées par des fonctions Vercel | Dans la même base, sans service de plus | Worker dédié si la charge l'exige |
+| Stockage | **Supabase Storage** (buckets privés, URLs signées, transformations d'images) | Même fournisseur, mêmes règles d'accès que la base | CDN sans frais de sortie pour la 3D si besoin |
 | CDN / images | Cloudflare + transformation d'images | Cache mondial, bon pour l'Afrique | — |
-| Auth | **Better Auth** (auto-hébergé, Postgres) | Données chez nous (RGPD), pas de coût par utilisateur, organisations/rôles, 2FA | Clerk (rapide mais coût/MAU et données hors UE) · Supabase Auth (si on choisit Supabase comme hébergeur) |
-| Paiement | Stripe (UE) + adaptateur mobile money (UEMOA) | Voir D5 | — |
+| Auth | **Supabase Auth** : téléphone + code (SMS/WhatsApp), e-mail en secours ; rôles et organisations dans nos tables | Adapté au Sénégal, intégré à la RLS | Better Auth, Clerk |
+| Paiement | Agrégateur UEMOA (Wave, Orange Money, cartes) derrière l'interface `PaymentProvider` | Voir D5 et `MARCHE_SENEGAL.md` | — |
 | Emails | Resend ou Brevo (UE) + gabarits React Email | Simple, peu coûteux | — |
 | Observabilité | Sentry (erreurs) + logs structurés + métriques Postgres | Coût faible au départ | — |
 | Tests | Vitest (domaine), Playwright (parcours) | — | — |
 
-**Hébergement (proposition, à valider — D8)** : app Next.js sur Vercel (ou conteneur Docker sur Scaleway/Fly en région UE), Postgres managé en UE (Neon ou Scaleway), R2, worker en conteneur. Coût de départ estimé : **60–150 €/mois**. Tout est conteneurisable : pas de verrouillage fort.
+**Hébergement (validé — D8b)** : Next.js sur **Vercel** (cdg1), base, auth, fichiers et files de tâches sur **Supabase** (eu-west-3). Coût de départ ≈ 45–60 $/mois hors SMS. La logique métier reste dans nos paquets : changer d'hébergeur reste possible.
 
 ## 3. Découpage en modules
 ```

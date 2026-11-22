@@ -52,7 +52,18 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Recommandation** : V1 = détourage (navigateur) + pré-contrôle intelligent. Génération d'illustrations/motifs en phase 8 avec quotas et crédits. Pas de « logo vectoriel brodable » généré.
 - **Avis CTO** : l'IA générative est un bon argument marketing, mais elle ne sauve pas un studio ou un prix médiocre. On la branche sur un socle mesuré.
 
-## D8 🟢 Stack et hébergement
+## D8b 🟢 Supabase + Vercel (choix du porteur, 22/11/2026)
+- **Choix** : **Supabase** (PostgreSQL, Auth, Storage, Realtime, files de tâches) + **Vercel** (application Next.js). Remplace Drizzle, Better Auth, pg-boss et R2 de la proposition initiale.
+- **Règles qui restent** : la logique métier vit dans nos paquets TypeScript (`pricing`, `workflow`…), pas dans la base. La sécurité par lignes (RLS) de Supabase sert de **deuxième barrière**, en plus des vérifications serveur.
+- **Migrations** : SQL versionné dans `supabase/migrations`, types TypeScript générés depuis la base.
+- **Connexion** : Supabase Auth par **téléphone + code** (SMS ou WhatsApp via le fournisseur SMS configuré dans Supabase) et par e-mail en secours.
+- **Fichiers** : Supabase Storage (buckets privés + URLs signées). Les fichiers 3D lourds pourront passer sur un CDN sans frais de sortie si le trafic l'exige.
+- **Rendus lourds** (exports 300 dpi, photo studio 3D) : fonctions Node sur Vercel au début ; worker dédié si la charge le demande.
+- **Régions** : Supabase eu-west-3 (Paris) et Vercel cdg1 (Paris), les plus proches de Dakar parmi les offres disponibles.
+- **Coût** : Supabase Pro ≈ 25 $/mois, Vercel Pro ≈ 20 $/mois par membre (l'offre gratuite Vercel interdit l'usage commercial). Plus le fournisseur SMS/WhatsApp à l'usage.
+- **Création des comptes et des projets** : faite par le porteur du projet (ou sur son accord explicite). Rien n'est créé ni déployé sans son feu vert.
+
+## D8 ⚪ Stack et hébergement (remplacée par D8b)
 - **Recommandation** : TypeScript, Next.js, PostgreSQL + Drizzle, pg-boss, Cloudflare R2, Better Auth, Fabric.js, React Three Fiber. Hébergement UE (Vercel ou conteneurs Scaleway/Fly + Postgres managé UE). Détail : `ARCHITECTURE.md`.
 - **Alternative** : Supabase (Postgres + Auth + Storage tout-en-un) — plus rapide à démarrer, compatible avec cette architecture si l'on garde la logique métier dans nos paquets et pas dans la base. Acceptable si tu préfères un seul fournisseur.
 - **Avis CTO** : recommandation ci-dessus ; Supabase est un plan B honorable.

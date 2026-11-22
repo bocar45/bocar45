@@ -5,7 +5,7 @@ on:
     branches: [main]
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -16,3 +16,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Database migrations and access rules (local Postgres)
+        run: pnpm db:test
+      - run: pnpm build

@@ -5,3 +5,8 @@ coverage/
 .env.*
 !.env.example
 .DS_Store
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.vercel
+supabase/.temp/
