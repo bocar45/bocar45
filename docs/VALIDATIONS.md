@@ -2,6 +2,34 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E24d (version anglaise) — VALIDÉ
+Commit examiné : c6aed63 (depuis 3f3171d ; 8f4c804, b9f8a92 wip inclus)
+Contrôles : typecheck ✅ · tests ✅ (174, 30 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅. Tout relancé.
+Vérification serveur : build de production sur le port 3999, sans Supabase, curl, puis serveur arrêté.
+Critères de l'étape :
+- [x] Langue par cookie, navigateur, puis français. Preuves : `lib/i18n.ts:9-20` et `i18n.test.ts` (cookie prioritaire, `wo-SN,fr` → fr, `de-DE` → fr, cookie invalide → fr).
+  - `<html lang>` vient de `getLang` (`layout.tsx`). Curl avec `Accept-Language: en-US` → `lang="en"`.
+  - Le sélecteur (`lang-switch.tsx`) garde le chemin et la requête. `/langue?suite=%2Fcatalogue%3Fx%3D1` → `/catalogue?x=1`.
+  - Pas de redirection ouverte : `/langue?suite=//evil.com` → `/` (`safeNext`, déjà testé).
+  - Cookie 1 an, `SameSite=lax`, `secure` en https. Aucune dépendance ajoutée.
+- [x] Parcours client traduit : en-tête/pied, accueil, catalogue, fiches, modèles, devis, connexion, studio principal. Preuves : diffs relus.
+  - Le studio n'utilise que `l()`/`fcfaIn` sur des montants déjà calculés par `pricing`.
+  - `fcfaIn` est testé : « 12,500 FCFA » en anglais, « 12 500 FCFA » en français.
+  - Curl `/catalogue` avec cookie en → h1 « Choose, » ; fr → « Choisissez, » ; en à nouveau → « Choose, ». Le contenu ne se mélange pas : `Cache-Control: private, no-store`.
+- [x] Catalogue anglais avec repli sur le français. Preuves : `catalog-public.ts` (`en()` ignore les chaînes vides), `productName`/`categoryName`, test `loc` (anglais vide → français).
+- [x] Pages légales. Preuve : `legal-page.tsx`, mention EN « the French version is the reference ».
+- [ ] « Plus tard » (erreurs serveur, panneaux secondaires, espaces atelier/admin, `/en/…` + hreflang) : hors périmètre, assumé par D29. Ne bloque pas.
+Critères communs : C1 ✅ · C2 ✅ (aucun calcul de prix, aucune transition, aucune table ; `/langue` ne pose qu'un cookie de préférence) · C3 ✅ (`git grep` des secrets : rien de nouveau ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ (français inchangé ; messages client traduits en paires) · C5 ✅ (`i18n.test.ts`) · C6 ✅ (D29, ROADMAP, BACKLOG 🔎 ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- Le layout racine lit les cookies et les en-têtes, ce qui rend toutes les pages dynamiques.
+  - `revalidate = 600` sur `/catalogue`, `/catalogue/[categorie]` et `/produits/[slug]` n'a donc plus d'effet. Curl montre `no-store`.
+  - Les pages publiques ne profitent plus du cache CDN.
+  - D29 ne le mentionne pas : à ajouter, avec une ré-évaluation de la charge (E24b), ou à résoudre par des adresses `/en/…`.
+- `fcfa` (fr) et `fcfaIn` coexistent. Le studio utilise encore `fcfa` dans la branche française de la ligne « Total » : c'est cohérent, mais il en reste deux.
+- Le bandeau « Version provisoire » des pages légales reste en français même en anglais.
+Décision : E24d terminée. Aucune étape restante n'est faisable sans le porteur : E11, E12, E13, E19, E23 et la partie non-code d'E24 attendent ses actions.
+
 ## 2026-11-22 — E24c (référencement, contre-validation) — VALIDÉ
 Commit examiné : e9489f0 (depuis 4023046), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (171) · db ✅ (ALL RLS TESTS PASSED) · build ✅. Tout relancé, deux fois pour le build : une fois sans `NEXT_PUBLIC_SITE_URL` (l'avertissement s'affiche), une fois avec.

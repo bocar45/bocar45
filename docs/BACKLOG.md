@@ -173,7 +173,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Données structurées : Organisation (accueil), Produit avec fourchette de prix publique en FCFA (fiches), protégées contre l'injection (testé).
 - [x] Pages légales provisoires (mentions légales, CGV, confidentialité) rédigées d'après le fonctionnement réel, signalées « version provisoire » avec les éléments à compléter ; liens en pied de page. 🧑‍💼 Relecture par un juriste, informations de l'entreprise et déclaration CDP avant ouverture.
 
-## E24d — Version anglaise 🔎
+## E24d — Version anglaise ✅
 - [x] Langue choisie par cookie (navigateur en anglais → anglais d'emblée, sinon français), sélecteur FR | EN dans l'en-tête qui garde la page (`/langue`, redirection protégée), `<html lang>` correct. Sans dépendance (`lib/i18n.ts`, testé).
 - [x] Traduit : en-tête, pied de page, accueil, catalogue et catégories, fiches produit, galerie de modèles (occasions), devis, connexion, interface principale du studio (outils, panneaux, prix, boutons) ; montants FCFA au format de la langue.
 - [x] Catalogue : `name.en` / `description.en` affichés en anglais quand ils existent, sinon le français.
