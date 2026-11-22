@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { parseDesign, type RosterEntry } from "@sawwa/design";
 import { getSession, hasPlatformRole } from "@/lib/auth";
 import { signedDesignUrls } from "@/lib/orders";
 import { publishedTemplate, templateForEdit } from "@/lib/templates";
-import { Studio } from "@/components/studio/studio";
+import { Studio, type B2bForStudio } from "@/components/studio/studio";
+import { isQuoteValid, type B2bQuoteRow } from "@/lib/b2b";
 import { isSupabaseConfigured } from "@/lib/env";
 import { loadStudioProduct } from "@/lib/studio-data";
 import { createClient } from "@/lib/supabase/server";
@@ -13,9 +14,9 @@ import { saveTemplate } from "./template-actions";
 
 export const metadata = { title: "Studio de création" };
 
-export default async function StudioPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ creation?: string; commande?: string; modele?: string; gabarit?: string }> }) {
+export default async function StudioPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ creation?: string; commande?: string; modele?: string; gabarit?: string; devis?: string }> }) {
   const { slug } = await params;
-  const { creation, commande, modele, gabarit } = await searchParams;
+  const { creation, commande, modele, gabarit, devis } = await searchParams;
   if (!isSupabaseConfigured()) {
     return (
       <div className="mx-auto grid max-w-xl gap-4 px-4 py-16">
@@ -73,6 +74,17 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
     initial = { id: null, title: t.title, document: t.document, urls: t.urls };
     template = { id: t.id, title: t.title, status: t.status };
   }
-  return <Studio product={product} quote={getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={placeOrder} correction={correction} resubmit={resubmitCorrection}
+  // E17: designing the order of an accepted B2B quote (the customer's own quote, still valid, for this product).
+  let b2b: B2bForStudio | null = null;
+  if (devis && !user) redirect(`/connexion?suite=${encodeURIComponent(`/studio/${slug}?devis=${devis}`)}`);
+  if (user && devis && !correction && !template) {
+    const { data: qrow } = await supabase.from("b2b_quotes").select("*, request:quote_requests(number), product:base_products(slug)").eq("id", devis).maybeSingle();
+    const q = qrow as (B2bQuoteRow & { request: { number: string } | null; product: { slug: string } | null }) | null;
+    if (q && q.product?.slug === slug && isQuoteValid(q)) {
+      b2b = { id: q.id, number: q.request?.number ?? "", quantity: q.quantity, sizes: q.sizes, colorKey: q.color_key, goodsTotal: q.goods_total,
+        depositDue: q.deposit_due, leadTimeDays: q.lead_time_days, validUntil: q.valid_until, decorations: q.decorations };
+    }
+  }
+  return <Studio product={product} b2b={b2b} quote={getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={placeOrder} correction={correction} resubmit={resubmitCorrection}
     assistant={assistant} template={template} saveTemplate={saveTemplate} />;
 }

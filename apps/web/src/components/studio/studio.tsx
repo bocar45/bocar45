@@ -26,6 +26,7 @@ import { PerItemEditor, RosterEditor } from "./roster-panel";
 import { AssistantPanel, FieldEditor, TemplateSavePanel } from "./template-panels";
 import { moveLayerToZone } from "./move";
 import { useHistory } from "./use-history";
+import { fitsQuote } from "@/lib/b2b-rules";
 
 export interface StudioZoneProps { key: string; label: string; viewLabel: string; maxWidthMm: number; maxHeightMm: number; techniques: Technique[] }
 export interface StudioProps {
@@ -38,7 +39,7 @@ export interface StudioProps {
   initial: { id: string | null; title: string; document: DesignDocument; urls: Record<string, string> } | null;
   save: (input: { id: string | null; slug: string; title: string; document: unknown }) => Promise<{ ok: true; id: string } | { error: string }>;
   order: (input: {
-    designId: string; sizes: Record<string, number>; delivery: string; acceptWarnings: boolean; roster?: RosterEntry[] | null;
+    designId: string; sizes: Record<string, number>; delivery: string; acceptWarnings: boolean; roster?: RosterEntry[] | null; quoteId?: string;
     address: { name: string; phone: string; district: string; landmark: string; city: string };
   }) => Promise<{ ok: true; orderId: string; number: string } | { error: string }>;
   /** E10: the studio opened to correct an order waiting for a correction. */
@@ -49,6 +50,14 @@ export interface StudioProps {
   /** E15: a template edited by the catalogue team. */
   template?: { id: string; title: string; status: string } | null;
   saveTemplate?: (input: { id: string; slug: string; document: unknown }) => Promise<{ ok: true } | { error: string }>;
+  /** E17: the customer creates the design of an accepted B2B quote; the price is the quoted one. */
+  b2b?: B2bForStudio | null;
+}
+
+export interface B2bForStudio {
+  id: string; number: string; quantity: number; sizes: Record<string, number> | null; colorKey: string;
+  goodsTotal: number; depositDue: number | null; leadTimeDays: number; validUntil: string;
+  decorations: { zoneKey: string; technique: string; widthMm: number; heightMm: number; colors: number }[];
 }
 
 const SWATCHES = ["#2A1A12", "#F2E9D8", "#FFFFFF", "#000000", "#B5562A", "#C9923E", "#2F4B7C", "#68705A", "#A4262C"];
@@ -57,9 +66,9 @@ const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).sl
 const btn = "inline-flex items-center justify-center gap-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-sable disabled:opacity-40";
 const field = "w-full rounded-md border border-line bg-bg px-2 py-1.5 text-sm";
 
-export function Studio({ product, quote, userId, initial, save, order, correction, resubmit, assistant, template, saveTemplate }: StudioProps) {
+export function Studio({ product, quote, userId, initial, save, order, correction, resubmit, assistant, template, saveTemplate, b2b }: StudioProps) {
   const router = useRouter();
-  const draftKey = `sawwa:studio:${product.slug}${correction ? `:commande:${correction.orderId}` : template ? `:gabarit:${template.id}` : assistant ? `:modele:${assistant.slug}` : initial ? `:${initial.id}` : ""}`;
+  const draftKey = `sawwa:studio:${product.slug}${correction ? `:commande:${correction.orderId}` : template ? `:gabarit:${template.id}` : b2b ? `:devis:${b2b.id}` : assistant ? `:modele:${assistant.slug}` : initial ? `:${initial.id}` : ""}`;
   const [assistantOpen, setAssistantOpen] = useState(Boolean(assistant));
   const [photoBusy, setPhotoBusy] = useState<string | null>(null);
   // E16: one line per piece (size, name, number) when a text changes on every piece; kept on this device.
@@ -77,7 +86,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const [title, setTitle] = useState(initial?.title ?? "Ma création");
   const [saving, setSaving] = useState(false);
   const [ordering, setOrdering] = useState(false);
-  const history = useHistory<DesignDocument>(emptyDocument(product.slug, product.colors[0]?.key ?? ""));
+  const history = useHistory<DesignDocument>(emptyDocument(product.slug, b2b?.colorKey ?? product.colors[0]?.key ?? ""));
   const doc = history.value;
   const [zoneKey, setZoneKey] = useState(product.zones[0]?.key ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -123,7 +132,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
     const parsed = saved ? parseDesign(saved) : null;
     const start = parsed?.ok && parsed.value.product === product.slug ? parsed.value : initial?.document ?? null;
     if (start) {
-      history.reset(start);
+      history.reset(b2b ? { ...start, colorKey: b2b.colorKey } : start);
       if (initial) setUrls(initial.urls);
       const ids = start.surfaces.flatMap((s) => s.layers).flatMap((l) => (l.type === "image" && !l.src.startsWith("storage:") ? [l.src] : []));
       void Promise.all(ids.map(async (src) => {
@@ -357,6 +366,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const allIssues = Object.values(issuesByZone).flat();
   // Team order: the price follows the widest name/number of the list, exactly like the server (widestPiece).
   const decorations = useMemo(() => decorationsFor(teamMode ? widestPiece(doc, roster) : doc, product.zones.map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm }))), [doc, product.zones, teamMode, roster]);
+  // E17: what the design prints must stay within the quote (same rule as the server).
+  const quoteProblems = useMemo(() => (b2b ? fitsQuote(decorations, b2b.decorations) : []), [b2b, decorations]);
   const decoKey = JSON.stringify(decorations);
 
   useEffect(() => {
@@ -382,6 +393,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
         <b className="display on-light text-xl">{product.name}</b>
         {correction && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Correction · {correction.number}</span>}
         {template && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Modèle · {template.title}</span>}
+        {b2b && <span className="rounded-full bg-indigo-900 px-3 py-1 text-xs font-bold text-ivoire">Devis {b2b.number} · {b2b.quantity} pièces</span>}
         {previewEntry && (
           <button type="button" onClick={() => setPreviewIdx(null)} className="rounded-full bg-indigo-900 px-3 py-1 text-xs font-bold text-ivoire">
             Aperçu pièce {previewIdx! + 1} : {[previewEntry.name, previewEntry.number, previewEntry.size].filter(Boolean).join(" · ")} ✕
@@ -391,7 +403,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
         <div className="flex items-center gap-1.5" role="group" aria-label="Couleur du produit">
           {product.colors.map((c) => (
             <button key={c.key} type="button" onClick={() => history.commit((d) => ({ ...d, colorKey: c.key }))} aria-pressed={c.key === color.key} aria-label={c.key}
-              disabled={Boolean(correction) && c.key !== color.key} title={correction ? "La couleur ne change pas pendant une correction" : undefined}
+              disabled={Boolean(correction || b2b) && c.key !== color.key} title={correction ? "La couleur ne change pas pendant une correction" : b2b ? "Couleur fixée par le devis" : undefined}
               className={`size-7 rounded-full border-2 disabled:cursor-not-allowed disabled:opacity-30 ${c.key === color.key ? "border-terra ring-2 ring-terra ring-offset-1" : "border-brun/20"}`} style={{ background: c.hex }} />
           ))}
         </div>
@@ -555,6 +567,20 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           </Panel>
 
           <Panel title="Prix">
+            {b2b ? (
+              <div className="grid gap-2">
+                <div className="grid gap-1 rounded-xl bg-indigo-900 p-4 text-ivoire">
+                  <span className="display text-3xl">{fcfa(b2b.goodsTotal)} <span className="font-sans text-sm text-ivoire/70">TTC · prix du devis</span></span>
+                  <span className="text-sm text-ivoire/80">{b2b.quantity} pièces{b2b.sizes ? ` (${Object.entries(b2b.sizes).map(([s, n]) => `${s} × ${n}`).join(", ")})` : ""} · livraison en plus</span>
+                  {b2b.depositDue != null && <span className="text-sm text-ivoire/80">Acompte à la commande : {fcfa(b2b.depositDue)}</span>}
+                  <span className="text-xs text-ivoire/60">Valable jusqu&apos;au {new Date(b2b.validUntil).toLocaleDateString("fr-SN")} · fabriqué en {b2b.leadTimeDays} jours ouvrés après le BAT</span>
+                </div>
+                <ul className="grid gap-1 text-xs text-muted">
+                  {b2b.decorations.map((d) => <li key={`${d.zoneKey}-${d.technique}`}>Prévu : {product.zones.find((z) => z.key === d.zoneKey)?.label ?? d.zoneKey} · {TECHNIQUE_LABEL[d.technique as Technique] ?? d.technique} · jusqu&apos;à {Math.round(d.widthMm / 10)} × {Math.round(d.heightMm / 10)} cm</li>)}
+                </ul>
+                {quoteProblems.length > 0 && <ul className="grid gap-1 text-sm text-error">{quoteProblems.map((m) => <li key={m}>⚠ Hors devis : {m}</li>)}</ul>}
+              </div>
+            ) : (<>
             <div className="flex items-center gap-2">
               <label htmlFor="qty" className="text-sm">Quantité</label>
               <input id="qty" type="number" min={1} max={5000} value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(5000, Number(e.target.value) || 1)))} className={`${field} w-24`} />
@@ -569,6 +595,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
                   <span className="text-xs text-ivoire/60">Fabriqué en {price.leadTimeDays} jours ouvrés après le BAT</span>
                 </div>
               ) : <p className="text-sm text-muted">{price.message}</p>}
+            </>)}
             {!template && <>
             <label className="grid gap-1 text-xs font-semibold text-muted">Nom de la création
               <input value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} className={field} />
@@ -576,7 +603,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             <div className="flex flex-wrap gap-2">
               <button type="button" className={btn} disabled={saving} onClick={() => void saveToAccount()}>{saving ? "Enregistrement…" : designId ? "Enregistrer" : "Enregistrer dans mon compte"}</button>
               {!correction && (
-                <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={decorations.length === 0 || blocking(allIssues)}
+                <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={decorations.length === 0 || blocking(allIssues) || quoteProblems.length > 0}
                   onClick={() => {
                     if (unfilled.length && !window.confirm(`Ces champs n'ont pas été personnalisés : ${unfilled.map((f) => f.label).join(", ")}. La photo d'exemple ou le texte vide seront imprimés tels quels. Continuer quand même ?`)) return;
                     if (userId) setOrdering(true); else router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}${assistant ? `?modele=${assistant.slug}` : ""}`)}`);
@@ -602,13 +629,13 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               }} />
           )}
           {ordering && (
-            <OrderPanel sizes={color.sizes} issues={allIssues.length} price={price}
+            <OrderPanel sizes={color.sizes} issues={allIssues.length} price={price} b2b={b2b ?? null}
               team={teamMode ? { doc, zones: product.zones, roster, setRoster, previewIdx, setPreviewIdx } : null}
               onQuantity={setQuantity} onCancel={() => setOrdering(false)}
               onConfirm={async (form) => {
                 const saved = await saveToAccount();
                 if (!saved) return "Enregistrez d'abord votre création.";
-                const r = await order({ designId: saved.id, ...form });
+                const r = await order({ designId: saved.id, ...form, ...(b2b ? { quoteId: b2b.id } : {}) });
                 if ("error" in r) return r.error;
                 try { localStorage.removeItem(draftKey); localStorage.removeItem(`${draftKey}:liste`); } catch { /* ignore */ }
                 router.push(`/compte/commandes/${r.orderId}`);
@@ -741,13 +768,14 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (hex: strin
   );
 }
 
-function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm, team }: {
+function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm, team, b2b }: {
   sizes: string[]; issues: number; price: Awaited<ReturnType<StudioProps["quote"]>> | null;
   onQuantity: (n: number) => void; onCancel: () => void;
   onConfirm: (form: { sizes: Record<string, number>; roster: RosterEntry[] | null; delivery: string; acceptWarnings: boolean; address: { name: string; phone: string; district: string; landmark: string; city: string } }) => Promise<string | null>;
   team: { doc: DesignDocument; zones: StudioZoneProps[]; roster: RosterEntry[]; setRoster: (r: RosterEntry[]) => void; previewIdx: number | null; setPreviewIdx: (i: number | null) => void } | null;
+  b2b: B2bForStudio | null;
 }) {
-  const [qty, setQty] = useState<Record<string, number>>(Object.fromEntries(sizes.map((s, i) => [s, i === Math.floor(sizes.length / 2) ? 1 : 0])));
+  const [qty, setQty] = useState<Record<string, number>>(b2b?.sizes ?? Object.fromEntries(sizes.map((s, i) => [s, i === Math.floor(sizes.length / 2) ? (b2b ? b2b.quantity : 1) : 0])));
   const [delivery, setDelivery] = useState<DeliveryKey>("dakar");
   const [address, setAddress] = useState({ name: "", phone: "", district: "", landmark: "", city: "Dakar" });
   const [accept, setAccept] = useState(false);
@@ -756,6 +784,7 @@ function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm, tea
   const total = team ? team.roster.length : Object.values(qty).reduce((a, b) => a + b, 0);
   useEffect(() => { if (total > 0) onQuantity(total); }, [total, onQuantity]);
   const ship = DELIVERY_OPTIONS[delivery].price;
+  const quantityOk = !b2b || total === b2b.quantity;
   return (
     <section className="grid gap-3 rounded-2xl border-2 border-terra bg-surface p-4" aria-labelledby="order-title">
       <h2 id="order-title" className="display on-light text-2xl">Votre commande</h2>
@@ -768,7 +797,7 @@ function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm, tea
         <div className="grid grid-cols-3 gap-2">
           {sizes.map((s) => (
             <label key={s} className="grid gap-1 text-xs font-bold">{s}
-              <input type="number" min={0} max={5000} value={qty[s] ?? 0} className={field}
+              <input type="number" min={0} max={5000} value={qty[s] ?? 0} className={field} disabled={Boolean(b2b?.sizes)}
                 onChange={(e) => setQty((q) => ({ ...q, [s]: Math.max(0, Math.min(5000, Number(e.target.value) || 0)) }))} />
             </label>
           ))}
@@ -776,6 +805,7 @@ function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm, tea
         <span className="text-sm">Total : <b>{total}</b> pièce{total > 1 ? "s" : ""}</span>
       </fieldset>
       )}
+      {!quantityOk && <p className="text-sm text-error">Le devis porte sur {b2b!.quantity} pièces : la liste ou les tailles doivent en compter exactement autant (actuellement {total}).</p>}
       <label className="grid gap-1 text-xs font-semibold text-muted">Livraison
         <select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryKey)} className={field}>
           {(Object.keys(DELIVERY_OPTIONS) as DeliveryKey[]).map((k) => (
@@ -795,13 +825,16 @@ function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm, tea
           J&apos;ai lu les remarques de fabrication et je souhaite commander quand même.
         </label>
       )}
-      {price?.ok && price.quantity === total && (
+      {b2b && quantityOk && (
+        <p className="text-sm">Articles {fcfa(b2b.goodsTotal)} (prix du devis) + livraison {ship ? fcfa(ship) : "gratuite"} = <b>{fcfa(b2b.goodsTotal + ship)}</b> TTC</p>
+      )}
+      {!b2b && price?.ok && price.quantity === total && (
         <p className="text-sm">Articles {fcfa(price.total)} + livraison {ship ? fcfa(ship) : "gratuite"} = <b>{fcfa(price.total + ship)}</b> TTC</p>
       )}
       <p className="text-xs text-muted">Paiement après confirmation : Wave, Orange Money ou virement. L&apos;atelier vérifie votre fichier (BAT) avant de produire ; si une correction est nécessaire, vous pourrez accepter, corriger ou annuler et être remboursé.</p>
       {error && <p role="alert" className="text-sm text-error">⚠ {error}</p>}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={busy || total < 1}
+        <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={busy || total < 1 || !quantityOk}
           onClick={async () => { setBusy(true); setError(null); const e = await onConfirm({ sizes: team ? {} : qty, roster: team ? team.roster : null, delivery, acceptWarnings: accept, address }); if (e) setError(e); setBusy(false); }}>
           {busy ? "Envoi…" : "Confirmer la commande"}
         </button>

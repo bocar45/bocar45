@@ -3,6 +3,8 @@
 import { createHash } from "node:crypto";
 import { MAX_ROSTER, blocking, checkRoster, decorationsFor, needsRoster, parseDesign, preflight, sizesFromRoster, widestPiece, type DesignDocument, type RosterEntry } from "@sawwa/design";
 import { transition, type FulfillmentStatus } from "@sawwa/workflow";
+import type { Quote } from "@sawwa/pricing";
+import { fitsQuote, isQuoteValid, repriceFrozen, type B2bQuoteRow } from "@/lib/b2b";
 import { planCorrection } from "@/lib/correction";
 import { foreignImages } from "@/lib/design-ownership";
 import { TOO_MANY, clientIp, rateLimit } from "@/lib/rate-limit";
@@ -51,6 +53,8 @@ export interface PlaceOrderInput {
   acceptWarnings: boolean;
   /** E16: one line per piece when the design has a name or a number per piece (sizes are then taken from it). */
   roster?: RosterEntry[] | null;
+  /** E17: order at the price of an accepted B2B quote (frozen). */
+  quoteId?: string | null;
 }
 
 export async function placeOrder(input: PlaceOrderInput) {
@@ -121,12 +125,41 @@ export async function placeOrder(input: PlaceOrderInput) {
   const decorations = sanitizeDecorations(decorationsFor(roster ? widestPiece(doc, roster) : doc, zoneSizes), product.zones);
   if (decorations.length === 0) return { error: "Votre création est vide." };
   const shipping = DELIVERY_OPTIONS[input.delivery].price;
-  const { best } = await bestQuote({
-    productId: product.id, categorySlug: product.category?.slug ?? "default", colorKey: doc.colorKey,
-    sizes, quantity, decorations, shipping,
-  });
-  if (!best) return { error: "Aucun atelier ne peut fabriquer cette combinaison pour l'instant (tailles, couleur ou marquage)." };
-  const q = best.quote;
+
+  // E17: a B2B quote fixes the price. The design must fit what was quoted; the quote is claimed once, atomically,
+  // and priced again with its own frozen rule set and workshop grid (+ delivery), so every figure still comes from
+  // packages/pricing and the goods amount is exactly the quoted one.
+  let b2b: B2bQuoteRow | null = null;
+  if (input.quoteId) {
+    const { data: row } = await supabase.from("b2b_quotes").select("*").eq("id", String(input.quoteId)).maybeSingle();
+    const quote = row as B2bQuoteRow | null;
+    if (!quote || !isQuoteValid(quote)) return { error: "Ce devis a expiré ou a déjà été utilisé. Demandez une mise à jour dans « Mes devis »." };
+    if (quote.base_product_id !== product.id || quote.color_key !== doc.colorKey) return { error: "Le produit ou la couleur ne correspondent pas au devis." };
+    if (quantity !== quote.quantity) return { error: `Le devis porte sur ${quote.quantity} pièces : indiquez exactement cette quantité.` };
+    if (quote.sizes && JSON.stringify(Object.entries(quote.sizes).sort()) !== JSON.stringify(Object.entries(sizes).sort())) return { error: "Les tailles doivent être celles du devis." };
+    const problems = fitsQuote(decorations, quote.decorations);
+    if (problems.length) return { error: `Votre création dépasse le devis : ${problems.join(" ; ")}.` };
+    b2b = quote;
+  }
+  let q: Quote, suggestedVendorId: string, leadTimeDays: number;
+  if (b2b) {
+    const { data: claimed, error: claimError } = await createServiceClient().rpc("claim_b2b_quote", { p_quote: b2b.id, p_customer: user.id });
+    if (claimError || !claimed?.length) return { error: "Ce devis a expiré ou a déjà été utilisé. Demandez une mise à jour dans « Mes devis »." };
+    const repriced = await repriceFrozen(product.id, b2b.snapshot, shipping);
+    if (!repriced || repriced.goodsSubtotal.amount !== b2b.goods_total) {
+      await createServiceClient().rpc("release_b2b_quote", { p_quote: b2b.id });
+      logError("b2b_reprice_failed", { message: "frozen quote could not be priced again" }, { quoteId: b2b.id });
+      return { error: "Le devis n'a pas pu être appliqué. L'équipe SAWWA est prévenue ; réessayez plus tard." };
+    }
+    q = repriced; suggestedVendorId = b2b.snapshot.vendorId; leadTimeDays = b2b.lead_time_days;
+  } else {
+    const { best } = await bestQuote({
+      productId: product.id, categorySlug: product.category?.slug ?? "default", colorKey: doc.colorKey,
+      sizes, quantity, decorations, shipping,
+    });
+    if (!best) return { error: "Aucun atelier ne peut fabriquer cette combinaison pour l'instant (tailles, couleur ou marquage)." };
+    q = best.quote; suggestedVendorId = best.vendorId; leadTimeDays = best.leadTimeDays;
+  }
 
   const { data, error } = await createServiceClient().rpc("create_order", {
     p_customer: user.id,
@@ -141,12 +174,17 @@ export async function placeOrder(input: PlaceOrderInput) {
       decorations, roster,
     }],
     p_totals: { subtotal: q.goodsSubtotal.amount, shipping: q.shipping.amount, discount: q.discount.amount, tax: q.tax.amount, total: q.total.amount, deposit_due: q.depositDue?.amount ?? null },
-    p_quote: { ...q.snapshot, suggestedVendorId: best.vendorId, leadTimeDays: best.leadTimeDays, lines: q.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })), setupFee: q.setupFee.amount, delivery: input.delivery },
+    p_quote: { ...q.snapshot, suggestedVendorId, leadTimeDays, ...(b2b ? { b2bQuoteId: b2b.id, b2bQuoteVersion: b2b.version } : {}), lines: q.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })), setupFee: q.setupFee.amount, delivery: input.delivery },
     p_address: { name, phone, district, landmark: String(input.address?.landmark ?? "").trim().slice(0, 160), city: String(input.address?.city ?? "Dakar").trim().slice(0, 60), delivery: input.delivery },
   });
   if (error || !data?.[0]) {
+    if (b2b) await createServiceClient().rpc("release_b2b_quote", { p_quote: b2b.id });
     logError("create_order_failed", error, { userId: user.id, designId: design.id });
     return { error: "Votre commande n'a pas pu être enregistrée. Rien ne vous a été facturé ; réessayez dans un instant." };
+  }
+  if (b2b) {
+    const { error: linkError } = await createServiceClient().rpc("link_b2b_quote", { p_quote: b2b.id, p_order: data[0].order_id });
+    if (linkError) logError("b2b_link_failed", linkError, { quoteId: b2b.id, orderId: data[0].order_id });
   }
   return { ok: true as const, orderId: data[0].order_id as string, number: data[0].order_number as string };
 }
