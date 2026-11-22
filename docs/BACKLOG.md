@@ -92,10 +92,11 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Après validation : tailles de la ligne contrôlées en SQL contre la liste.
 - [ ] Reporté : largeur mesurée avec les métriques de la police (aujourd'hui au prorata des lettres) ; planche d'impression multi-pièces (imposition DTF) quand un atelier pilote aura donné son format de film ; supplément de personnalisation par pièce dans les grilles atelier si les ateliers le facturent.
 
-## E17 — Devis B2B 🔎
+## E17 — Devis B2B ✅
 - [x] Formulaire de demande `/devis` (organisation, contact, téléphone, produit, quantité, date souhaitée, logo dans le dossier privé du client ou une de ses créations, besoin) ; « Mes devis » dans le compte, annulation par le client.
 - [x] Devis chiffré par l'équipe (ops, support) dans `/admin/devis` : produit, couleur, quantité, tailles facultatives, marquages maximaux ; prix par le moteur de prix (`bestQuote`), avec coût atelier et marge visibles en interne ; validité 30 jours (réglable) ; nouvelle version = l'ancienne est remplacée ; refus motivé. Journal d'audit.
 - [x] Lien de commande : « Créer et commander au prix du devis » ouvre le studio (`?devis=`), couleur et quantité fixées, marquages contrôlés contre le devis ; le serveur réserve le devis une seule fois (`claim_b2b_quote`), le rejoue avec ses versions figées de règles et de grille (+ livraison) et vérifie que le montant est identique au devis. Décision D21.
+- [ ] Plus tard : remplacement + devis + chiffres internes en une seule fonction SQL ; test unitaire de `repriceFrozen` (avec base de test).
 - [x] Migration 8 : demandes et devis, devis figés (prix non modifiables, jamais supprimés), droits testés (section 16).
 
 ## E18 — Studio 3D en direct ✅ (modèles d'artiste en attente du porteur) (priorité avancée : juste après E14, demande du porteur)

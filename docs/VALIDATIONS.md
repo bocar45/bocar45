@@ -2,6 +2,21 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E17 (3e passage) — VALIDÉ
+Commit examiné : a9e35f4 (depuis 1ba4942), branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (130) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé, car du code a changé.
+Vérification navigateur : non refaite (pas de Supabase réel). Bout en bout sur un vrai projet : en attente du porteur (E11).
+Critères de l'étape :
+- [x] Formulaire, « Mes devis », annulation ; chiffrage interne hors de portée du client ; commande sur devis avec contrôle des tailles réelles ; migration 8 et section 16 : preuves du 2e passage, inchangées.
+- [x] Point restant traité : `docs/DATABASE.md:106` décrit `b2b_quote_internals` (droits, ajout seul, jamais lisible par le client) et `guard_b2b_quote_link`.
+- [x] Remarque traitée : `admin/devis/actions.ts` `sendB2bQuote` retire le devis (`withdrawn`) et renvoie une erreur si l'insertion des chiffres internes échoue.
+Critères communs : C1 ✅ · C2 ✅ · C3 ✅ · C4 ✅ · C5 ✅ · C6 ✅ (D21, DATABASE, ROADMAP, BACKLOG ; poussé ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- Dans ce cas d'échec, la version précédente a déjà été remplacée (`superseded`) : le client se retrouve sans devis valable jusqu'au nouvel envoi. L'erreur de la mise à jour `withdrawn` n'est pas vérifiée. Une fonction SQL unique (remplacement, devis et chiffres internes) réglerait les deux.
+- Remarques du 2e passage toujours ouvertes : écart `lines` / `b2bSizeMix` à expliquer dans les futurs écrans ; pas de test unitaire de `repriceFrozen`.
+Décision : passer à E18d
+
 ## 2026-11-22 — E17 (2e passage) — À CORRIGER
 Commit examiné : 1ba4942 (depuis 6e69136), `git status` propre, branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (130, 21 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0)
