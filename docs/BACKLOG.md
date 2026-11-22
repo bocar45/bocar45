@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → **E17** → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -84,12 +84,13 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Après validation : champs non personnalisés signalés avant la commande, filtre produit dans la requête, test d'accès aux images client renforcé.
 - [ ] Reporté : champ `variable` par exemplaire (E16), recadrage sur le visage (E22), popularité alimentée par les commandes.
 
-## E16 — Commandes d'équipe : noms et numéros 🔎
+## E16 — Commandes d'équipe : noms et numéros ✅
 - [x] Champ texte « variable » dans le studio : case « Différent sur chaque pièce » (nom ou numéro, longueur max) et outil « Nom + n° » en un clic. Décision D20.
 - [x] Liste nom/numéro/taille par pièce à la commande : saisie, ou liste collée depuis un tableur ou un message (colonnes dans n'importe quel ordre), contrôle en direct (taille, longueur, caractères imprimables, chiffres, débordement de la zone, numéros en double), aperçu de chaque pièce en 2D/3D. Contrôle refait sur le serveur ; tailles et quantité tirées de la liste ; prix calculé sur la pièce la plus large (même règle au studio et au serveur).
 - [x] Liste figée avec la ligne de commande (migration 7 : longueur = quantité, aucune modification après commande), visible par le client, l'admin et l'atelier affecté ; correction (E10) contrôlée avec la liste figée.
 - [x] Fichiers de production par pièce (PNG 300 dpi `?piece=N`, nommé taille-numéro-nom) ; zone fixe en un seul fichier ; fiche PDF avec la liste des pièces à cocher (40 par page).
-- [ ] Reporté : planche d'impression multi-pièces (imposition DTF) quand un atelier pilote aura donné son format de film ; supplément de personnalisation par pièce dans les grilles atelier si les ateliers le facturent.
+- [x] Après validation : tailles de la ligne contrôlées en SQL contre la liste.
+- [ ] Reporté : largeur mesurée avec les métriques de la police (aujourd'hui au prorata des lettres) ; planche d'impression multi-pièces (imposition DTF) quand un atelier pilote aura donné son format de film ; supplément de personnalisation par pièce dans les grilles atelier si les ateliers le facturent.
 
 ## E17 — Devis B2B ⏳
 - [ ] Formulaire de demande (quantités, logo, date souhaitée).

@@ -6,6 +6,18 @@ alter table public.order_items add column roster jsonb;
 alter table public.order_items add constraint order_items_roster_shape check (
   roster is null or (jsonb_typeof(roster) = 'array' and jsonb_array_length(roster) = quantity)
 );
+-- Les quantités par taille doivent être exactement celles de la liste.
+create function app.check_roster_sizes() returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.roster is not null and new.sizes is distinct from (
+    select coalesce(jsonb_object_agg(size, n), '{}'::jsonb) from (select e->>'size' as size, count(*) as n from jsonb_array_elements(new.roster) e group by 1) t
+  ) then
+    raise exception 'roster sizes do not match the order line' using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+create trigger check_roster_sizes before insert on public.order_items for each row execute function app.check_roster_sizes();
+
 -- Une liste n'est jamais modifiée après la commande.
 create function app.freeze_roster() returns trigger language plpgsql set search_path = '' as $$
 begin

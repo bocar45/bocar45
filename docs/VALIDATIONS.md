@@ -2,6 +2,24 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E16 — VALIDÉ
+Commit examiné : 51718ff (depuis 22daeb5), `git status` propre, branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (127, 20 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅
+Vérification navigateur : non refaite (pas de Supabase réel ; faite par l'auteur avec un jeu temporaire retiré). Bout en bout sur un vrai projet : en attente du porteur (E11).
+Critères de l'étape :
+- [x] Texte variable : `TextLayer.perItem` validé par `parseDesign` (`document.ts`, clé name/number, longueur 1-30 / 1-3, incompatible avec `field`) ; test « refuses a variable text badly declared » ; `PerItemEditor` et outil « Nom + n° » (`roster-panel.tsx`, `studio.tsx`) ; D20.
+- [x] Liste à la commande : `parseRosterText` (colonnes dans n'importe quel ordre, test dédié), `checkRoster` (taille, longueur, caractères, chiffres, débordement de zone, doublons en avertissement ; test « checks sizes, lengths, characters, digits and the print zone ») ; contrôle refait sur le serveur avec les tailles réelles de la couleur (`actions.ts` placeOrder, bloc E16) ; tailles et quantité tirées de la liste (`sizesFromRoster`) ; prix via `widestPiece` au studio (`studio.tsx`, `decorations`) et au serveur (`actions.ts`), calcul toujours dans `bestQuote`/pricing.
+- [x] Liste figée : migration 7 (contrainte longueur = quantité, trigger `freeze_roster`), `create_order` reprend la version de la migration 4 (historique `order_item_versions` conservé) ; tests section 15 (liste enregistrée, modification refusée, liste de 1 pour 3 pièces refusée, client lit, autre atelier ne lit pas) ; correction contrôlée avec la liste figée et ajout de nom/numéro refusé en correction (`actions.ts` resubmitCorrection) ; affichage client/admin/atelier (`roster-list.tsx`, pages commandes).
+- [x] Production : `?piece=N` (pièce inconnue → 400, zone variable sans pièce → 400, nom de fichier taille-numéro-nom), zone fixe en un seul fichier, accès inchangé (atelier affecté actif ou ops) ; fiche PDF avec liste à cocher (`sheet.ts`, test dans `render.test.ts`).
+- [ ] Reporté (imposition DTF, supplément par pièce) : hors périmètre déclaré, non bloquant.
+Critères communs : C1 ✅ · C2 ✅ (entiers, prix via pricing sur `widestPiece`, aucune transition ajoutée, contrôle serveur, colonne sous RLS existante + tests, liste figée comme version et devis) · C3 ✅ (grep secrets vide dans apps/packages ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ (messages français numérotés par ligne) · C5 ✅ · C6 ✅ (D20, ROADMAP, DATABASE, BACKLOG ; commit poussé ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- La largeur d'une pièce est estimée au prorata du nombre de caractères (`personalize`) : « MBAYE » plus large que l'exemple à nombre égal de lettres peut déborder sans être signalé et être sous-tarifé. Mesurer avec les métriques de police quand c'est possible.
+- `rls.test.sql` section 15 ne vérifie pas que l'atelier **affecté** lit la liste (seul le refus à un autre atelier est testé).
+- Côté SQL, seules la forme et la longueur de la liste sont contrôlées (pas la cohérence `sizes` ↔ tailles de la liste) ; deuxième barrière à renforcer si d'autres appelants de `create_order` apparaissent.
+Décision : passer à E17
+
 ## 2026-11-22 — E15 — VALIDÉ
 Commit examiné : d3008f0 (depuis 308524f), `git status` propre, branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (118, 19 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (`/modeles`, `/admin/modeles` générées)

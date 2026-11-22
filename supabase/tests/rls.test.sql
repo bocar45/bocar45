@@ -573,6 +573,13 @@ do $$ declare ok boolean := false; begin
   exception when check_violation then ok := true; end;
   if not ok then raise exception 'FAIL roster of 1 accepted for 3 pieces'; end if;
 end $$;
+do $$ declare ok boolean := false; begin
+  begin perform public.create_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000d001', '{"schemaVersion":1}', 'e16c', '[]',
+    '[{"color_key":"ivory","sizes":{"M":2},"quantity":2,"unit_price":7200,"line_total":14400,"decorations":[],"roster":[{"size":"M"},{"size":"XL"}]}]',
+    '{"subtotal":14400,"tax":2197,"total":14400}', '{"ruleSetVersion":1}', '{"name":"Awa","phone":"+221770000005"}');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL sizes inconsistent with the roster accepted'; end if;
+end $$;
 reset role;
 -- the customer reads the roster of their order, another workshop does not
 begin;
