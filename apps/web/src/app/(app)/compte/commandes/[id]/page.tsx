@@ -1,3 +1,6 @@
+import { DisputeForm } from "./dispute-form";
+import { openDispute } from "../actions";
+import { DISPUTE_REASON, DISPUTE_RESOLUTION, DISPUTE_STATUS } from "@/lib/disputes";
 import { RosterList } from "@/components/roster-list";
 import type { RosterEntry } from "@sawwa/design";
 import { notFound } from "next/navigation";
@@ -18,13 +21,15 @@ const STEPS = ["pending_assignment", "proof_review", "proof_approved", "in_produ
 
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { supabase } = await requireUser(`/compte/commandes/${id}`);
+  const { supabase, user } = await requireUser(`/compte/commandes/${id}`);
   const { data: o } = await supabase
     .from("orders")
     .select("id, number, payment_status, subtotal, shipping, tax, total, deposit_due, shipping_address, created_at, items:order_items(id, color_key, sizes, quantity, roster, unit_price, line_total, design_version_id, version:design_versions(document), product:base_products(slug, name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), fulfillments(id, status, carrier, tracking_number), events:status_events(event, payload, at)")
     .eq("id", id)
     .maybeSingle();
   if (!o) notFound();
+  const { data: disputeRows } = await supabase.from("disputes").select("id, reason, description, status, resolution, refund_amount, resolution_note, created_at").eq("order_id", o.id).order("created_at");
+  const disputes = (disputeRows ?? []) as { id: string; reason: string; description: string; status: string; resolution: string | null; refund_amount: number | null; resolution_note: string }[];
   const item = (o.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; unit_price: number; line_total: number; version: { document: unknown }; product: { slug: string; name: unknown; variants: { color_key: string; color_hex: string }[]; zones: ZoneRow[] } }[])[0];
   const f = (o.fulfillments as { id: string; status: string; carrier: string | null; tracking_number: string | null }[])[0];
   const events = ((o.events ?? []) as { event: string; payload: { comment?: string; reason?: string }; at: string }[]).sort((a, b) => a.at.localeCompare(b.at));
@@ -48,6 +53,21 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           <p>Montant à régler : <b>{fcfa(o.deposit_due ?? o.total)}</b>{o.deposit_due ? ` (acompte de 50 %, solde de ${fcfa(o.total - o.deposit_due)} avant l'expédition)` : ""}.</p>
           <p className="text-sm text-ivoire/85">L&apos;équipe SAWWA vous contacte sur WhatsApp au {address.phone} avec les instructions Wave, Orange Money ou virement. Indiquez la référence <b>{o.number}</b>. La production démarre dès la confirmation du paiement.</p>
         </div>
+      )}
+
+      {(f?.status === "shipped" || f?.status === "delivered" || disputes.length > 0) && (
+        <Section title="Un problème avec votre commande ?" id="litige">
+          {disputes.map((d) => (
+            <div key={d.id} className="grid gap-1 rounded-lg border border-line p-3 text-sm">
+              <b>{DISPUTE_REASON[d.reason] ?? d.reason} · {DISPUTE_STATUS[d.status] ?? d.status}</b>
+              <span className="whitespace-pre-line">{d.description}</span>
+              {d.status !== "open" && <span>Décision : {d.resolution ? DISPUTE_RESOLUTION[d.resolution] : "—"}{d.refund_amount ? ` (${fcfa(d.refund_amount)})` : ""}{d.resolution_note ? ` — ${d.resolution_note}` : ""}</span>}
+            </div>
+          ))}
+          {(f?.status === "shipped" || f?.status === "delivered") && !disputes.some((d) => d.status === "open") && (
+            <DisputeForm userId={user.id} action={openDispute.bind(null, o.id)} />
+          )}
+        </Section>
       )}
 
       {f?.status === "changes_requested" && (

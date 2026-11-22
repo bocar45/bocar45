@@ -803,4 +803,90 @@ do $$ begin
   if not exists (select 1 from information_schema.columns where table_name = 'designs' and column_name = 'rights_declared_at') then raise exception 'FAIL rights column'; end if;
 end $$;
 
+-- 18. Grand livre, versements, litiges (E20)
+update public.fulfillments set status = 'delivered' where vendor_id is not null and vendor_cost is not null and status <> 'delivered';
+do $$ begin
+  if (select count(*) from public.vendor_ledger where type = 'earning') <> 1 then raise exception 'FAIL earning not credited at delivery'; end if;
+  if (select amount from public.vendor_ledger where type = 'earning') <> (select vendor_cost from public.fulfillments where id = (select fulfillment_id from public.vendor_ledger where type = 'earning')) then raise exception 'FAIL earning is not the frozen vendor cost'; end if;
+end $$;
+update public.fulfillments set status = 'delivered' where vendor_id is not null;
+do $$ begin
+  if (select count(*) from public.vendor_ledger where type = 'earning') <> 1 then raise exception 'FAIL earning credited twice'; end if;
+end $$;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ declare ok boolean := false; begin
+  if (select count(*) from public.vendor_ledger) <> 1 then raise exception 'FAIL workshop cannot read its ledger'; end if;
+  begin update public.vendor_ledger set amount = 999999; exception when insufficient_privilege then ok := true; end;
+  if not ok and (select amount from public.vendor_ledger limit 1) = 999999 then raise exception 'FAIL ledger edited'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin perform public.record_payout((select vendor_id from public.vendor_ledger limit 1), 1000, 'wave', 'ref-1', auth.uid());
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL workshop recorded its own payout'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+do $$ begin
+  if exists (select 1 from public.vendor_ledger) or exists (select 1 from public.payouts) then raise exception 'FAIL other workshop reads the ledger'; end if;
+end $$;
+rollback;
+set role service_role;
+do $$ declare ok boolean := false; begin
+  begin perform public.record_payout((select vendor_id from public.vendor_ledger limit 1), ((select sum(amount) from public.vendor_ledger) + 1)::bigint, 'wave', 'ref-trop', '00000000-0000-0000-0000-0000000000f1');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL payout above balance'; end if;
+  perform public.record_payout((select vendor_id from public.vendor_ledger limit 1), 5000, 'wave', 'WAVE-123', '00000000-0000-0000-0000-0000000000f1');
+  if (select sum(amount) from public.vendor_ledger) <> (select vendor_cost from public.fulfillments where id = (select fulfillment_id from public.vendor_ledger where type = 'earning')) - 5000 then raise exception 'FAIL balance after payout'; end if;
+end $$;
+reset role;
+-- finance adjusts, ops cannot
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000f1');
+insert into public.vendor_ledger (vendor_id, type, amount, note, created_by) select vendor_id, 'adjustment', 500, 'Frais de transport remboursés', auth.uid() from public.vendor_ledger limit 1;
+rollback;
+-- disputes
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+do $$ declare ok boolean := false; begin
+  begin insert into public.disputes (order_id, reason, description) values ((select order_id from public.fulfillments where status = 'delivered' limit 1), 'defect', 'Impression décollée');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL dispute on someone else''s order'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+do $$ declare ok boolean := false; begin
+  begin insert into public.disputes (order_id, reason, description, photos) values ((select order_id from public.fulfillments where status = 'delivered' limit 1), 'defect', 'Impression décollée', '{00000000-0000-0000-0000-0000000000b1/x.jpg}');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL dispute with someone else''s photo'; end if;
+end $$;
+insert into public.disputes (order_id, reason, description, photos) values ((select order_id from public.fulfillments where status = 'delivered' limit 1), 'defect', 'Impression décollée après un lavage', '{00000000-0000-0000-0000-0000000000c1/litige.jpg}');
+do $$ declare n int; begin
+  update public.disputes set status = 'resolved', refund_amount = 999999;
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAIL customer resolved own dispute'; end if;
+end $$;
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ begin
+  if (select count(*) from public.disputes) <> 1 then raise exception 'FAIL assigned workshop cannot read the dispute'; end if;
+end $$;
+rollback;
+set role service_role;
+do $$ declare ok boolean := false; begin
+  begin perform public.resolve_dispute((select id from public.disputes limit 1), 'resolved', 'partial_refund', 99999999, true, 3000, 'trop', '00000000-0000-0000-0000-00000000000a');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL refund above order total'; end if;
+  perform public.resolve_dispute((select id from public.disputes limit 1), 'resolved', 'reprint', 0, true, 3000, 'Défaut prouvé par la photo de contrôle', '00000000-0000-0000-0000-00000000000a');
+  if (select amount from public.vendor_ledger where type = 'penalty') <> -3000 then raise exception 'FAIL penalty not in the ledger'; end if;
+  ok := false;
+  begin perform public.resolve_dispute((select id from public.disputes limit 1), 'rejected', 'none', 0, false, 0, 'x', '00000000-0000-0000-0000-00000000000a');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL dispute resolved twice'; end if;
+end $$;
+reset role;
+
 select 'ALL RLS TESTS PASSED' as result;
