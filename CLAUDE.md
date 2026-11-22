@@ -54,6 +54,7 @@ Next.js (Vercel) + Supabase (Postgres, Auth, Storage). Migrations SQL dans `supa
 ## Méthode de travail : étape par étape, validée
 - La liste des étapes et leurs critères : `docs/BACKLOG.md`. Une étape à la fois.
 - Fin d'étape : passer l'étape en 🔎, commiter, puis lancer l'agent **`sawwa-validateur`** (`.claude/agents/`). On ne passe à l'étape suivante qu'après le verdict **VALIDÉ** (journal : `docs/VALIDATIONS.md`). Procédure complète : skill `etape-suivante`.
+- **Enchaînement automatique (consigne du porteur)** : quand le validateur rend « VERDICT : VALIDÉ — passer à Exx », cocher l'étape, commiter, pousser, donner au porteur un résumé de 3 à 5 lignes, puis **commencer aussitôt Exx sans attendre de réponse**. On ne s'arrête que si : l'étape suivante exige une action du porteur (🧑‍💼 : compte, clé, achat, choix de prestataire), une décision structurante est à arbitrer, ou un déploiement / paiement réel / service externe serait nécessaire. Dans ces cas, demander en une phrase et passer à l'étape faisable suivante si elle existe.
 
 - Une tâche = une branche = un périmètre court. Lire les fichiers ciblés, pas tout le repo.
 - Compte rendu de fin de tâche : fait / non fait / décisions / prochaine étape (≤ 10 lignes).

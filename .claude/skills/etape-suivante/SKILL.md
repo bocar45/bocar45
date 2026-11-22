@@ -16,5 +16,9 @@ description: Réalise la prochaine étape de docs/BACKLOG.md puis la fait valide
    contenu de `.claude/agents/sawwa-validateur.md`.
 5. Si le verdict est **À CORRIGER** : corrige chaque point, commite, pousse, relance le validateur. Trois allers-retours
    maximum ; au-delà, explique le blocage au porteur.
-6. Si le verdict est **VALIDÉ** : coche l'étape (✅) dans `docs/BACKLOG.md`, commite et pousse, puis résume au porteur
-   en quelques lignes ce qui est fait, ce qui reste en attente de lui, et quelle est l'étape suivante.
+6. Si le verdict est **VALIDÉ** : coche l'étape (✅) dans `docs/BACKLOG.md`, commite et pousse, résume au porteur
+   en 3 à 5 lignes ce qui est fait et ce qui reste en attente de lui, puis **reviens au point 1 immédiatement** pour
+   l'étape que le validateur a désignée (« passer à Exx »), sans attendre de réponse.
+7. Arrête la boucle seulement si l'étape suivante exige une action du porteur (🧑‍💼), une décision structurante, ou un
+   déploiement, un paiement réel, un service externe. Demande alors en une phrase ce qu'il faut, et continue avec la
+   prochaine étape faisable s'il y en a une.

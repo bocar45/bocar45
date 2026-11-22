@@ -52,7 +52,9 @@ Corrections à faire (par priorité) :
 Décision : passer à <étape suivante> | reprendre <étape>
 ```
 
-Puis réponds avec exactement ce verdict, en commençant par la ligne
+Puis réponds avec exactement ce verdict. Quand c'est VALIDÉ, ta première ligne est un **ordre** pour l'auteur : il enchaîne
+sans attendre le porteur. Désigne la prochaine étape faisable (saute celles qui ne dépendent que du porteur 🧑‍💼 et dis-le).
+Commence par la ligne
 `VERDICT : VALIDÉ — passer à <étape suivante>` ou `VERDICT : À CORRIGER — <n> point(s)`.
 
 Règles :
