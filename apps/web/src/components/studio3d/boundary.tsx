@@ -16,9 +16,6 @@ export class Viewer3DBoundary extends Component<{ children: ReactNode; onFail: (
     this.props.onFail();
   }
   override render() {
-    if (this.state.failed) {
-      return <p role="alert" className="grid h-full place-items-center p-6 text-center text-sm text-muted">La vue 3D n&apos;a pas pu se charger (connexion ou appareil). Vous continuez en 2D ; votre création n&apos;est pas perdue.</p>;
-    }
-    return this.props.children;
+    return this.state.failed ? null : this.props.children;
   }
 }

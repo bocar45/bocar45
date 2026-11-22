@@ -91,7 +91,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] Formulaire de demande (quantités, logo, date souhaitée).
 - [ ] Devis préparé par l'admin à partir du moteur de prix, valable 30 jours, lien de commande.
 
-## E18 — Studio 3D en direct 🔎 (priorité avancée : juste après E14, demande du porteur)
+## E18 — Studio 3D en direct ✅ (modèles d'artiste en attente du porteur) (priorité avancée : juste après E14, demande du porteur)
 **Référence** : `design/reference-studio-3d-blankbuilder.jpg` (inspiration fonctionnelle, pas de copie d'interface ni de marque).
 - [x] Écran partagé dans le studio : modes « 2D », « 2D + 3D », « 3D » ; la 3D se met à jour en direct (≈ 0,5 s mesuré, capture d'écran comprise).
 - [x] React Three Fiber, chargement à la demande (module séparé), repli 2D automatique sans WebGL, rendu seulement quand quelque chose change.
@@ -109,7 +109,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] Contrôle de fabrication propre à la sublimation / impression textile (fond perdu, résolution, couleurs).
 - [ ] 🧑‍💼 Au moins un atelier partenaire capable (sublimation ou impression textile + coupe-couture) avant mise en vente.
 
-## E18c — Outils d'image du studio ⏳
+## E18c — Outils d'image du studio 🛠️ en cours
 - [ ] Retrait d'une couleur de fond, inversion, recadrage.
 - [ ] Effet trame (« halftone ») pour l'impression d'images en sérigraphie / DTF.
 - [ ] Vectorisation d'un logo simple (aplats) pour broderie et sérigraphie.

@@ -2,6 +2,25 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E18 — VALIDÉ
+Commit examiné : f295a5c (second passage ; corrections après 062f9eb, dernier validé 59ef8c7), branche `claude/sawwa-audit-cto-r8vt01` à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (98, 17 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (rejoué sur l'arbre propre après restauration)
+Vérification visuelle : produit d'exemple branché temporairement sous `E18_PREVIEW` (`studio-data.ts`, `studio/[slug]/page.tsx`, restaurés à l'identique, `git status` propre), `next start -p 3999`, Chromium + SwiftShader (1440 px et 390 px), Chromium sans WebGL (1440 et 390 px), téléchargement des modules bloqué après chargement.
+Points du passage précédent :
+1. [x] Repli 2D automatique : `support.ts` (`hasWebGL`, `preferredMode`), `studio.tsx:62-69` (détection au montage, mode imposé), boutons « 2D + 3D » et « 3D » désactivés avec titre (`studio.tsx:287-289`), phrase « Vue 3D indisponible sur cet appareil : le studio fonctionne en 2D. » (`:274`). Constaté sans WebGL, bureau et mobile : mode 2D, deux boutons désactivés, phrase visible, 0 canevas, éditeur visible, plus de cadre vide. Test `move.test.ts` « studio display mode ».
+2. [x] Manches : contours t-shirt et polo élargis, `sleeveCenter` déplacé (`garment.ts:27-34`) ; test « keeps the usual print sizes inside the garment » : grille 5 × 5 de points pour manches 90 × 90, poitrine 100 × 100, devant/dos 300 × 400, nuque 80 × 40, clés anglaises et françaises (`manche_gauche`, `poitrine_gauche`, `dos`, `nuque`, `coeur`), tee/polo/hoodie, plus le tote. Vue « Zone » d'une manche en trois quarts ±π/4 (`viewer.tsx:279`, `:316-317`) : carré de 81 mm visible en entier sur chaque manche (captures).
+3. [x] Limite d'erreur locale `boundary.tsx` (journal `viewer3d_failed`, `onFail` → 2D) autour de `Viewer3D` (`studio.tsx:325-328`). Constaté sur mobile : modules bloqués puis clic « 3D » → studio intact, retour en 2D, texte saisi conservé, pas de page d'erreur.
+Remarques du passage précédent : 2D par défaut sous 1024 px, 3D chargée à la demande (constaté : 0 canevas à l'ouverture sur 390 px, 1 après clic « 3D ») ✅ ; `toKey("Cœur")` = `coeur` (`catalog.ts:22-23`, testé) ✅ ; « Placer ici » en fonction pure `move.ts` testée (3 cas), ne réduit plus un élément qui tient ✅ ; `useDispose` sur textures et géométries, `preserveDrawingBuffer` retiré ✅.
+Critères de l'étape : modes et mise à jour en direct [x] (changement de couleur visible en 3D en 167 ms, capture comprise) · module séparé, rendu à la demande, repli 2D [x] · calibration en mm et tests [x] · mug, gourde, casquette [x] (mug revu) · rendu et vues [x] · « Placer ici » [x] (texte « Devant » → « Poitrine gauche », 36 → 19,2 mm, côté porteur gauche en 3D) · performances [x] (mesurées au premier passage ; Android réel en E11) · 🧑‍💼 modèles d'artiste : en attente du porteur, non bloquant.
+Critères communs : C1 ✅ · C2 ✅ (ni prix ni statut touché) · C3 ✅ (grep secrets vide hors docs/supabase/consigne ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ · C6 ✅ (ROADMAP, D17 ; commit poussé). Aucune nouvelle dépendance dans ce passage.
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- Après un échec de téléchargement, le message de `boundary.tsx` n'apparaît jamais (le cadre est démonté aussitôt par `onFail`) et la phrase affichée devient « Vue 3D indisponible sur cet appareil », inexacte pour une coupure réseau ; la 3D reste désactivée jusqu'au rechargement. Prévoir une phrase propre au réseau et un « Réessayer ».
+- `hasWebGL()` crée un contexte WebGL sans le libérer (`WEBGL_lose_context`) ; une perte de contexte en cours d'usage (`webglcontextlost`) n'est pas une exception et n'est pas captée par la limite d'erreur.
+- Vue « Zone » d'une manche : le zoom reste centré sur le torse, le marquage est près du bord du cadre ; mug ouvert avec le haut du rebord sous les boutons. À soigner avec les modèles définitifs.
+- `docs/VISUALISATION_3D.md:129` (« Repli 2D automatique testé ») peut être coché.
+Décision : passer à E18c
+
 ## 2026-11-22 — E18 — À CORRIGER
 Commit examiné : 062f9eb (depuis 59ef8c7 ; f11a61d = verdict E14 et passage de E18 en cours), branche à jour avec `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (93, 16 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅

@@ -16,6 +16,8 @@ export interface Viewer3DProps {
   zones: { key: string; label: string; maxWidthMm: number; maxHeightMm: number }[];
   imageUrls: Record<string, string>;
   activeZone: string;
+  /** Called when the GPU drops the WebGL context while in use (memory pressure, driver reset). */
+  onContextLost?: () => void;
 }
 
 const PX_PER_MM = 2;
@@ -283,9 +285,17 @@ function Scene({ props, controls }: { props: Viewer3DProps; controls: React.RefO
   const images = useMemo<ImageCache>(() => new Map(), []);
   const fontEl = useThree((s) => s.gl.domElement);
   const size = props.kind === "mug" ? 0.24 : props.kind === "bottle" ? 0.4 : props.kind === "cap" ? 0.33 : props.kind === "tote" ? 0.7 : props.kind === "hoodie" ? 1.45 : 1.05;
+  const gl = useThree((s) => s.gl);
   useEffect(() => {
-    controls.current?.setLookAt(0, size * 0.1, size * 1.75, 0, props.kind === "cap" ? 0.04 : 0, 0, false);
-  }, [size, props.kind, controls]);
+    const lost = (e: Event) => { e.preventDefault(); props.onContextLost?.(); };
+    gl.domElement.addEventListener("webglcontextlost", lost);
+    return () => gl.domElement.removeEventListener("webglcontextlost", lost);
+  }, [gl, props]);
+  // Look at the middle of the object: mug and bottle stand on the floor, garments are centred on the origin.
+  const targetY = props.kind === "mug" ? 0.0475 : props.kind === "bottle" ? 0.1 : props.kind === "cap" ? 0.04 : 0;
+  useEffect(() => {
+    controls.current?.setLookAt(0, targetY + size * 0.12, size * 1.75, 0, targetY, 0, false);
+  }, [size, targetY, controls]);
   return (
     <>
       <hemisphereLight args={["#ffffff", "#d9ccb5", 1.6]} />

@@ -62,6 +62,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   // 2D by default on small screens (the editor stays in view, the 3D module loads only on demand) and without WebGL.
   const [mode, setMode] = useState<StudioMode>("edit");
   const [webgl, setWebgl] = useState(true);
+  // 3D failed to download (network) or lost its GPU context: show why and let the person retry.
+  const [viewerFailed, setViewerFailed] = useState<null | "network">(null);
+  const [viewerKey, setViewerKey] = useState(0);
   useEffect(() => {
     const ok = hasWebGL();
     setWebgl(ok);
@@ -322,10 +325,20 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             {mode !== "edit" && (
               // Fixed height: the 3D canvas fills its box, so the box must not depend on the canvas (no resize loop).
               <div className={`relative overflow-hidden rounded-[24px] border border-line ${mode === "3d" ? "h-[70vh] min-h-[420px]" : "h-[380px] xl:h-[520px]"}`}>
-                <Viewer3DBoundary onFail={() => { setWebgl(false); setMode("edit"); }}>
-                  <Viewer3D kind={modelKindFor(`${product.slug} ${product.categorySlug}`)} garmentHex={color.hex} surfaces={doc.surfaces}
-                    zones={product.zones} imageUrls={urls} activeZone={zone.key} />
-                </Viewer3DBoundary>
+                {viewerFailed ? (
+                  <div role="alert" className="grid h-full place-items-center gap-3 p-6 text-center text-sm">
+                    <p className="max-w-sm text-muted">La vue 3D n&apos;a pas pu se charger (connexion interrompue ou carte graphique occupée). Votre création n&apos;est pas perdue et l&apos;édition 2D continue.</p>
+                    <div className="flex gap-2">
+                      <button type="button" className={btn} onClick={() => { setViewerFailed(null); setViewerKey((k) => k + 1); }}>Réessayer</button>
+                      <button type="button" className={btn} onClick={() => { setViewerFailed(null); setMode("edit"); }}>Continuer en 2D</button>
+                    </div>
+                  </div>
+                ) : (
+                  <Viewer3DBoundary key={viewerKey} onFail={() => setViewerFailed("network")}>
+                    <Viewer3D kind={modelKindFor(`${product.slug} ${product.categorySlug}`)} garmentHex={color.hex} surfaces={doc.surfaces}
+                      zones={product.zones} imageUrls={urls} activeZone={zone.key} onContextLost={() => setViewerFailed("network")} />
+                  </Viewer3DBoundary>
+                )}
               </div>
             )}
             {mode !== "3d" && (

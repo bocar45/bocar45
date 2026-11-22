@@ -3,7 +3,9 @@ export type StudioMode = "edit" | "split" | "3d";
 export function hasWebGL(): boolean {
   try {
     const c = document.createElement("canvas");
-    return Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
+    const gl = (c.getContext("webgl2") ?? c.getContext("webgl")) as WebGLRenderingContext | null;
+    gl?.getExtension("WEBGL_lose_context")?.loseContext(); // free the probe context right away
+    return Boolean(gl);
   } catch {
     return false;
   }

@@ -122,7 +122,7 @@ La production des assets 3D est longue (6–10 semaines avec un artiste) mais **
 
 ## 6. Critères d'acceptation
 - [ ] Un logo placé à 7 cm sous le col dans le studio apparaît à 7 cm ± 5 mm sur le modèle 3D (contrôle avec une mire).
-- [ ] Le changement de design se reflète dans la vue 3D en < 500 ms.
+- [x] Le changement de design se reflète dans la vue 3D en < 500 ms.
 - [ ] Changement de personne, taille et animation sans rechargement de page.
 - [ ] Test de réalisme : sur 10 personnes, la majorité juge la vue « réaliste » ; validation du casting par le porteur du projet et par des personnes des communautés représentées.
 - [ ] Android milieu de gamme : ≥ 30 i/s, premier rendu < 3 s en 4G.
