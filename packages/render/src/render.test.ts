@@ -125,25 +125,35 @@ describe("all-over pattern pieces (E18b)", async () => {
   const { patternZones } = await import("@sawwa/design");
   const pieces = patternZones("tee");
   const front = pieces.find((p) => p.key === "piece_devant")!, back = pieces.find((p) => p.key === "piece_dos")!;
-  const allOver = { motif: "damier" as const, colors: ["#2A1A12", "#C9923E"] as [string, string], tileMm: 40 };
-  const raster = (z: typeof front) => {
+  const raster = (z: typeof front, allOver: { motif: "losanges" | "bandes" | "damier" | "pois"; colors: [string, string]; tileMm: number }) => {
     const { svg } = renderSurfaceSvg({ zoneKey: z.key, technique: "sublimation", layers: [] }, z, { dpi: 25.4, images: {}, allOver }); // 1 px = 1 mm
     const img = new Resvg(svg).render();
     const px = img.pixels; // copy once
-    return { w: img.width, at: (x: number, y: number) => Array.from(px.slice((y * img.width + x) * 4, (y * img.width + x) * 4 + 4)) };
+    return { at: (x: number, y: number) => Array.from(px.slice((y * img.width + x) * 4, (y * img.width + x) * 4 + 4)) };
   };
   it("prints the motif inside the piece and nothing outside the bleed line", () => {
-    const f = raster(front);
+    const f = raster(front, { motif: "damier", colors: ["#2A1A12", "#C9923E"], tileMm: 40 });
     expect(f.at(Math.round(front.maxWidthMm / 2), 10)[3]).toBe(0); // in the neckline: outside the piece
     expect(f.at(Math.round(front.maxWidthMm / 2), 400)[3]).toBe(255);
   });
-  it("continues the motif across the side seam: same garment point, same colour on front and back", () => {
-    const f = raster(front), b = raster(back);
-    for (const gy of [300, 455, 610]) {
-      const gx = 250; // near the side seam, garment frame
-      const fx = Math.round(gx - front.pattern.body!.x), fy = Math.round(gy - front.pattern.body!.y);
-      const bx = Math.round(gx - back.pattern.body!.x), by = Math.round(gy - back.pattern.body!.y);
-      expect(f.at(fx, fy)).toEqual(b.at(bx, by));
-    }
-  });
+  // Sample points well inside the shapes or the background of each tile (fractions of the tile), so that the 1-px
+  // difference between the two rasters never falls on an edge.
+  const SAMPLES: Record<string, [number, number][]> = {
+    losanges: [[0.5, 0.5], [0.08, 0.08]], damier: [[0.25, 0.25], [0.75, 0.25]], pois: [[0.5, 0.5], [0.1, 0.9]], bandes: [[0.5, 0.09], [0.5, 0.34]],
+  };
+  for (const motif of ["losanges", "damier", "pois", "bandes"] as const) {
+    it(`continues the ${motif} motif across the real side seam (same side of the wearer, back seen from behind)`, () => {
+      const tile = 40, allOver = { motif, colors: ["#2A1A12", "#C9923E"] as [string, string], tileMm: tile };
+      const f = raster(front, allOver), b = raster(back, allOver);
+      let differentColours = 0;
+      for (const side of [1, -1]) for (const ty of [7, 10, 13]) for (const [fx, fy] of SAMPLES[motif]!) {
+        const X = side * (6 * tile + fx * tile), Y = ty * tile + fy * tile; // near both side seams (|X| ≈ 250)
+        const fu = Math.floor(X - front.pattern.body!.x), fv = Math.floor(Y - front.pattern.body!.y);
+        const bu = Math.floor(-X - back.pattern.body!.x), bv = Math.floor(Y - back.pattern.body!.y); // seen from behind
+        expect(f.at(fu, fv)).toEqual(b.at(bu, bv));
+        if (f.at(fu, fv).join() !== f.at(Math.floor(fu + tile / 2), fv).join()) differentColours++;
+      }
+      if (motif !== "bandes") expect(differentColours).toBeGreaterThan(0); // the samples really hit both colours
+    });
+  }
 });

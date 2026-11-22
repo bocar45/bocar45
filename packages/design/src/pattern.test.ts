@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyDocument, markerLayout, motifOffset, motifTile, offsetPolygon, parseDesign, patternPreflight, pieceZone, piecePolygons, type PatternSpec } from "./index.ts";
+import { emptyDocument, markerLayout, motifCover, motifFrame, motifTile, offsetPolygon, parseDesign, patternPreflight, pieceZone, piecePolygons, type PatternSpec } from "./index.ts";
 
 const square = (s: number): [number, number][] => [[0, 0], [s, 0], [s, s], [0, s]];
 
@@ -15,14 +15,23 @@ describe("all-over pattern pieces (E18b)", () => {
     const spec: PatternSpec = { outline: z.outline, seamMm: 10, bleedMm: 5, quantity: 1 };
     expect(piecePolygons(spec).print[0]).toEqual([0, 0]); // printed area reaches the box corner
   });
-  it("aligns the motif on the garment so it continues across seams", () => {
-    const front: PatternSpec = { outline: square(100), seamMm: 10, bleedMm: 5, quantity: 1, body: { panel: "front", x: -277, y: -3, w: 554, h: 740 } };
-    const tile = 40;
-    const [ox, oy] = motifOffset(front, tile);
-    // garment point x = body.x + local x; the tile grid must start on garment multiples of 40
-    expect((front.body!.x + ox) % tile).toBe(-0); // garment x of the tile start: -280, a multiple of 40
-    expect(ox).toBe(-3);
-    expect(oy).toBe(-37);
+  it("anchors the motif on the garment: front as seen from the front, back as seen from behind, mirrored copies", () => {
+    const body = { x: -283, y: -3, w: 566, h: 740 };
+    const front: PatternSpec = { outline: square(100), seamMm: 10, bleedMm: 5, quantity: 1, body: { panel: "front", ...body } };
+    const back: PatternSpec = { ...front, body: { panel: "back", ...body } };
+    // garment point X = 250 (wearer's left side seam), Y = 300
+    const local = (f: { s: number; tx: number; ty: number }) => [f.s * 250 + f.tx, 300 + f.ty];
+    expect(local(motifFrame(front, 566))).toEqual([533, 303]); // 250 − (−283)
+    expect(local(motifFrame(back, 566))).toEqual([33, 303]); // seen from behind: the same seam is on the other edge
+    expect(motifFrame(undefined, 100)).toEqual({ s: 1, tx: 0, ty: 0 });
+    // mirrored copy of a front piece: the flipped file, worn at −X
+    const sleeve: PatternSpec = { ...front, quantity: 2, mirror: true, body: { panel: "front", x: 240, y: 12, w: 210, h: 288 } };
+    const f = motifFrame(sleeve, 535, true);
+    const u = 100; // a point of the original piece, local u
+    const X = 240 + u, mirroredX = -X, copyU = 535 - u;
+    expect(f.s * mirroredX + f.tx).toBe(copyU);
+    expect(motifCover(motifFrame(front, 566), 566, 740)).toEqual({ x: -283, y: -3, w: 566, h: 740 });
+    expect(motifCover(motifFrame(back, 566), 566, 740)).toEqual({ x: -283, y: -3, w: 566, h: 740 });
     expect(motifTile({ motif: "losanges", colors: ["#2A1A12", "#C9923E"], tileMm: 40 }).shapes[0]!.d).toBe("M20 0L40 20L20 40L0 20Z");
   });
   it("validates the continuous motif in the design document", () => {
@@ -79,7 +88,7 @@ describe("reference patterns (E18b)", async () => {
 });
 
 describe("all-over pricing and checks (E18b)", async () => {
-  const { patternZones, decorationsFor, checkSurface } = await import("./index.ts");
+  const { patternZones, decorationsFor, checkSurface, blankPieces } = await import("./index.ts");
   const zones = patternZones("tee").map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm, pattern: z.pattern }));
   it("prices every piece in full with the continuous motif, sleeves twice", () => {
     const d = { ...emptyDocument("tee-aop", "blanc"), allOver: { motif: "bandes" as const, colors: ["#B5562A", "#F2E9D8"] as [string, string], tileMm: 60 } };
@@ -87,6 +96,14 @@ describe("all-over pricing and checks (E18b)", async () => {
     expect(deco.map((x) => x.zoneKey)).toEqual(["piece_devant", "piece_dos", "piece_manche", "piece_manche", "piece_col"]);
     expect(deco[0]).toMatchObject({ technique: "sublimation", widthMm: zones[0]!.maxWidthMm, colors: 1 });
     expect(decorationsFor(emptyDocument("tee-aop", "blanc"), zones)).toEqual([]);
+  });
+  it("warns about pieces that would stay plain white", () => {
+    const labelled = zones.map((z) => ({ ...z, label: z.key }));
+    const logo = { id: "t", type: "shape" as const, shape: "circle" as const, fill: "#000000", xMm: 280, yMm: 300, rotation: 0, widthMm: 50, heightMm: 50 };
+    const d = { ...emptyDocument("tee-aop", "blanc"), surfaces: [{ zoneKey: "piece_devant", technique: "sublimation", layers: [logo] }] };
+    expect(blankPieces(d, labelled)[0]?.message).toContain("piece_dos, piece_manche, piece_col");
+    expect(blankPieces({ ...d, allOver: { motif: "uni", colors: ["#B5562A", "#B5562A"], tileMm: 50 } }, labelled)).toEqual([]);
+    expect(blankPieces(emptyDocument("tee-aop", "blanc"), labelled)).toEqual([]);
   });
   it("adds the all-over checks to the general ones for a piece", () => {
     const z = zones[0]!;

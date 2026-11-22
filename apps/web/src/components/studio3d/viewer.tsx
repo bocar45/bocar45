@@ -161,7 +161,11 @@ function paintGarmentPanel(ctx: CanvasRenderingContext2D, kind: GarmentKind, pan
   if (p.allOver && p.zones.some((z) => z.pattern)) {
     const t = motifTile(p.allOver);
     const shapes = t.shapes.map((sh) => ({ path: new Path2D(sh.d), fill: sh.fill }));
-    for (let x = Math.floor(b.minX / t.size) * t.size; x < b.maxX; x += t.size) {
+    // the grid is anchored on the garment seen from the front; the back texture is seen from behind (x → −x)
+    ctx.save();
+    if (panel === "back") ctx.scale(-1, 1);
+    const [x0, x1] = panel === "back" ? [-b.maxX, -b.minX] : [b.minX, b.maxX];
+    for (let x = Math.floor(x0 / t.size) * t.size; x < x1; x += t.size) {
       for (let y = Math.floor(b.minY / t.size) * t.size; y < b.maxY; y += t.size) {
         ctx.save();
         ctx.translate(x, y);
@@ -171,6 +175,7 @@ function paintGarmentPanel(ctx: CanvasRenderingContext2D, kind: GarmentKind, pan
         ctx.restore();
       }
     }
+    ctx.restore();
   }
   for (const s of p.surfaces) {
     const zone = p.zones.find((z) => z.key === s.zoneKey);

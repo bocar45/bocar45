@@ -1,4 +1,4 @@
-import { motifOffset, motifTile, pathD, piecePolygons, type AllOver, type FontKey, type Layer, type PatternSpec, type Surface, visibleLayers } from "@sawwa/design";
+import { motifCover, motifFrame, motifTile, pathD, piecePolygons, type AllOver, type FontKey, type Layer, type PatternSpec, type Surface, visibleLayers } from "@sawwa/design";
 
 /** Font files used for production rendering (static instances, see fonts/README.md). */
 export const PRODUCTION_FONTS: Record<FontKey, { family: string; weight: number; italicFile?: string; file: string }> = {
@@ -55,20 +55,21 @@ export function renderSurfaceSvg(
   const widthPx = Math.round((W / 25.4) * opts.dpi);
   const heightPx = Math.round((H / 25.4) * opts.dpi);
   const p = zone.pattern ?? null;
-  // E18b: a pattern piece is printed up to its bleed line; the continuous motif goes underneath, aligned on the garment.
-  const clip = p ? `<path d="${pathD(piecePolygons(p).print)}"/>` : `<rect width="${W}" height="${H}"/>`;
+  // the second piece of a left/right pair is the mirror image (outline and designs), the cut line is for the sheet only
+  const flip = opts.mirror ? ` transform="matrix(-1 0 0 1 ${W} 0)"` : "";
+  // E18b: a pattern piece is printed up to its bleed line; the continuous motif goes underneath, anchored on the garment
+  const clip = p ? `<path d="${pathD(piecePolygons(p).print)}"${flip}/>` : `<rect width="${W}" height="${H}"/>`;
   let defs = `<clipPath id="z">${clip}</clipPath>`;
   let background = "";
   if (p && opts.allOver) {
     const t = motifTile(opts.allOver);
-    const [ox, oy] = motifOffset(p, t.size);
-    defs += `<pattern id="m" patternUnits="userSpaceOnUse" x="${num(ox)}" y="${num(oy)}" width="${num(t.size)}" height="${num(t.size)}"><rect width="${num(t.size)}" height="${num(t.size)}" fill="${esc(t.background)}"/>${t.shapes.map((s) => `<path d="${esc(s.d)}" fill="${esc(s.fill)}"/>`).join("")}</pattern>`;
-    background = `<rect width="${W}" height="${H}" fill="url(#m)"/>`;
+    const f = motifFrame(p, W, Boolean(opts.mirror));
+    const c = motifCover(f, W, H);
+    defs += `<pattern id="m" patternUnits="userSpaceOnUse" x="0" y="0" width="${num(t.size)}" height="${num(t.size)}"><rect width="${num(t.size)}" height="${num(t.size)}" fill="${esc(t.background)}"/>${t.shapes.map((s) => `<path d="${esc(s.d)}" fill="${esc(s.fill)}"/>`).join("")}</pattern>`;
+    background = `<g transform="matrix(${f.s} 0 0 1 ${num(f.tx)} ${num(f.ty)})"><rect x="${num(c.x)}" y="${num(c.y)}" width="${num(c.w)}" height="${num(c.h)}" fill="url(#m)"/></g>`;
   }
   const body = visibleLayers(surface).map((l) => layerSvg(l, opts.images)).join("");
-  // the second piece of a left/right pair is the mirror image; the cut line is for the sheet only, never on the print file
-  const flip = opts.mirror ? ` transform="matrix(-1 0 0 1 ${W} 0)"` : "";
-  const cut = p && opts.cutLine ? `<path d="${pathD(piecePolygons(p).cut)}" fill="none" stroke="#B5562A" stroke-width="${num(Math.max(W, H) / 400)}"/>` : "";
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPx}" height="${heightPx}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs><g${flip}><g clip-path="url(#z)">${background}${body}</g>${cut}</g></svg>`;
+  const cut = p && opts.cutLine ? `<path d="${pathD(piecePolygons(p).cut)}" fill="none" stroke="#B5562A" stroke-width="${num(Math.max(W, H) / 400)}"${flip}/>` : "";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPx}" height="${heightPx}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs><g clip-path="url(#z)">${background}<g${flip}>${body}</g></g>${cut}</svg>`;
   return { svg, widthPx, heightPx };
 }

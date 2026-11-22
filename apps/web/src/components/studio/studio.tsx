@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import {
-  ALL_OVER_MOTIFS, FONTS, MAX_DOCUMENT_CHARS, blocking, checkSurface, coverCrop, decorationsFor, effectiveDpi, emptyDocument, fillPhoto, fillText, needsRoster, parseDesign, personalize, preflight, templateFields, widestPiece,
+  ALL_OVER_MOTIFS, FONTS, MAX_DOCUMENT_CHARS, blankPieces, blocking, checkSurface, coverCrop, decorationsFor, effectiveDpi, emptyDocument, fillPhoto, fillText, needsRoster, parseDesign, personalize, preflight, templateFields, widestPiece,
   type AllOver, type DesignDocument, type FieldRef, type MotifKind, type PatternSpec, type RosterEntry, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
 } from "@sawwa/design";
 import { DELIVERY_OPTIONS, type DeliveryKey } from "@/lib/shipping";
@@ -384,7 +384,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
     return [s.zoneKey, z ? checkSurface(s, z, doc.allOver) : []];
   })), [doc.surfaces, product.zones]);
   const zoneIssues = issuesByZone[zone.key] ?? [];
-  const allIssues = Object.values(issuesByZone).flat();
+  const allIssues = [...Object.values(issuesByZone).flat(), ...blankPieces(doc, product.zones)];
   // Team order: the price follows the widest name/number of the list, exactly like the server (widestPiece).
   const decorations = useMemo(() => decorationsFor(teamMode ? widestPiece(doc, roster) : doc, product.zones.map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm, pattern: z.pattern ?? null }))), [doc, product.zones, teamMode, roster]);
   // E17: what the design prints must stay within the quote (same rule as the server).

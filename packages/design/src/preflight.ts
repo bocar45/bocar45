@@ -71,3 +71,16 @@ export function checkSurface(surface: Surface, zone: { maxWidthMm: number; maxHe
   const base = preflight(surface, zone);
   return zone.pattern ? [...base, ...patternPreflight(surface, zone.pattern, zone, allOver ?? undefined)] : base;
 }
+
+/**
+ * E18b: on an all-over garment, a piece left without any design and without the continuous motif comes out in plain
+ * white fabric. Say so (warning) as soon as something is designed on the garment.
+ */
+export function blankPieces(doc: { surfaces: Surface[]; allOver?: AllOver | undefined }, zones: { key: string; label?: string; pattern?: PatternSpec | null }[]): Issue[] {
+  const pieces = zones.filter((z) => z.pattern);
+  if (!pieces.length || doc.allOver) return [];
+  const designed = new Set(doc.surfaces.filter((s) => s.layers.some((l) => !l.hidden)).map((s) => s.zoneKey));
+  if (!pieces.some((z) => designed.has(z.key))) return [];
+  const blank = pieces.filter((z) => !designed.has(z.key));
+  return blank.length ? [{ code: "BLANK_PIECES", severity: "warning", message: `Pièces sans impression, elles resteront en tissu blanc : ${blank.map((z) => z.label ?? z.key).join(", ")}. Ajoutez un motif continu pour tout couvrir.` }] : [];
+}

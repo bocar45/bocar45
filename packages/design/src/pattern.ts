@@ -72,13 +72,23 @@ export function motifTile(a: AllOver): { size: number; background: string; shape
 }
 
 /**
- * Offset of the motif inside a piece so that it continues across seams: the tile grid is anchored on the garment,
- * the piece box sits at (body.x, body.y) on it. Pieces without a body position start the grid at their own corner.
+ * How the continuous motif lies in a piece: local = (s·X + tx, Y + ty), where (X, Y) is the point on the garment seen
+ * from the front (the motif's grid is anchored there, so it continues across every seam). A back piece is printed as
+ * seen from behind (s = −1); the second piece of a mirrored pair (`mirrored`) sits on the other side of the garment.
+ * Pieces without a body position keep the grid on their own corner.
  */
-export function motifOffset(p: PatternSpec | undefined, tileMm: number): Pt {
-  if (!p?.body) return [0, 0];
-  const mod = (v: number) => ((v % tileMm) + tileMm) % tileMm;
-  return [round(-mod(p.body.x)), round(-mod(p.body.y))];
+export function motifFrame(p: PatternSpec | undefined | null, widthMm: number, mirrored = false): { s: 1 | -1; tx: number; ty: number } {
+  const b = p?.body;
+  if (!b) return { s: 1, tx: 0, ty: 0 };
+  // original piece: X = ±(b.x + u); its mirrored copy is the flipped file (u' = W − u) on the other side (X' = −X)
+  const s: 1 | -1 = b.panel === "back" ? -1 : 1;
+  return mirrored ? { s, tx: b.x + widthMm, ty: -b.y } : { s, tx: -b.x, ty: -b.y };
+}
+
+/** Garment-frame rectangle covering a piece box, for drawing the motif under it (inverse of `motifFrame`). */
+export function motifCover(f: { s: 1 | -1; tx: number; ty: number }, widthMm: number, heightMm: number) {
+  const x1 = (0 - f.tx) / f.s, x2 = (widthMm - f.tx) / f.s;
+  return { x: Math.min(x1, x2), y: -f.ty, w: widthMm, h: heightMm };
 }
 
 // ── Fabrication check for all-over pieces ──────────────────────────────────────────

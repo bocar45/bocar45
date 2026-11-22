@@ -1,7 +1,7 @@
 "use server";
 
 import { createHash } from "node:crypto";
-import { MAX_ROSTER, blocking, checkRoster, checkSurface, decorationsFor, needsRoster, parseDesign, preflight, sizesFromRoster, widestPiece, type DesignDocument, type RosterEntry } from "@sawwa/design";
+import { MAX_ROSTER, blocking, blankPieces, checkRoster, checkSurface, decorationsFor, needsRoster, parseDesign, preflight, sizesFromRoster, widestPiece, type DesignDocument, type RosterEntry } from "@sawwa/design";
 import { transition, type FulfillmentStatus } from "@sawwa/workflow";
 import type { Quote } from "@sawwa/pricing";
 import { fitsQuote, isQuoteValid, repriceFrozen, type B2bQuoteRow } from "@/lib/b2b";
@@ -131,6 +131,7 @@ export async function placeOrder(input: PlaceOrderInput) {
     const z = zoneSizes.find((x) => x.key === s.zoneKey);
     return z ? checkSurface(s, z, doc.allOver) : [];
   });
+  issues.push(...blankPieces(doc, product.zones.map((z) => ({ key: z.key, label: (z.anchor as { label?: string } | null)?.label ?? z.key, pattern: patternOf(z.anchor) }))));
   if (blocking(issues)) return { error: "Votre création contient des points bloquants (voir « Vérification de fabrication »)." };
   if (issues.length > 0 && !input.acceptWarnings) return { error: "Confirmez que vous acceptez les remarques de fabrication." };
 

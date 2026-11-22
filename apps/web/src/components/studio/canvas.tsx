@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { FONTS, motifOffset, motifTile, pathD, piecePolygons, type AllOver, type Layer, type PatternSpec, type Surface } from "@sawwa/design";
+import { FONTS, motifCover, motifFrame, motifTile, pathD, piecePolygons, type AllOver, type Layer, type PatternSpec, type Surface } from "@sawwa/design";
 
 type Mode = "move" | "scale" | "rotate";
 interface Drag { mode: Mode; id: string; start: { x: number; y: number }; layer: Layer }
@@ -34,7 +34,8 @@ export function StudioCanvas(p: CanvasProps) {
   const ink = dark ? "#F2E9D8" : "#2A1A12";
   const piece = p.zone.pattern ? piecePolygons(p.zone.pattern) : null;
   const motif = piece && p.allOver ? motifTile(p.allOver) : null;
-  const motifAt = motif ? motifOffset(p.zone.pattern ?? undefined, motif.size) : [0, 0];
+  const frame = motifFrame(p.zone.pattern, W);
+  const cover = motifCover(frame, W, H);
 
   // Measure rendered text so geometry, preflight and price use the real size.
   useLayoutEffect(() => {
@@ -134,13 +135,17 @@ export function StudioCanvas(p: CanvasProps) {
           <defs>
             <clipPath id="piece-clip"><path d={pathD(piece.print)} /></clipPath>
             {motif && (
-              <pattern id="piece-motif" patternUnits="userSpaceOnUse" x={motifAt[0]} y={motifAt[1]} width={motif.size} height={motif.size}>
+              <pattern id="piece-motif" patternUnits="userSpaceOnUse" x={0} y={0} width={motif.size} height={motif.size}>
                 <rect width={motif.size} height={motif.size} fill={motif.background} />
                 {motif.shapes.map((s, i) => <path key={i} d={s.d} fill={s.fill} />)}
               </pattern>
             )}
           </defs>
-          <path d={pathD(piece.print)} fill={motif ? "url(#piece-motif)" : "#FFFFFF"} />
+          {/* the motif is anchored on the garment (back pieces seen from behind), so it continues across seams */}
+          <g clipPath="url(#piece-clip)">
+            <rect x={0} y={0} width={W} height={H} fill="#FFFFFF" />
+            {motif && <g transform={`matrix(${frame.s} 0 0 1 ${frame.tx} ${frame.ty})`}><rect x={cover.x} y={cover.y} width={cover.w} height={cover.h} fill="url(#piece-motif)" /></g>}
+          </g>
         </g>
       )}
 
