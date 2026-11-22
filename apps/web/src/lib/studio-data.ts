@@ -1,11 +1,13 @@
 import "server-only";
 import { logError } from "./log";
 import type { Technique } from "@sawwa/catalog";
+import type { PatternSpec } from "@sawwa/design";
 import { isSupabaseConfigured } from "./env";
+import { patternOf } from "./pattern-zone";
 import { bestQuote, sanitizeDecorations, type DecorationInput } from "./quoting";
 import { createServiceClient } from "./supabase/server";
 
-export interface StudioZone { key: string; label: string; viewLabel: string; maxWidthMm: number; maxHeightMm: number; techniques: Technique[] }
+export interface StudioZone { key: string; label: string; viewLabel: string; maxWidthMm: number; maxHeightMm: number; techniques: Technique[]; pattern?: PatternSpec | null }
 export interface StudioProduct {
   slug: string;
   name: string;
@@ -36,7 +38,7 @@ export async function loadStudioProduct(slug: string): Promise<StudioProduct | n
   const zones = ((p.zones ?? []) as { key: string; view_id: string; anchor: { label?: string } | null; max_width_mm: number; max_height_mm: number; allowed_techniques: Technique[] }[])
     .map((z) => {
       const view = views.find((v) => v.id === z.view_id);
-      return { key: z.key, label: z.anchor?.label ?? z.key, viewLabel: view?.mockup_assets?.label ?? view?.key ?? "", sort: view?.sort ?? 0, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm, techniques: z.allowed_techniques };
+      return { key: z.key, label: z.anchor?.label ?? z.key, viewLabel: view?.mockup_assets?.label ?? view?.key ?? "", sort: view?.sort ?? 0, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm, techniques: z.allowed_techniques, pattern: patternOf(z.anchor) };
     })
     .sort((a, b) => a.sort - b.sort)
     .map(({ sort: _s, ...z }) => z);

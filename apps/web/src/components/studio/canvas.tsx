@@ -1,14 +1,16 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { FONTS, type Layer, type Surface } from "@sawwa/design";
+import { FONTS, motifOffset, motifTile, pathD, piecePolygons, type AllOver, type Layer, type PatternSpec, type Surface } from "@sawwa/design";
 
 type Mode = "move" | "scale" | "rotate";
 interface Drag { mode: Mode; id: string; start: { x: number; y: number }; layer: Layer }
 
 export interface CanvasProps {
   surface: Surface;
-  zone: { maxWidthMm: number; maxHeightMm: number; label: string };
+  zone: { maxWidthMm: number; maxHeightMm: number; label: string; pattern?: PatternSpec | null };
+  /** E18b: continuous motif under the pattern pieces. */
+  allOver?: AllOver | null;
   garmentColor: string;
   selectedId: string | null;
   issueLayerIds: Set<string>;
@@ -30,6 +32,9 @@ export function StudioCanvas(p: CanvasProps) {
   const m = Math.max(W, H) * 0.22;
   const dark = isDark(p.garmentColor);
   const ink = dark ? "#F2E9D8" : "#2A1A12";
+  const piece = p.zone.pattern ? piecePolygons(p.zone.pattern) : null;
+  const motif = piece && p.allOver ? motifTile(p.allOver) : null;
+  const motifAt = motif ? motifOffset(p.zone.pattern ?? undefined, motif.size) : [0, 0];
 
   // Measure rendered text so geometry, preflight and price use the real size.
   useLayoutEffect(() => {
@@ -123,12 +128,37 @@ export function StudioCanvas(p: CanvasProps) {
         {p.zone.label} · {W / 10} × {H / 10} cm
       </text>
 
+      {piece && (
+        // E18b: the piece as the workshop will cut it — continuous motif inside, printed edge, cut line, stitch line
+        <g pointerEvents="none">
+          <defs>
+            <clipPath id="piece-clip"><path d={pathD(piece.print)} /></clipPath>
+            {motif && (
+              <pattern id="piece-motif" patternUnits="userSpaceOnUse" x={motifAt[0]} y={motifAt[1]} width={motif.size} height={motif.size}>
+                <rect width={motif.size} height={motif.size} fill={motif.background} />
+                {motif.shapes.map((s, i) => <path key={i} d={s.d} fill={s.fill} />)}
+              </pattern>
+            )}
+          </defs>
+          <path d={pathD(piece.print)} fill={motif ? "url(#piece-motif)" : "#FFFFFF"} />
+        </g>
+      )}
+
       {p.surface.layers.map((l) => (l.hidden ? null : (
         <g key={l.id} transform={`translate(${l.xMm} ${l.yMm}) rotate(${l.rotation})`} onPointerDown={(e) => start(e, l, "move")} style={{ cursor: l.locked ? "default" : "move" }}>
           <LayerShape layer={l} url={l.type === "image" ? p.imageUrls[l.src] : undefined} textRef={(el) => { if (el) textRefs.current.set(l.id, el); else textRefs.current.delete(l.id); }} />
           {p.issueLayerIds.has(l.id) && <rect x={-l.widthMm / 2} y={-l.heightMm / 2} width={l.widthMm} height={l.heightMm} fill="none" stroke="#A4262C" strokeWidth={handle * 0.18} strokeDasharray={`${handle * 0.5} ${handle * 0.3}`} />}
         </g>
       )))}
+
+      {piece && (
+        <g pointerEvents="none">
+          {/* what lies outside the printed area is cut away: shown dimmed */}
+          <path d={`M${-m} ${-m}H${W + m}V${H + m}H${-m}Z ${pathD(piece.print)}`} fillRule="evenodd" fill={p.garmentColor} opacity={0.78} />
+          <path d={pathD(piece.cut)} fill="none" stroke="#B5562A" strokeWidth={handle * 0.14} />
+          <path d={pathD(piece.stitch)} fill="none" stroke="#2A1A12" strokeOpacity={0.6} strokeWidth={handle * 0.1} strokeDasharray={`${handle * 0.4} ${handle * 0.3}`} />
+        </g>
+      )}
 
       {guides.v && <line x1={W / 2} y1={-m} x2={W / 2} y2={H + m} stroke="#2F4B7C" strokeWidth={handle * 0.12} />}
       {guides.h && <line x1={-m} y1={H / 2} x2={W + m} y2={H / 2} stroke="#2F4B7C" strokeWidth={handle * 0.12} />}

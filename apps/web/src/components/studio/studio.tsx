@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import {
-  FONTS, MAX_DOCUMENT_CHARS, blocking, coverCrop, decorationsFor, effectiveDpi, emptyDocument, fillPhoto, fillText, needsRoster, parseDesign, personalize, preflight, templateFields, widestPiece,
-  type DesignDocument, type FieldRef, type RosterEntry, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
+  ALL_OVER_MOTIFS, FONTS, MAX_DOCUMENT_CHARS, blocking, checkSurface, coverCrop, decorationsFor, effectiveDpi, emptyDocument, fillPhoto, fillText, needsRoster, parseDesign, personalize, preflight, templateFields, widestPiece,
+  type AllOver, type DesignDocument, type FieldRef, type MotifKind, type PatternSpec, type RosterEntry, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
 } from "@sawwa/design";
 import { DELIVERY_OPTIONS, type DeliveryKey } from "@/lib/shipping";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
@@ -30,7 +30,7 @@ import { useHistory } from "./use-history";
 import { fitsQuote } from "@/lib/b2b-rules";
 import { needsRightsDeclaration } from "@/lib/design-ownership";
 
-export interface StudioZoneProps { key: string; label: string; viewLabel: string; maxWidthMm: number; maxHeightMm: number; techniques: Technique[] }
+export interface StudioZoneProps { key: string; label: string; viewLabel: string; maxWidthMm: number; maxHeightMm: number; techniques: Technique[]; pattern?: PatternSpec | null }
 export interface StudioProps {
   product: { slug: string; name: string; categorySlug: string; colors: { key: string; hex: string; sizes: string[] }[]; zones: StudioZoneProps[] };
   quote: (slug: string, colorKey: string, quantity: number, decorations: ReturnType<typeof decorationsFor>) => Promise<
@@ -127,6 +127,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const surface: Surface = doc.surfaces.find((s) => s.zoneKey === zone.key) ?? { zoneKey: zone.key, technique: zone.techniques[0] ?? "dtf", layers: [] };
   const selected = surface.layers.find((l) => l.id === selectedId) ?? null;
   const teamMode = needsRoster(doc);
+  /** E18b: cut-and-sew product printed all over (its zones are pattern pieces). */
+  const allOverProduct = product.zones.some((z) => z.pattern);
   const previewEntry = teamMode && previewIdx !== null ? roster[previewIdx] : undefined;
   /** What is shown: the design, or one personalised piece of the team list. */
   const shownDoc = previewEntry ? personalize(doc, previewEntry) : doc;
@@ -379,12 +381,12 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   // ── Preflight and live price ──
   const issuesByZone = useMemo(() => Object.fromEntries(doc.surfaces.map((s) => {
     const z = product.zones.find((x) => x.key === s.zoneKey);
-    return [s.zoneKey, z ? preflight(s, z) : []];
+    return [s.zoneKey, z ? checkSurface(s, z, doc.allOver) : []];
   })), [doc.surfaces, product.zones]);
   const zoneIssues = issuesByZone[zone.key] ?? [];
   const allIssues = Object.values(issuesByZone).flat();
   // Team order: the price follows the widest name/number of the list, exactly like the server (widestPiece).
-  const decorations = useMemo(() => decorationsFor(teamMode ? widestPiece(doc, roster) : doc, product.zones.map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm }))), [doc, product.zones, teamMode, roster]);
+  const decorations = useMemo(() => decorationsFor(teamMode ? widestPiece(doc, roster) : doc, product.zones.map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm, pattern: z.pattern ?? null }))), [doc, product.zones, teamMode, roster]);
   // E17: what the design prints must stay within the quote (same rule as the server).
   const quoteProblems = useMemo(() => (b2b ? fitsQuote(decorations, b2b.decorations, Object.fromEntries(product.zones.map((z) => [z.key, z.label]))) : []), [b2b, decorations, product.zones]);
   const decoKey = JSON.stringify(decorations);
@@ -480,7 +482,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
                   </div>
                 ) : (
                   <Viewer3DBoundary key={viewerKey} onFail={() => setViewerFailed("network")}>
-                    <Viewer3D kind={modelKindFor(`${product.slug} ${product.categorySlug}`)} garmentHex={color.hex} surfaces={shownDoc.surfaces}
+                    <Viewer3D kind={modelKindFor(`${product.slug} ${product.categorySlug}`)} garmentHex={color.hex} surfaces={shownDoc.surfaces} allOver={doc.allOver ?? null}
                       zones={product.zones} imageUrls={urls} activeZone={zone.key} onContextLost={() => setViewerFailed("network")} />
                   </Viewer3DBoundary>
                 )}
@@ -491,7 +493,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
                 <div className="absolute inset-0 p-4">
                   <StudioCanvas
                     surface={shownSurface}
-                    zone={{ maxWidthMm: W, maxHeightMm: H, label: zone.label }}
+                    zone={{ maxWidthMm: W, maxHeightMm: H, label: zone.label, pattern: zone.pattern ?? null }}
+                    allOver={doc.allOver ?? null}
                     garmentColor={color.hex}
                     selectedId={selectedId}
                     issueLayerIds={new Set(zoneIssues.filter((i) => i.severity === "error" && i.layerId).map((i) => i.layerId!))}
@@ -531,6 +534,14 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             <p className="rounded-lg bg-ocre/20 px-3 py-2 text-sm">ⓘ À personnaliser : {unfilled.map((f) => f.label).join(", ")}.</p>
           )}
           {!assistantOpen && (<>
+          {allOverProduct && (
+            <Panel title="Motif continu (tout le vêtement)">
+              <AllOverPicker value={doc.allOver ?? null} onChange={(allOver) => history.commit((d) => {
+                const { allOver: _old, ...rest } = d;
+                return allOver ? { ...rest, allOver } : rest;
+              })} />
+            </Panel>
+          )}
           <Panel title="Technique pour cette zone">
             <div className="flex flex-wrap gap-2">
               {zone.techniques.map((t) => (
@@ -667,6 +678,42 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           )}
         </aside>
       </div>
+    </div>
+  );
+}
+
+/** E18b: SAWWA motifs aligned on the whole garment, across the seams. */
+function AllOverPicker({ value, onChange }: { value: AllOver | null; onChange: (v: AllOver | null) => void }) {
+  const v = value ?? { motif: "losanges" as MotifKind, colors: ["#2A1A12", "#C9923E"] as [string, string], tileMm: 60 };
+  const set = (patch: Partial<AllOver>) => onChange({ ...v, ...patch });
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap gap-2">
+        {(Object.keys(ALL_OVER_MOTIFS) as MotifKind[]).map((k) => (
+          <button key={k} type="button" aria-pressed={value?.motif === k} onClick={() => set({ motif: k })}
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${value?.motif === k ? "bg-terra text-white" : "border border-line"}`}>{ALL_OVER_MOTIFS[k]}</button>
+        ))}
+      </div>
+      {value && (
+        <>
+          {([0, 1] as const).map((i) => (
+            <div key={i} className="grid gap-1">
+              <span className="text-xs font-semibold text-muted">{i === 0 ? "Couleur de fond" : "Couleur du motif"}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {SWATCHES.map((c) => (
+                  <button key={c} type="button" aria-label={c} aria-pressed={v.colors[i] === c} onClick={() => set({ colors: (i === 0 ? [c, v.colors[1]] : [v.colors[0], c]) as [string, string] })}
+                    className={`size-7 rounded-full border-2 ${v.colors[i] === c ? "border-terra ring-2 ring-terra ring-offset-1" : "border-brun/20"}`} style={{ background: c }} />
+                ))}
+              </div>
+            </div>
+          ))}
+          <label className="grid gap-1 text-xs font-semibold text-muted">Taille du motif ({v.tileMm / 10} cm)
+            <input type="range" min={20} max={200} step={10} value={v.tileMm} onChange={(e) => set({ tileMm: Number(e.target.value) })} />
+          </label>
+          <button type="button" className={`${btn} w-fit`} onClick={() => onChange(null)}>Retirer le motif</button>
+        </>
+      )}
+      <p className="text-xs text-muted">Le motif est posé sur tout le vêtement et se raccorde d&apos;une pièce à l&apos;autre, coutures comprises. Vos textes et images se placent par-dessus, pièce par pièce.</p>
     </div>
   );
 }

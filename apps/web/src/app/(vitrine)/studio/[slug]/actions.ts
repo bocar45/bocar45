@@ -1,11 +1,12 @@
 "use server";
 
 import { createHash } from "node:crypto";
-import { MAX_ROSTER, blocking, checkRoster, decorationsFor, needsRoster, parseDesign, preflight, sizesFromRoster, widestPiece, type DesignDocument, type RosterEntry } from "@sawwa/design";
+import { MAX_ROSTER, blocking, checkRoster, checkSurface, decorationsFor, needsRoster, parseDesign, preflight, sizesFromRoster, widestPiece, type DesignDocument, type RosterEntry } from "@sawwa/design";
 import { transition, type FulfillmentStatus } from "@sawwa/workflow";
 import type { Quote } from "@sawwa/pricing";
 import { fitsQuote, isQuoteValid, repriceFrozen, type B2bQuoteRow } from "@/lib/b2b";
 import { planCorrection } from "@/lib/correction";
+import { patternOf } from "@/lib/pattern-zone";
 import { foreignImages, needsRightsDeclaration } from "@/lib/design-ownership";
 import { TOO_MANY, clientIp, rateLimit } from "@/lib/rate-limit";
 import { normalizeSenegalPhone } from "@/lib/phone";
@@ -93,9 +94,9 @@ export async function placeOrder(input: PlaceOrderInput) {
 
   // Design (owner only, through RLS)
   const { data: design } = await supabase
-    .from("designs").select("id, document, rights_declared_at, product:base_products(id, slug, status, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques))")
+    .from("designs").select("id, document, rights_declared_at, product:base_products(id, slug, status, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques, anchor))")
     .eq("id", input.designId).maybeSingle();
-  const product = design?.product as unknown as { id: string; slug: string; status: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[] }[] } | null;
+  const product = design?.product as unknown as { id: string; slug: string; status: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[]; anchor: unknown }[] } | null;
   if (!design || !product || product.status !== "active") return { error: "Création ou produit introuvable." };
   const parsed = parseDesign(design.document);
   if (!parsed.ok) return { error: "Création illisible." };
@@ -105,7 +106,7 @@ export async function placeOrder(input: PlaceOrderInput) {
   if (needsRightsDeclaration(doc) && !design.rights_declared_at) return { error: "Confirmez que vous avez le droit d'utiliser les images importées, puis enregistrez à nouveau." };
 
   // Fabrication checks, recomputed on the server
-  const zoneSizes = product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm }));
+  const zoneSizes = product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm, pattern: patternOf(z.anchor) }));
 
   // E16: names and numbers per piece — the roster decides the sizes and the quantity.
   let roster: RosterEntry[] | null = null;
@@ -128,7 +129,7 @@ export async function placeOrder(input: PlaceOrderInput) {
   if (quantity < 1) return { error: "Indiquez au moins une pièce." };
   const issues = doc.surfaces.flatMap((s) => {
     const z = zoneSizes.find((x) => x.key === s.zoneKey);
-    return z ? preflight(s, z) : [];
+    return z ? checkSurface(s, z, doc.allOver) : [];
   });
   if (blocking(issues)) return { error: "Votre création contient des points bloquants (voir « Vérification de fabrication »)." };
   if (issues.length > 0 && !input.acceptWarnings) return { error: "Confirmez que vous acceptez les remarques de fabrication." };
@@ -223,10 +224,10 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, total, shipping, shipping_address, items:order_items(color_key, sizes, quantity, decorations, roster, product:base_products(id, slug, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques))), fulfillments(id, status, vendor_id, proof_round, held_from)")
+    .select("id, total, shipping, shipping_address, items:order_items(color_key, sizes, quantity, decorations, roster, product:base_products(id, slug, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques, anchor))), fulfillments(id, status, vendor_id, proof_round, held_from)")
     .eq("id", input.orderId).maybeSingle();
   if (!order) return { error: "Commande introuvable." };
-  const item = (order.items as unknown as { color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; decorations: ReturnType<typeof sanitizeDecorations>; product: { id: string; slug: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[] }[] } }[])[0];
+  const item = (order.items as unknown as { color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; decorations: ReturnType<typeof sanitizeDecorations>; product: { id: string; slug: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[]; anchor: unknown }[] } }[])[0];
   const f = (order.fulfillments as { id: string; status: string; vendor_id: string | null; proof_round: number; held_from: string | null }[])[0];
   if (!item || !f) return { error: "Commande incomplète." };
   if (f.status !== "changes_requested") return { error: "Cette commande n'attend pas de correction." };
@@ -238,8 +239,8 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
   if (onDeviceImages(doc)) return { error: "Enregistrez d'abord votre création (les images doivent être envoyées)." };
   if (foreignImages(doc, user.id).length) return { error: "Cette création utilise des images qui ne vous appartiennent pas." };
 
-  const zoneSizes = item.product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm }));
-  const issues = doc.surfaces.flatMap((s) => { const z = zoneSizes.find((x) => x.key === s.zoneKey); return z ? preflight(s, z) : []; });
+  const zoneSizes = item.product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm, pattern: patternOf(z.anchor) }));
+  const issues = doc.surfaces.flatMap((s) => { const z = zoneSizes.find((x) => x.key === s.zoneKey); return z ? checkSurface(s, z, doc.allOver) : []; });
   if (blocking(issues)) return { error: "Votre création contient encore des points bloquants." };
   if (issues.length > 0 && !input.acceptWarnings) return { error: "Confirmez que vous acceptez les remarques de fabrication." };
   // E16: the team list is frozen with the order; the corrected design must still print it correctly.

@@ -8,7 +8,7 @@ type Zone = { key: string; max_width_mm: number; max_height_mm: number; allowed_
 
 /** Keep only decorations that match the reference product (browser input is never trusted). */
 export function sanitizeDecorations(input: DecorationInput[], zones: Zone[]) {
-  return input.slice(0, 10).filter((d) => {
+  return input.slice(0, 20).filter((d) => {
     const z = zones.find((x) => x.key === d.zoneKey);
     return z && z.allowed_techniques.includes(d.technique) && d.widthMm > 0 && d.heightMm > 0 && d.widthMm <= z.max_width_mm + 1 && d.heightMm <= z.max_height_mm + 1;
   }).map((d) => ({

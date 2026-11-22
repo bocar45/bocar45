@@ -7,13 +7,16 @@ import * as THREE from "three";
 import type { Surface } from "@sawwa/design";
 import { GARMENTS, bounds, distanceToOutline, inflate, outline, placeZone, pointInPolygon, uvFor, type GarmentKind, type ModelKind, type Panel, type Placement } from "./garment";
 import { drawFabric, drawSurface, loadImages, type ImageCache } from "./paint";
+import { motifTile, type AllOver, type PatternSpec } from "@sawwa/design";
 import { hasWebGL } from "./support";
 
 export interface Viewer3DProps {
   kind: ModelKind;
   garmentHex: string;
   surfaces: Surface[];
-  zones: { key: string; label: string; maxWidthMm: number; maxHeightMm: number }[];
+  zones: { key: string; label: string; maxWidthMm: number; maxHeightMm: number; pattern?: PatternSpec | null }[];
+  /** E18b: continuous motif over the whole garment (cut-and-sew all-over products). */
+  allOver?: AllOver | null;
   imageUrls: Record<string, string>;
   activeZone: string;
   /** Called when the GPU drops the WebGL context while in use (memory pressure, driver reset). */
@@ -154,9 +157,39 @@ function paintGarmentPanel(ctx: CanvasRenderingContext2D, kind: GarmentKind, pan
       ctx.stroke(); // kangaroo pocket
     }
   }
+  // E18b: all-over products — the continuous motif covers the whole panel, on the same grid as the print files
+  if (p.allOver && p.zones.some((z) => z.pattern)) {
+    const t = motifTile(p.allOver);
+    const shapes = t.shapes.map((sh) => ({ path: new Path2D(sh.d), fill: sh.fill }));
+    for (let x = Math.floor(b.minX / t.size) * t.size; x < b.maxX; x += t.size) {
+      for (let y = Math.floor(b.minY / t.size) * t.size; y < b.maxY; y += t.size) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = t.background;
+        ctx.fillRect(0, 0, t.size + 0.5, t.size + 0.5);
+        for (const sh of shapes) { ctx.fillStyle = sh.fill; ctx.fill(sh.path); }
+        ctx.restore();
+      }
+    }
+  }
   for (const s of p.surfaces) {
     const zone = p.zones.find((z) => z.key === s.zoneKey);
     if (!zone) continue;
+    const body = zone.pattern?.body;
+    if (body) {
+      // a pattern piece sits at its real place on the garment (sleeves: scaled onto the provisional sleeve area)
+      if (body.panel !== panel) continue;
+      const copies = zone.pattern!.mirror && zone.pattern!.quantity > 1 ? [false, true] : [false];
+      for (const mirrored of copies) {
+        ctx.save();
+        const sx = body.w / zone.maxWidthMm, sy = body.h / zone.maxHeightMm;
+        // the second piece of a left/right pair is the mirror image, on the other side of the garment (x → −x)
+        if (mirrored) { ctx.translate(-body.x, body.y); ctx.scale(-sx, sy); } else { ctx.translate(body.x, body.y); ctx.scale(sx, sy); }
+        drawSurface(ctx, s, { x: 0, y: 0, w: zone.maxWidthMm, h: zone.maxHeightMm }, images, fontEl);
+        ctx.restore();
+      }
+      continue;
+    }
     const pl = placeZone(kind, zone);
     if (pl.panel !== panel) continue;
     drawSurface(ctx, s, pl, images, fontEl);
@@ -177,7 +210,7 @@ function Garment({ kind, props, images, fontEl }: { kind: GarmentKind; props: Vi
       paintGarmentPanel(ctx, kind, panel, props, images, fontEl);
       c.texture.needsUpdate = true;
     }
-  }, [props.surfaces, props.garmentHex, props.imageUrls, kind], images, props.imageUrls);
+  }, [props.surfaces, props.garmentHex, props.imageUrls, props.allOver, kind], images, props.imageUrls);
   const y0 = ((b.minY + b.maxY) / 2) * M;
   return (
     <group position={[0, y0, 0]}>
