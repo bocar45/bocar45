@@ -63,12 +63,12 @@ export interface VectorLayer extends LayerBase {
 
 export type Layer = TextLayer | ImageLayer | ShapeLayer | VectorLayer;
 
-/** Only absolute/relative move, line, curve and close commands with numbers: nothing executable can hide in it. */
 /** Total path data of one vector layer: a very detailed trace is refused (heavy to store, send and print). */
 export const MAX_VECTOR_CHARS = 300_000;
 /** Whole document as JSON: must fit the server action limit (2 MB, next.config.ts) with margin. */
 export const MAX_DOCUMENT_CHARS = 1_500_000;
 export const vectorChars = (paths: { d: string }[]) => paths.reduce((n, p) => n + p.d.length, 0);
+/** Only absolute/relative move, line, curve and close commands with numbers: nothing executable can hide in it. */
 export const isSafePathData = (d: unknown) => typeof d === "string" && d.length > 0 && d.length <= 200_000 && /^[MmLlHhVvCcSsQqTtZz0-9eE.,\s-]+$/.test(d);
 
 export interface Surface {
@@ -99,6 +99,7 @@ export function parseDesign(input: unknown): { ok: true; value: DesignDocument }
   const errors: string[] = [];
   const d = input as Partial<DesignDocument> | null;
   if (!d || typeof d !== "object") return { ok: false, errors: ["not an object"] };
+  if (JSON.stringify(d).length > MAX_DOCUMENT_CHARS) return { ok: false, errors: ["document too large"] };
   if (d.schemaVersion !== 1) errors.push("unsupported schemaVersion");
   if (typeof d.product !== "string" || !d.product) errors.push("product required");
   if (typeof d.colorKey !== "string") errors.push("colorKey required");

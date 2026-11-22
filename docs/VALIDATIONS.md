@@ -2,6 +2,21 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E18c — VALIDÉ
+Commit examiné : 5dc90a3 (second passage ; corrections après c09736e), `git status` propre
+Contrôles : typecheck ✅ · tests ✅ (112, 18 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅
+Point du passage précédent :
+1. [x] Palette de vectorisation : `dominantColors` (`image-ops.ts:197-245`) ne compte que les pixels intérieurs (4 voisins proches), choisit par fréquence (≥ 0,5 %, écart > 40) et cale chaque couleur sur la couleur exacte la plus fréquente de son groupe. Test `image-ops.test.ts` « ignores anti-aliased edges » (logo sur-échantillonné 4× puis réduit : 3 couleurs à ±8, avec et sans retrait du fond ; 5 demandées → 3). Rejoué hors navigateur sur mon logo 1000 × 750 anti-crénelé (`image-ops.ts` actuel recopié, même chaîne que `image-tools.tsx:136-160`, imagetracerjs + resvg) : direct 3/4/6/8 couleurs → exactement #2F4B7C #C9923E #2A1A12, aucun gris ; après « Retirer le fond » 3 → les mêmes, 4/6/8 → + #FFFFFF (intérieur réel du « O ») ; 2 couleurs → bleu + ocre (choix par fréquence, attendu). Version bruitée (±4) : #334F80 #CB9440 #2C1C14, à ±4. Rendu vérifié (captures) : triangle et texte bruns, disque bleu, plus de liseré. Le prix et le contrôle de fabrication ne voient donc plus de couleurs inventées.
+Remarques du passage précédent : calque vectoriel ≤ 300 000 car. (`document.ts:68`, refus dans `parseDesign` `:129`, test « refuses a vector layer too detailed ») + message client dans le studio (`image-tools.tsx:161`, `ToolError`) ✅ ; document ≤ 1,5 Mo vérifié avant l'enregistrement avec message français (`studio.tsx:213`) et `bodySizeLimit: "2mb"` (`next.config.ts:8`) ✅ ; échec de `putAsset` signalé (`image-tools.tsx:33-34`, `:68`) ✅.
+Critères de l'étape : retrait du fond / inversion / rogner / recadrer avec taille et position conservées [x] · trame [x] · vectorisation à palette exacte [x] · type `vector` sûr, compté, rendu identique éditeur/3D/impression [x] · nouvelle image par opération et annulation [x] (constatés au premier passage, code inchangé sur ces points) · agrandissement sans perte : reporté à E22, non bloquant.
+Critères communs : C1 ✅ · C2 ✅ (nombre de couleurs envoyé au prix désormais exact) · C3 ✅ (grep secrets vide dans apps/packages ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ (palette testée sur image réaliste) · C6 ✅ (aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- Image sans aplats (dégradé, photo) : aucun groupe n'atteint 0,5 % → `dominantColors` rend `[]` (constaté sur un dégradé 400 × 300), la vectorisation échoue avec le message générique. Prévoir un repli (prendre les groupes les plus fréquents même sous le seuil) ou un message « image trop nuancée pour être vectorisée ».
+- La limite de 1,5 Mo du document n'est vérifiée que côté client ; côté serveur seule la limite de 2 Mo de Next.js joue (réponse technique). Ajouter le contrôle dans `parseDesign` ou l'action d'enregistrement.
+- `document.ts:66` : le commentaire de `isSafePathData` est maintenant au-dessus des nouvelles constantes.
+Décision : passer à E15
+
 ## 2026-11-22 — E18c — À CORRIGER
 Commit examiné : c09736e (depuis f295a5c ; e2badf8 = verdict E18 et remarques traitées), branche `claude/sawwa-audit-cto-r8vt01` à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (110, 18 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (rejoué sur l'arbre propre après restauration)

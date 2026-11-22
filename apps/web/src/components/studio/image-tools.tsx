@@ -151,7 +151,9 @@ export function ImageTools({ layer, url, onReplace, onUrl }: {
           const bg = borderColor(src);
           const isKey = Math.hypot(bg[0] - TRACE_KEY[0], bg[1] - TRACE_KEY[1], bg[2] - TRACE_KEY[2]) < 60;
           const opaque = removeColor(src, isKey ? TRACE_KEY : bg, 12, false);
-          const palette = [...dominantColors(opaque, colors), isKey ? TRACE_KEY : bg];
+          const main = dominantColors(opaque, colors);
+          if (main.length === 0) throw new ToolError("Image trop nuancée pour être vectorisée (dégradé ou photo) : gardez-la en image, ou utilisez l'effet trame.");
+          const palette = [...main, isKey ? TRACE_KEY : bg];
           const svg = ImageTracer.imagedataToSVG(src, {
             pal: palette.map(([r, g, b]) => ({ r, g, b, a: 255 })), colorquantcycles: 1,
             pathomit: 8, ltres: 1, qtres: 1, roundcoords: 1, blurradius: 0, strokewidth: 0, viewbox: true,

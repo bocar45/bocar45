@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → **E18** (studio 3D) → E18c → E15 → E16 → E17 → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → **E15** → E16 → E17 → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -109,7 +109,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] Contrôle de fabrication propre à la sublimation / impression textile (fond perdu, résolution, couleurs).
 - [ ] 🧑‍💼 Au moins un atelier partenaire capable (sublimation ou impression textile + coupe-couture) avant mise en vente.
 
-## E18c — Outils d'image du studio 🔎
+## E18c — Outils d'image du studio ✅
 - [x] Retrait du fond (couleur du bord, tolérance réglable, fond seulement s'il touche le bord : l'intérieur du logo est conservé), inversion, « rogner les bords vides », recadrage en % ; la taille réelle et la position sont conservées.
 - [x] Effet trame (« halftone ») : points d'une couleur d'encre, pas réglable en mm.
 - [x] Vectorisation d'un logo simple en aplats (2 à 6 couleurs, palette exacte du logo, fond retiré) → élément vectoriel net à toute taille, couleurs modifiables une à une ; compté correctement par le contrôle de fabrication (broderie, sérigraphie) ; rendu identique dans l'éditeur, la 3D et les fichiers d'impression (D18).

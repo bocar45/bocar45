@@ -84,6 +84,8 @@ describe("vector layers (E18c)", () => {
     const doc = { ...emptyDocument("tee", "ivoire"), surfaces: [{ zoneKey: "front", technique: "dtg", layers: [vector({ paths: big })] }] };
     expect(parseDesign(doc).ok).toBe(false);
     expect(parseDesign({ ...doc, surfaces: [{ ...doc.surfaces[0]!, layers: [vector({ paths: big.slice(0, 3) })] }] }).ok).toBe(true);
+    const heavy = { ...doc, surfaces: Array.from({ length: 7 }, (_, i) => ({ zoneKey: `z${i}`, technique: "dtg", layers: [vector({ paths: big.slice(0, 3) })] })) };
+    expect(parseDesign(heavy)).toEqual({ ok: false, errors: ["document too large"] });
   });
   it("counts each vector colour for embroidery and screen printing", () => {
     const s: Surface = { zoneKey: "chest", technique: "embroidery", layers: [vector()] };
