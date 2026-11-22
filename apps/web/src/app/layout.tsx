@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { SHARE, siteUrl } from "@/lib/seo";
+import { getLang } from "@/lib/lang";
+import { LangProvider } from "@/components/lang-context";
 import { Fraunces, Manrope } from "next/font/google";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import "./globals.css";
@@ -26,13 +28,16 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#2A1A12" };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const lang = await getLang();
   return (
-    <html lang="fr" className={`${fraunces.variable} ${manrope.variable}`}>
+    <html lang={lang} className={`${fraunces.variable} ${manrope.variable}`}>
       <body className="min-h-dvh font-sans antialiased">
-        <SiteHeader />
-        <main>{children}</main>
-        <SiteFooter />
+        <LangProvider value={lang}>
+          <SiteHeader lang={lang} />
+          <main>{children}</main>
+          <SiteFooter lang={lang} />
+        </LangProvider>
       </body>
     </html>
   );
