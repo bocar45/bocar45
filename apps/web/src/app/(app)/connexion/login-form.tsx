@@ -2,8 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { normalizeSenegalPhone } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/client";
+import { sendLoginCode } from "./actions";
 
 type Step = { kind: "phone" } | { kind: "code"; phone: string } | { kind: "email-sent"; email: string };
 
@@ -23,27 +23,13 @@ export function LoginForm() {
     setError(null);
     setBusy(true);
     try {
-      const supabase = createClient();
-      if (useEmail) {
-        const email = String(form.get("email") ?? "").trim();
-        const { error: e } = await supabase.auth.signInWithOtp({
-          email,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback?suite=${encodeURIComponent(safeNext)}` },
-        });
-        if (e) throw e;
-        setStep({ kind: "email-sent", email });
-        return;
-      }
-      const phone = normalizeSenegalPhone(String(form.get("phone") ?? ""));
-      if (!phone) {
-        setError("Numéro invalide. Saisissez un numéro sénégalais, par exemple 77 123 45 67.");
-        return;
-      }
-      const { error: e } = await supabase.auth.signInWithOtp({ phone });
-      if (e) throw e;
-      setStep({ kind: "code", phone });
-    } catch (e) {
-      setError(`Envoi impossible : ${(e as Error).message}. Réessayez dans un instant.`);
+      const r = useEmail
+        ? await sendLoginCode({ email: String(form.get("email") ?? ""), next: safeNext })
+        : await sendLoginCode({ phone: String(form.get("phone") ?? ""), next: safeNext });
+      if ("error" in r) { setError(r.error ?? "Envoi impossible."); return; }
+      setStep(useEmail ? { kind: "email-sent", email: r.target } : { kind: "code", phone: r.target });
+    } catch {
+      setError("Envoi impossible pour le moment. Réessayez dans un instant.");
     } finally {
       setBusy(false);
     }

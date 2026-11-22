@@ -2,11 +2,13 @@
 
 import { redirect } from "next/navigation";
 import { requireUser, vendorMembership } from "@/lib/auth";
+import { TOO_MANY, rateLimit } from "@/lib/rate-limit";
 
 export type ApplyState = { error: string | null };
 
 export async function applyAsVendor(_: ApplyState, form: FormData): Promise<ApplyState> {
-  const { supabase, memberships } = await requireUser("/pro/candidature");
+  const { supabase, memberships, user } = await requireUser("/pro/candidature");
+  if (!(await rateLimit("vendorApplyPerUser", user.id))) return { error: TOO_MANY };
   if (vendorMembership(memberships)) redirect("/pro");
   const name = String(form.get("name") ?? "").trim();
   const ninea = String(form.get("ninea") ?? "").trim() || null;

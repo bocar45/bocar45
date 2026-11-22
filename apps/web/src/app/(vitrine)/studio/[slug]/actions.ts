@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { blocking, decorationsFor, parseDesign, preflight, type DesignDocument } from "@sawwa/design";
 import { transition, type FulfillmentStatus } from "@sawwa/workflow";
 import { planCorrection } from "@/lib/correction";
+import { foreignImages } from "@/lib/design-ownership";
+import { TOO_MANY, clientIp, rateLimit } from "@/lib/rate-limit";
 import { normalizeSenegalPhone } from "@/lib/phone";
 import { bestQuote, sanitizeDecorations } from "@/lib/quoting";
 import { DELIVERY_OPTIONS, isDeliveryKey } from "@/lib/shipping";
@@ -11,6 +13,7 @@ import { quoteStudio, type StudioDecoration } from "@/lib/studio-data";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function getStudioQuote(slug: string, colorKey: string, quantity: number, decorations: StudioDecoration[]) {
+  if (!(await rateLimit("quotePerIp", await clientIp()))) return { ok: false as const, reason: "min_qty" as const, message: TOO_MANY };
   return quoteStudio({ slug: String(slug), colorKey: String(colorKey), quantity: Number(quantity), decorations: Array.isArray(decorations) ? decorations : [] });
 }
 
@@ -20,10 +23,12 @@ export async function saveDesign(input: { id: string | null; slug: string; title
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Connectez-vous pour enregistrer votre création." };
+  if (!(await rateLimit("saveDesignPerUser", user.id))) return { error: TOO_MANY };
   const parsed = parseDesign(input.document);
   if (!parsed.ok) return { error: "Création illisible. Rechargez le studio." };
   if (parsed.value.product !== input.slug) return { error: "Création et produit ne correspondent pas." };
   if (onDeviceImages(parsed.value)) return { error: "Les images n'ont pas pu être envoyées. Réessayez." };
+  if (foreignImages(parsed.value, user.id).length) return { error: "Cette création utilise des images qui ne vous appartiennent pas." };
   const { data: product } = await supabase.from("base_products").select("id").eq("slug", input.slug).eq("status", "active").maybeSingle();
   if (!product) return { error: "Ce produit n'est plus disponible." };
   const title = String(input.title ?? "").trim().slice(0, 80) || "Ma création";
@@ -49,6 +54,7 @@ export async function placeOrder(input: PlaceOrderInput) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Connectez-vous pour commander." };
+  if (!(await rateLimit("orderPerUser", user.id))) return { error: TOO_MANY };
 
   // Inputs
   const sizes: Record<string, number> = {};
@@ -77,6 +83,7 @@ export async function placeOrder(input: PlaceOrderInput) {
   if (!parsed.ok) return { error: "Création illisible." };
   const doc = parsed.value;
   if (onDeviceImages(doc)) return { error: "Enregistrez d'abord votre création dans votre compte." };
+  if (foreignImages(doc, user.id).length) return { error: "Cette création utilise des images qui ne vous appartiennent pas." };
 
   // Fabrication checks, recomputed on the server
   const zoneSizes = product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm }));
@@ -125,6 +132,7 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Connectez-vous pour corriger votre commande." };
+  if (!(await rateLimit("orderPerUser", user.id))) return { error: TOO_MANY };
 
   const { data: order } = await supabase
     .from("orders")
@@ -141,6 +149,7 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
   const doc = parsed.value;
   if (doc.colorKey !== item.color_key) return { error: "La couleur du produit ne peut pas changer pendant une correction." };
   if (onDeviceImages(doc)) return { error: "Enregistrez d'abord votre création (les images doivent être envoyées)." };
+  if (foreignImages(doc, user.id).length) return { error: "Cette création utilise des images qui ne vous appartiennent pas." };
 
   const zoneSizes = item.product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm }));
   const issues = doc.surfaces.flatMap((s) => { const z = zoneSizes.find((x) => x.key === s.zoneKey); return z ? preflight(s, z) : []; });

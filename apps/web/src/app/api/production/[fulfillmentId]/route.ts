@@ -6,7 +6,8 @@ import { layerBox, unionBox, visibleLayers, type DesignDocument } from "@sawwa/d
 import { buildProductionSheet, fontFiles, renderSurfaceSvg, setPngDpi } from "@sawwa/render";
 import { getSession, hasPlatformRole, vendorMembership } from "@/lib/auth";
 import { readDoc } from "@/lib/orders";
-import { toPrintableImage } from "@/lib/print-images";
+import { UnprintableImageError, toPrintableImage } from "@/lib/print-images";
+import { TOO_MANY, rateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ fulfill
     return await generate(request, (await ctx.params).fulfillmentId);
   } catch (e) {
     if (e instanceof ProductionError) return fail(e.message, e.status);
+    if (e instanceof UnprintableImageError) return fail(`${e.message} Prévenez l'équipe SAWWA.`, 422);
     console.error("production file failed", e);
     return fail("Le fichier n'a pas pu être généré. Réessayez dans un instant ; si le problème continue, prévenez l'équipe SAWWA.", 500);
   }
@@ -58,6 +60,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ fulfill
 async function generate(request: NextRequest, fulfillmentId: string) {
   const session = await getSession();
   if (!session) return fail("Connectez-vous pour télécharger ce fichier.", 401);
+  if (!(await rateLimit("productionPerUser", session.user.id))) return fail(TOO_MANY, 429);
   const vendor = vendorMembership(session.memberships);
   const isOps = hasPlatformRole(session.memberships, ["ops"]);
 

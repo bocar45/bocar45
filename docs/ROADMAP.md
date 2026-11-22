@@ -43,7 +43,8 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Phase 5 — atelier : file par étape, fiche de production (création figée, tailles, position du marquage en cm, fichiers originaux), prise en charge/refus, BAT (valider / demander correction), production, photos de contrôle, expédition
 - [x] Phase 5 (E09) — fichiers de production : PNG transparent 300 dpi par zone (résolution écrite dans le fichier), images converties sans perte (WebP → PNG), fiche de production PDF A4, polices fixes fidèles au studio, accès réservé à l'atelier affecté
 - [x] Phase 4/5 (E10) — correction de la création par le client : studio ouvert sur la version commandée, nouvelle version figée, renvoi au BAT atomique, prix recalculé (supplément explicitement accepté, jamais de baisse remboursée), historique des versions pour le client, l'atelier et l'admin
-- [ ] Suite : notifications WhatsApp/SMS, agrégateur de paiement, limitation de débit, test de bout en bout sur un vrai projet Supabase
+- [x] E14 — robustesse : offre atelier en une transaction, limitation de débit (SMS, prix, commandes, fichiers), contrôle et ré-encodage des fichiers, images limitées à celles du client, erreurs journalisées
+- [ ] Suite : notifications WhatsApp/SMS, agrégateur de paiement, Sentry, test de bout en bout sur un vrai projet Supabase
 - [ ] Phase 2 — créer les projets Supabase/Vercel (porteur), types générés, enregistrement d'offre atomique (RPC), test des écrans de bout en bout sur un vrai projet Supabase
 
 ## Critères d'acceptation par jalon

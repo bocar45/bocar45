@@ -90,9 +90,3 @@ export function parseOfferForm(
   errors.push(...validateVendorGrid(grid));
   return { errors: [...new Set(errors)], status: checked(fd, "active") ? "active" : "draft", minQty, leadTimeDays, variantIds, capabilities, grid };
 }
-
-/** Same grid apart from its version number? (avoids a new version when nothing changed) */
-export function sameGrid(a: VendorPriceGrid | null | undefined, b: VendorPriceGrid): boolean {
-  if (!a) return false;
-  return JSON.stringify({ ...a, version: 0 }) === JSON.stringify({ ...b, version: 0 });
-}

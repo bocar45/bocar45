@@ -3,7 +3,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { Resvg } from "@resvg/resvg-js";
 import { renderSurfaceSvg, fontFiles } from "@sawwa/render";
-import { toPrintableImage } from "./print-images";
+import { UnprintableImageError, toPrintableImage } from "./print-images";
 
 describe("print images", () => {
   it("converts WebP to PNG so it appears in the print file", async () => {
@@ -26,8 +26,18 @@ describe("print images", () => {
     expect([px[center], px[center + 1], px[center + 2]]).toEqual([0x2f, 0x4b, 0x7c]);
   });
 
-  it("keeps PNG and JPEG untouched", async () => {
-    const png = new Uint8Array([137, 80, 78, 71]);
-    expect((await toPrintableImage(png, "image/png")).bytes).toBe(png);
+  it("re-encodes PNG and JPEG, keeping their size", async () => {
+    const png = new Uint8Array(await sharp({ create: { width: 40, height: 30, channels: 4, background: "#B5562A" } }).png().toBuffer());
+    const jpg = new Uint8Array(await sharp({ create: { width: 40, height: 30, channels: 3, background: "#B5562A" } }).jpeg().toBuffer());
+    const a = await toPrintableImage(png, "image/png");
+    const b = await toPrintableImage(jpg, "image/jpeg");
+    expect(a.mime).toBe("image/png");
+    expect(b.mime).toBe("image/jpeg");
+    expect([(await sharp(a.bytes).metadata()).width, (await sharp(b.bytes).metadata()).height]).toEqual([40, 30]);
+  });
+
+  it("refuses a file that is not an image, whatever its declared type", async () => {
+    const fake = new TextEncoder().encode("<svg onload=alert(1)>");
+    await expect(toPrintableImage(fake, "image/png")).rejects.toThrow(UnprintableImageError);
   });
 });

@@ -67,11 +67,13 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] Webhook signé et **idempotent** (rejouer 3 fois = un seul paiement), `mark_order_paid` automatique.
 - [ ] Remboursement déclenché par l'annulation ; aucune donnée de carte chez SAWWA.
 
-## E14 — Robustesse 🛠️ en cours
-- [ ] Enregistrement d'une offre atelier en une seule transaction (fonction SQL).
-- [ ] Limitation de débit : calcul de prix, envoi de code SMS, envois de fichiers.
-- [ ] Taille et type des fichiers vérifiés côté serveur (Storage) ; images ré-encodées.
-- [ ] Surveillance des erreurs (Sentry ou équivalent) branchée.
+## E14 — Robustesse 🔎
+- [x] Enregistrement d'une offre atelier en une seule transaction (fonction SQL `save_vendor_offer`, tout ou rien, nouvelle version de grille seulement si elle change).
+- [x] Limitation de débit : calcul de prix, envoi de code SMS/e-mail (désormais envoyé par le serveur), enregistrements, commandes, corrections, candidatures, fichiers de production.
+- [x] Taille et type des fichiers imposés par le stockage ; images décodées et ré-encodées avant impression (un faux fichier est refusé).
+- [x] Sécurité ajoutée : une création ne peut utiliser que les images de son propriétaire.
+- [x] Erreurs serveur journalisées en JSON structuré (`instrumentation.ts`).
+- [ ] 🧑‍💼 Service de suivi des erreurs (Sentry ou équivalent) : compte et clé à fournir par le porteur, branchement dans `instrumentation.ts`.
 
 ## E15 — Modèles prêts à personnaliser ⏳
 - [ ] Table `templates` (emplacements photo/texte, éléments verrouillés), RLS et tests.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { price } from "@sawwa/pricing";
-import { offerField, parseOfferForm, sameGrid, type OfferZone } from "./offer-form";
+import { offerField, parseOfferForm, type OfferZone } from "./offer-form";
 
 const zones: OfferZone[] = [
   { id: "z1", key: "front_center", max_width_mm: 300, max_height_mm: 400, allowed_techniques: ["dtf", "dtg"] },
@@ -56,11 +56,4 @@ describe("workshop offer form", () => {
     expect(r.errors).toEqual(["Choisissez au moins une couleur/taille disponible.", "Activez au moins une zone et une technique."]);
   });
 
-  it("does not create a new grid version when nothing changed", () => {
-    const a = parseOfferForm(form(filled), ctx).grid;
-    const b = parseOfferForm(form(filled), { ...ctx, version: 3 }).grid;
-    expect(sameGrid(a, b)).toBe(true);
-    expect(sameGrid(a, parseOfferForm(form({ ...filled, [offerField.blank(0)]: "2600" }), ctx).grid)).toBe(false);
-    expect(sameGrid(null, b)).toBe(false);
-  });
 });
