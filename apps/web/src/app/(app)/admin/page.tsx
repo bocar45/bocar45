@@ -6,7 +6,7 @@ export const metadata = { title: "Administration" };
 export default async function AdminHome() {
   const { supabase, memberships } = await requirePlatformRole(["ops", "vendor_manager", "catalog", "support", "finance"], "/admin");
   const can = (r: Parameters<typeof hasPlatformRole>[1]) => hasPlatformRole(memberships, r);
-  const [pending, products, rules, toPay, templates, quoteRequests, reports] = await Promise.all([
+  const [pending, products, rules, toPay, templates, quoteRequests, reports, disputes] = await Promise.all([
     supabase.from("organizations").select("id", { count: "exact", head: true }).eq("kind", "vendor").eq("status", "pending"),
     supabase.from("base_products").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("price_rule_sets").select("version").eq("status", "active").maybeSingle(),
@@ -14,11 +14,15 @@ export default async function AdminHome() {
     supabase.from("templates").select("id", { count: "exact", head: true }).eq("status", "published"),
     supabase.from("quote_requests").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabase.from("content_reports").select("id", { count: "exact", head: true }).eq("status", "open"),
+    supabase.from("disputes").select("id", { count: "exact", head: true }).eq("status", "open"),
   ]);
   const tiles = [
     can(["ops", "support", "finance"]) && { href: "/admin/commandes", label: "Commandes à encaisser", value: String(toPay.count ?? 0) },
     can(["ops", "vendor_manager"]) && { href: "/admin/ateliers", label: "Candidatures d'ateliers à traiter", value: String(pending.count ?? 0) },
     can(["catalog", "ops", "vendor_manager"]) && { href: "/admin/catalogue", label: "Produits publiés", value: String(products.count ?? 0) },
+    can(["ops", "finance"]) && { href: "/admin/tableau-de-bord", label: "Tableau de bord", value: "Voir" },
+    can(["ops", "support", "finance"]) && { href: "/admin/litiges", label: "Litiges en cours", value: String(disputes.count ?? 0) },
+    can(["finance", "ops"]) && { href: "/admin/finances", label: "Finances ateliers et export comptable", value: "Voir" },
     can(["ops", "support"]) && { href: "/admin/moderation", label: "Signalements à modérer", value: String(reports.count ?? 0) },
     can(["ops", "support"]) && { href: "/admin/devis", label: "Demandes de devis à chiffrer", value: String(quoteRequests.count ?? 0) },
     can(["catalog"]) && { href: "/admin/modeles", label: "Modèles prêts à personnaliser publiés", value: String(templates.count ?? 0) },

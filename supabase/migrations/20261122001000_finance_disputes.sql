@@ -103,7 +103,8 @@ begin
   if not found then raise exception 'dispute not open' using errcode = 'check_violation'; end if;
   select total into v_total from public.orders where id = v_order;
   if coalesce(p_refund, 0) > v_total then raise exception 'refund exceeds order total' using errcode = 'check_violation'; end if;
-  update public.disputes set status = p_status, resolution = p_resolution, refund_amount = p_refund, vendor_liable = p_vendor_liable,
+  update public.disputes set status = p_status, resolution = p_resolution,
+    refund_amount = case when p_resolution = 'full_refund' then v_total else p_refund end, vendor_liable = p_vendor_liable,
     penalty_amount = p_penalty, resolution_note = p_note, resolved_by = p_actor, resolved_at = now()
   where id = p_dispute;
   if p_vendor_liable and coalesce(p_penalty, 0) > 0 then

@@ -154,3 +154,9 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Choix** : (1) le client déclare détenir les droits avant le premier import (date conservée sur la création, vérifiée côté serveur à l'enregistrement et à la commande) ; (2) l'atelier, qui voit chaque création au BAT, refuse avec un motif précis (marque, personnage, contenu interdit) ; (3) ateliers et clients signalent, l'équipe tranche dans une file avec une décision écrite et tracée.
 - **Effets d'une décision « retenue »** : modèle retiré de la galerie ; commande mise en pause (le client corrige ou est remboursé).
 - **Pas d'automatique pour l'instant** : la détection par IA (logos, contenus) viendra avec E22, avec son coût et ses erreurs à mesurer ; le contrôle humain au BAT existe déjà sur chaque commande.
+
+## D23 🟢 Grand livre des ateliers et litiges (décision CTO, 22/11/2026)
+- **Grand livre en écriture seule** : le solde dû à un atelier est la somme de ses écritures (gain, pénalité, ajustement, versement), jamais un champ modifiable. Le gain est inscrit par la base à la livraison, au coût atelier figé à l'affectation (`docs/BUSINESS_MODEL.md` §2).
+- **Versements enregistrés, pas exécutés** : la finance verse (Wave, Orange Money, virement) puis enregistre la référence ; la base refuse tout montant supérieur au solde. Le versement automatique attendra un prestataire (E13).
+- **Litiges** : décision humaine sur photos (client contre contrôle qualité atelier). Faute de l'atelier → pénalité au grand livre dans la même transaction. Le remboursement est noté pour la finance et versé à la main jusqu'à E13.
+- **Export comptable** : CSV compatible Excel français, plutôt qu'un logiciel comptable à brancher maintenant ; les colonnes suivent les tables, la TVA est déjà figée sur chaque commande.

@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → **E20** → E21 → E22 (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → **E21** → E22 (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -135,9 +135,12 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] 🧑‍💼 Casting validé, studio de scan / artiste choisi, budget accordé (`VISUALISATION_3D.md`).
 - [ ] Intégration des avatars, choix de la personne, taille, mouvement, fond blanc ou ivoire, photo studio.
 
-## E20 — Administration avancée ⏳
-- [ ] Tableau de bord (CA, marge, délais, retards, taux de refus BAT).
-- [ ] Litiges et reprises ; grand livre ateliers, relevés et versements ; export comptable.
+## E20 — Administration avancée 🔎
+- [x] Tableau de bord `/admin/tableau-de-bord` (ops, finance) sur 7/30/90 jours/12 mois : chiffre d'affaires TTC et HT, coût ateliers, marge brute et taux, expédiées dans le délai, retards en cours, délai moyen, taux de BAT refusés, litiges et signalements ouverts (calculs purs testés, `lib/dashboard.ts`).
+- [x] Litiges et reprises : le client signale un problème sur une commande expédiée ou livrée (photos dans son dossier privé) ; l'équipe compare aux photos de contrôle et décide (refabrication, remboursement partiel ou total, rien) ; faute de l'atelier → pénalité au grand livre dans la même transaction.
+- [x] Grand livre ateliers en écriture seule : gain inscrit automatiquement à la livraison (coût figé), pénalités, ajustements justifiés (finance), versements (jamais plus que le solde, verrou contre deux versements simultanés) ; relevé pour l'admin et pour l'atelier (`/pro/releve`).
+- [x] Export comptable CSV (Excel FR) : commandes/TVA, grand livre, versements, litiges, par période ; protection contre l'injection de formules. Décision D23.
+- [ ] Plus tard : remboursement en ligne (E13), factures et auto-factures numérotées, rapprochement des paiements.
 
 ## E21 — Espace atelier avancé ⏳
 - [ ] Capacité par jour et jours de fermeture pris en compte à l'affectation.

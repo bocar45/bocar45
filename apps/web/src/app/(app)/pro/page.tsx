@@ -33,6 +33,7 @@ export default async function ProHome() {
         <div className="flex flex-wrap gap-3">
           <Link href="/pro/commandes" className="btn btn-terra">Mes commandes</Link>
           <Link href="/pro/offres" className="btn btn-brun">Mes offres et mes prix</Link>
+          <Link href="/pro/releve" className="btn btn-brun">Mon relevé</Link>
         </div>
       )}
     </div>
