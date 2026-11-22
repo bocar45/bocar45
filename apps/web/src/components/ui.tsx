@@ -37,6 +37,7 @@ export function Section({ title, children, id }: { title: string; children: Reac
 const PILL = {
   draft: "bg-line/50 text-muted",
   active: "bg-ok/15 text-ok",
+  published: "bg-ok/15 text-ok",
   archived: "bg-line/50 text-muted",
   retired: "bg-line/50 text-muted",
   pending: "bg-ocre/20 text-fg",
@@ -44,7 +45,7 @@ const PILL = {
   rejected: "bg-error/10 text-error",
 } as const;
 const PILL_LABEL = {
-  draft: "Brouillon", active: "Actif", archived: "Archivé", retired: "Retiré",
+  draft: "Brouillon", active: "Actif", published: "Publié", archived: "Archivé", retired: "Retiré",
   pending: "En attente", suspended: "Suspendu", rejected: "Refusé",
 } as const;
 

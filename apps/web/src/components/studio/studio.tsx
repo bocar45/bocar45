@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import {
-  FONTS, MAX_DOCUMENT_CHARS, blocking, decorationsFor, effectiveDpi, emptyDocument, parseDesign, preflight,
-  type DesignDocument, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
+  FONTS, MAX_DOCUMENT_CHARS, blocking, coverCrop, decorationsFor, effectiveDpi, emptyDocument, fillPhoto, fillText, parseDesign, preflight, templateFields,
+  type DesignDocument, type FieldRef, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
 } from "@sawwa/design";
 import { DELIVERY_OPTIONS, type DeliveryKey } from "@/lib/shipping";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
@@ -22,6 +22,7 @@ const Viewer3D = dynamic(() => import("../studio3d/viewer"), {
 import { getAsset, loadDraft, putAsset, saveDraft } from "./asset-store";
 import { LayerShape, StudioCanvas, isDark } from "./canvas";
 import { ImageTools } from "./image-tools";
+import { AssistantPanel, FieldEditor, TemplateSavePanel } from "./template-panels";
 import { moveLayerToZone } from "./move";
 import { useHistory } from "./use-history";
 
@@ -32,7 +33,8 @@ export interface StudioProps {
     { ok: true; unitPrice: number; total: number; quantity: number; leadTimeDays: number; depositDue: number | null; setupFee: number } | { ok: false; message: string }
   >;
   userId: string | null;
-  initial: { id: string; title: string; document: DesignDocument; urls: Record<string, string> } | null;
+  /** Starting document: a saved design (id), or a template for the assistant / the catalogue team (id null). */
+  initial: { id: string | null; title: string; document: DesignDocument; urls: Record<string, string> } | null;
   save: (input: { id: string | null; slug: string; title: string; document: unknown }) => Promise<{ ok: true; id: string } | { error: string }>;
   order: (input: {
     designId: string; sizes: Record<string, number>; delivery: string; acceptWarnings: boolean;
@@ -41,6 +43,11 @@ export interface StudioProps {
   /** E10: the studio opened to correct an order waiting for a correction. */
   correction?: { orderId: string; number: string; comment: string | null } | null;
   resubmit?: (input: { orderId: string; document: unknown; acceptWarnings: boolean; acceptedSurcharge: number | null }) => Promise<{ ok: true; surcharge: number } | { error: string; surcharge?: number }>;
+  /** E15: a ready-to-personalise template opened by a customer (assistant first). */
+  assistant?: { slug: string; title: string; description: string } | null;
+  /** E15: a template edited by the catalogue team. */
+  template?: { id: string; title: string; status: string } | null;
+  saveTemplate?: (input: { id: string; slug: string; document: unknown }) => Promise<{ ok: true } | { error: string }>;
 }
 
 const SWATCHES = ["#2A1A12", "#F2E9D8", "#FFFFFF", "#000000", "#B5562A", "#C9923E", "#2F4B7C", "#68705A", "#A4262C"];
@@ -49,9 +56,11 @@ const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).sl
 const btn = "inline-flex items-center justify-center gap-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-sable disabled:opacity-40";
 const field = "w-full rounded-md border border-line bg-bg px-2 py-1.5 text-sm";
 
-export function Studio({ product, quote, userId, initial, save, order, correction, resubmit }: StudioProps) {
+export function Studio({ product, quote, userId, initial, save, order, correction, resubmit, assistant, template, saveTemplate }: StudioProps) {
   const router = useRouter();
-  const draftKey = `sawwa:studio:${product.slug}${correction ? `:commande:${correction.orderId}` : initial ? `:${initial.id}` : ""}`;
+  const draftKey = `sawwa:studio:${product.slug}${correction ? `:commande:${correction.orderId}` : template ? `:gabarit:${template.id}` : assistant ? `:modele:${assistant.slug}` : initial ? `:${initial.id}` : ""}`;
+  const [assistantOpen, setAssistantOpen] = useState(Boolean(assistant));
+  const [photoBusy, setPhotoBusy] = useState<string | null>(null);
   const [designId, setDesignId] = useState<string | null>(initial?.id ?? null);
   const [title, setTitle] = useState(initial?.title ?? "Ma création");
   const [saving, setSaving] = useState(false);
@@ -85,9 +94,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const selected = surface.layers.find((l) => l.id === selectedId) ?? null;
   const ink = isDark(color.hex) ? "#F2E9D8" : "#2A1A12";
 
-  // ── Restore the draft kept on this device ──
+  // ── Restore the draft kept on this device (a saved design or a template being edited opens as stored) ──
   useEffect(() => {
-    if (initial) {
+    if (initial && !assistant) {
       history.reset(initial.document);
       setUrls(initial.urls);
       setRestored(true);
@@ -95,13 +104,15 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
     }
     const saved = loadDraft<DesignDocument>(draftKey);
     const parsed = saved ? parseDesign(saved) : null;
-    if (parsed?.ok && parsed.value.product === product.slug) {
-      history.reset(parsed.value);
-      const ids = parsed.value.surfaces.flatMap((s) => s.layers).flatMap((l) => (l.type === "image" ? [l.src] : []));
+    const start = parsed?.ok && parsed.value.product === product.slug ? parsed.value : initial?.document ?? null;
+    if (start) {
+      history.reset(start);
+      if (initial) setUrls(initial.urls);
+      const ids = start.surfaces.flatMap((s) => s.layers).flatMap((l) => (l.type === "image" && !l.src.startsWith("storage:") ? [l.src] : []));
       void Promise.all(ids.map(async (src) => {
         const blob = await getAsset(src.replace(/^idb:/, ""));
         return blob ? ([src, URL.createObjectURL(blob)] as const) : null;
-      })).then((pairs) => setUrls(Object.fromEntries(pairs.filter((x): x is readonly [string, string] => x !== null))));
+      })).then((pairs) => setUrls((u) => ({ ...u, ...Object.fromEntries(pairs.filter((x): x is readonly [string, string] => x !== null)) })));
     }
     setRestored(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,7 +145,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
     history.commit((d) => updateSurface(d, (s) => ({ ...s, layers: s.layers.filter((l) => l.id !== id) })));
     setSelectedId(null);
   };
-  const duplicate = (l: Layer) => addLayer({ ...l, id: uid(), xMm: l.xMm + 8, yMm: l.yMm + 8, locked: false } as Layer);
+  const duplicate = (l: Layer) => addLayer({ ...l, id: uid(), xMm: l.xMm + 8, yMm: l.yMm + 8, locked: false, field: undefined } as Layer);
   const reorder = (id: string, dir: 1 | -1) => history.commit((d) => updateSurface(d, (s) => {
     const i = s.layers.findIndex((l) => l.id === id);
     const j = i + dir;
@@ -186,7 +197,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   /** Returns the saved design id and the exact document stored (images replaced by their storage paths). */
   const saveToAccount = async (): Promise<{ id: string; doc: DesignDocument } | null> => {
     if (!userId) {
-      router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}`)}`);
+      router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}${assistant ? `?modele=${assistant.slug}` : ""}`)}`);
       return null;
     }
     setSaving(true);
@@ -219,6 +230,66 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
     } catch (e) {
       setNotice((e as Error).message);
       return null;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── E15: template assistant (customer) and template saving (catalogue team) ──
+  const fields = useMemo(() => templateFields(doc), [doc]);
+  const fillPhotoField = async (f: FieldRef, file: File) => {
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setNotice("Formats acceptés : PNG, JPG ou WebP.");
+    if (file.size > 25 * 1024 * 1024) return setNotice("Image trop lourde (25 Mo maximum).");
+    if (!f.box) return;
+    setPhotoBusy(f.layerId);
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+      const r = coverCrop(bitmap.width, bitmap.height, f.box.widthMm, f.box.heightMm);
+      const s = Math.min(1, 4000 / Math.max(r.w, r.h)); // enough for 300 dpi on 33 cm
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(r.w * s)); c.height = Math.max(1, Math.round(r.h * s));
+      c.getContext("2d")!.drawImage(bitmap, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
+      const type = file.type === "image/png" ? "image/png" : "image/jpeg";
+      const blob = await new Promise<Blob>((ok, ko) => c.toBlob((b) => (b ? ok(b) : ko(new Error("encode"))), type, 0.92));
+      const id = uid();
+      const kept = await putAsset(id, blob).then(() => true, () => false);
+      const src = `idb:${id}`;
+      setUrls((u) => ({ ...u, [src]: URL.createObjectURL(blob) }));
+      history.commit((d) => fillPhoto(d, f.layerId, { src, name: file.name, pxWidth: c.width, pxHeight: c.height }));
+      setZoneKey(f.zoneKey);
+      setNotice(kept ? null : "Photo ajoutée, mais cet appareil n'a pas pu la garder : enregistrez la création avant de recharger la page.");
+    } catch {
+      setNotice("Impossible de lire cette photo. Essayez une autre image (PNG, JPG ou WebP).");
+    } finally {
+      setPhotoBusy(null);
+    }
+  };
+  const saveTemplateDoc = async () => {
+    if (!template || !saveTemplate) return;
+    setSaving(true);
+    setNotice(null);
+    try {
+      const supabase = createBrowserSupabase();
+      let next = doc;
+      const newUrls: Record<string, string> = {};
+      for (const l of doc.surfaces.flatMap((s) => s.layers)) {
+        if (l.type !== "image" || l.src.startsWith("storage:")) continue;
+        const blob = await getAsset(l.src.replace(/^idb:/, ""));
+        if (!blob) throw new Error(`Image « ${l.name} » introuvable sur cet appareil : importez-la à nouveau.`);
+        const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+        const path = `${template.id}/${uid()}${uid()}.${ext}`;
+        const { error } = await supabase.storage.from("template-assets").upload(path, blob, { contentType: blob.type, upsert: false });
+        if (error) throw new Error(`L'image « ${l.name} » n'a pas pu être envoyée (PNG, JPG ou WebP, 25 Mo maximum).`);
+        const src = `storage:template-assets/${path}`;
+        newUrls[src] = urls[l.src] ?? "";
+        next = { ...next, surfaces: next.surfaces.map((x) => ({ ...x, layers: x.layers.map((y) => (y.id === l.id ? { ...y, src } as Layer : y)) })) };
+      }
+      if (next !== doc) { setUrls((u) => ({ ...u, ...newUrls })); history.commit(next); }
+      const r = await saveTemplate({ id: template.id, slug: product.slug, document: next });
+      if ("error" in r) throw new Error(r.error);
+      setNotice("Modèle enregistré.");
+    } catch (e) {
+      setNotice((e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -276,6 +347,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
         <Link href={`/produits/${product.slug}`} className="text-sm text-muted underline">← Produit</Link>
         <b className="display on-light text-xl">{product.name}</b>
         {correction && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Correction · {correction.number}</span>}
+        {template && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Modèle · {template.title}</span>}
         {!webgl && <span className="text-xs text-muted">Vue 3D indisponible sur cet appareil : le studio fonctionne en 2D.</span>}
         <div className="flex items-center gap-1.5" role="group" aria-label="Couleur du produit">
           {product.colors.map((c) => (
@@ -297,9 +369,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
         </div>
       </div>
 
-      <div className="grid gap-0 lg:grid-cols-[88px_1fr_340px]">
-        {/* Tools */}
-        <div className="flex gap-2 overflow-x-auto border-b border-line bg-ivoire p-3 lg:flex-col lg:border-b-0 lg:border-r">
+      <div className={`grid gap-0 ${assistantOpen ? "lg:grid-cols-[1fr_380px]" : "lg:grid-cols-[88px_1fr_340px]"}`}>
+        {/* Tools (hidden while the customer fills a template in the assistant) */}
+        <div className={`${assistantOpen ? "hidden" : "flex"} gap-2 overflow-x-auto border-b border-line bg-ivoire p-3 lg:flex-col lg:border-b-0 lg:border-r`}>
           <Tool label="Texte" icon="T" onClick={addText} />
           <Tool label="Image" icon="▣" onClick={() => fileInput.current?.click()} />
           <Tool label="Losange" icon="◆" onClick={() => addShape("losange")} />
@@ -353,13 +425,13 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
                     selectedId={selectedId}
                     issueLayerIds={new Set(zoneIssues.filter((i) => i.severity === "error" && i.layerId).map((i) => i.layerId!))}
                     imageUrls={urls}
-                    onSelect={setSelectedId}
+                    onSelect={assistantOpen ? () => undefined : setSelectedId}
                     onPreview={(id, patch) => history.preview(patchLayer(id, patch))}
                     onCommit={() => history.commit((d) => d)}
                     onMeasure={(id, w, h) => history.silent(patchLayer(id, { widthMm: Math.round(w * 10) / 10, heightMm: Math.round(h * 10) / 10 }))}
                   />
                 </div>
-                {surface.layers.length === 0 && (
+                {surface.layers.length === 0 && !assistantOpen && (
                   <div className="pointer-events-none absolute inset-x-0 bottom-6 grid place-items-center">
                     <p className="rounded-full bg-brun/85 px-4 py-2 text-sm font-semibold text-ivoire">Ajoutez un texte, une image ou une forme avec les outils</p>
                   </div>
@@ -372,6 +444,13 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
 
         {/* Side panel */}
         <aside className="grid content-start gap-5 border-t border-line bg-ivoire p-4 lg:border-l lg:border-t-0">
+          {template && <TemplateSavePanel title={template.title} status={template.status} saving={saving} onSave={() => void saveTemplateDoc()} />}
+          {assistantOpen && assistant ? (
+            <AssistantPanel title={assistant.title} description={assistant.description} fields={fields} busy={photoBusy}
+              onText={(f, text) => { history.commit((d) => fillText(d, f.layerId, text)); if (f.zoneKey !== zone.key) setZoneKey(f.zoneKey); }}
+              onPhoto={(f, file) => void fillPhotoField(f, file)}
+              onFree={() => setAssistantOpen(false)} />
+          ) : (<>
           <Panel title="Technique pour cette zone">
             <div className="flex flex-wrap gap-2">
               {zone.techniques.map((t) => (
@@ -396,7 +475,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               imageUrl={selected.type === "image" ? urls[selected.src] : undefined}
               onReplace={(next) => history.commit((d) => updateSurface(d, (s) => ({ ...s, layers: s.layers.map((l) => (l.id === next.id ? next : l)) })))}
               onUrl={(src, url) => setUrls((u) => ({ ...u, [src]: url }))}
-              onDelete={() => removeLayer(selected.id)} onDuplicate={() => duplicate(selected)} onReorder={(dir) => reorder(selected.id, dir)} onDone={() => setSelectedId(null)} />
+              onDelete={() => removeLayer(selected.id)} onDuplicate={() => duplicate(selected)} onReorder={(dir) => reorder(selected.id, dir)} onDone={() => setSelectedId(null)}
+              templateMode={Boolean(template)} />
           ) : (
             <Panel title={`Calques · ${zone.label}`}>
               {surface.layers.length === 0 ? <p className="text-sm text-muted">Aucun élément dans cette zone.</p> : (
@@ -412,6 +492,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               )}
             </Panel>
           )}
+
+          </>)}
 
           <Panel title="Vérification de fabrication">
             {allIssues.length === 0 ? (
@@ -442,6 +524,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
                   <span className="text-xs text-ivoire/60">Fabriqué en {price.leadTimeDays} jours ouvrés après le BAT</span>
                 </div>
               ) : <p className="text-sm text-muted">{price.message}</p>}
+            {!template && <>
             <label className="grid gap-1 text-xs font-semibold text-muted">Nom de la création
               <input value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} className={field} />
             </label>
@@ -449,13 +532,14 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               <button type="button" className={btn} disabled={saving} onClick={() => void saveToAccount()}>{saving ? "Enregistrement…" : designId ? "Enregistrer" : "Enregistrer dans mon compte"}</button>
               {!correction && (
                 <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={decorations.length === 0 || blocking(allIssues)}
-                  onClick={() => (userId ? setOrdering(true) : router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}`)}`))}>
+                  onClick={() => (userId ? setOrdering(true) : router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}${assistant ? `?modele=${assistant.slug}` : ""}`)}`))}>
                   Commander
                 </button>
               )}
             </div>
             {blocking(allIssues) && <p className="text-xs text-error">Corrigez les points bloquants pour pouvoir commander.</p>}
             <p className="text-xs text-muted">{designId ? "Enregistrée dans votre compte." : "Enregistrée automatiquement sur cet appareil."}</p>
+            </>}
           </Panel>
           {correction && resubmit && (
             <CorrectionPanel correction={correction} issues={allIssues.length} blocked={blocking(allIssues) || decorations.length === 0}
@@ -522,8 +606,8 @@ function Num({ label, value, onChange, step = 1, min, suffix }: { label: string;
   );
 }
 
-function Properties({ layer: l, zone, onChange, onDelete, onDuplicate, onReorder, onDone, imageUrl, onReplace, onUrl }: {
-  layer: Layer; zone: { W: number; H: number }; onChange: (p: Partial<Layer>) => void;
+function Properties({ layer: l, zone, onChange, onDelete, onDuplicate, onReorder, onDone, imageUrl, onReplace, onUrl, templateMode }: {
+  layer: Layer; zone: { W: number; H: number }; onChange: (p: Partial<Layer>) => void; templateMode: boolean;
   imageUrl: string | undefined; onReplace: (next: Layer) => void; onUrl: (src: string, url: string) => void;
   onDelete: () => void; onDuplicate: () => void; onReorder: (dir: 1 | -1) => void; onDone: () => void;
 }) {
@@ -535,6 +619,7 @@ function Properties({ layer: l, zone, onChange, onDelete, onDuplicate, onReorder
         <button type="button" className="text-sm underline" onClick={onDone}>Terminé</button>
       </div>
 
+      {templateMode && <FieldEditor layer={l} onChange={onChange} />}
       {l.type === "text" && <TextProps layer={l} onChange={onChange} />}
       {l.type === "image" && (
         <ImageTools layer={l} url={imageUrl} onReplace={onReplace} onUrl={onUrl} />

@@ -469,4 +469,85 @@ do $$ begin
   if not exists (select 1 from storage.buckets where id = 'qc-photos' and 'image/webp' = any (allowed_mime_types) and not ('image/svg+xml' = any (allowed_mime_types))) then raise exception 'FAIL qc-photos types'; end if;
 end $$;
 
+-- 14. Modèles prêts à personnaliser (E15)
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
+insert into public.templates (slug, title, base_product_id, occasion, document)
+select 'prenom-brode', 'Prénom brodé', id, 'anniversaire',
+  '{"schemaVersion":1,"product":"tee-crew-180","colorKey":"ivory","surfaces":[{"zoneKey":"front_center","technique":"dtg","layers":[{"id":"t","type":"text","text":"Awa","font":"caveat","sizeMm":20,"fill":"#2A1A12","xMm":150,"yMm":100,"rotation":0,"widthMm":100,"heightMm":30,"field":{"kind":"text","label":"Prénom"}}]}]}'
+from public.base_products where slug = 'tee-crew-180';
+insert into public.templates (slug, title, base_product_id, occasion, document)
+select 'sans-champ', 'Sans champ', id, 'autre', '{"schemaVersion":1,"product":"tee-crew-180","colorKey":"ivory","surfaces":[]}'
+from public.base_products where slug = 'tee-crew-180';
+update public.templates set status = 'published' where slug = 'prenom-brode';
+do $$ declare ok boolean := false; begin
+  begin update public.templates set status = 'published' where slug = 'sans-champ';
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL template without customer field published'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin update public.templates set document = jsonb_set(document, '{product}', '"autre-produit"') where slug = 'prenom-brode';
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL published template for another product'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin insert into public.templates (slug, title, base_product_id, occasion, document)
+    select 'mauvaise-occasion', 'X', id, 'halloween', '{"schemaVersion":1,"product":"tee-crew-180","colorKey":"ivory","surfaces":[]}' from public.base_products where slug = 'tee-crew-180';
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL unknown occasion accepted'; end if;
+end $$;
+commit;
+-- anonymous visitors and customers see published templates only, and cannot write
+begin;
+select pg_temp.act_as(null);
+do $$ begin
+  if (select count(*) from public.templates) <> 1 then raise exception 'FAIL anon sees % templates', (select count(*) from public.templates); end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+do $$ declare n int; begin
+  update public.templates set title = 'Piraté' where slug = 'prenom-brode';
+  get diagnostics n = row_count;
+  if n <> 0 or (select title from public.templates where slug = 'prenom-brode') <> 'Prénom brodé' then raise exception 'FAIL customer edited a template'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin insert into public.templates (slug, title, base_product_id, occasion, document)
+    select 'client-modele', 'X', id, 'autre', '{"schemaVersion":1,"product":"tee-crew-180","colorKey":"ivory","surfaces":[]}' from public.base_products where slug = 'tee-crew-180';
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL customer created a template'; end if;
+end $$;
+-- template images: anyone reads, only the catalogue team writes
+do $$ declare ok boolean := false; begin
+  begin insert into storage.objects (bucket_id, name) values ('template-assets', 't1/x.png');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL customer uploaded a template image'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ begin
+  if (select count(*) from public.templates) <> 1 then raise exception 'FAIL workshop sees draft templates'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
+insert into storage.objects (bucket_id, name) values ('template-assets', 't1/exemple.png');
+do $$ begin
+  if (select count(*) from public.templates) <> 2 then raise exception 'FAIL catalog team sees drafts'; end if;
+end $$;
+do $$ declare n int; begin
+  delete from storage.objects where bucket_id = 'template-assets' and name = 't1/exemple.png';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAIL template image deleted (orders may use it)'; end if;
+end $$;
+commit;
+begin;
+select pg_temp.act_as(null);
+do $$ begin
+  if not exists (select 1 from storage.objects where bucket_id = 'template-assets' and name = 't1/exemple.png') then raise exception 'FAIL anon cannot read template image'; end if;
+  if exists (select 1 from storage.objects where bucket_id = 'design-assets') then raise exception 'FAIL anon reads customer images'; end if;
+end $$;
+rollback;
+
 select 'ALL RLS TESTS PASSED' as result;

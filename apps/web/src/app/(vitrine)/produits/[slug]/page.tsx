@@ -96,6 +96,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </div>
             <Link href={`/studio/${product.slug}`} className="btn btn-brun">Personnaliser dans le studio →</Link>
           </div>
+          <Link href={`/modeles?produit=${product.slug}`} className="text-sm font-semibold underline">Pas d&apos;idée ? Partez d&apos;un modèle prêt à personnaliser →</Link>
         </div>
       </div>
     </div>

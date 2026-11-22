@@ -7,6 +7,7 @@ import { buildProductionSheet, fontFiles, renderSurfaceSvg, setPngDpi } from "@s
 import { getSession, hasPlatformRole, vendorMembership } from "@/lib/auth";
 import { logError } from "@/lib/log";
 import { readDoc } from "@/lib/orders";
+import { storageRef } from "@/lib/storage-refs";
 import { UnprintableImageError, toPrintableImage } from "@/lib/print-images";
 import { TOO_MANY, rateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -22,8 +23,9 @@ async function embedImages(doc: DesignDocument) {
   const db = createServiceClient();
   const out: Record<string, string> = {};
   for (const l of doc.surfaces.flatMap((s) => s.layers)) {
-    if (l.type !== "image" || out[l.src] || !l.src.startsWith("storage:design-assets/")) continue;
-    const { data, error } = await db.storage.from("design-assets").download(l.src.slice("storage:design-assets/".length));
+    const ref = l.type === "image" ? storageRef(l.src) : null;
+    if (l.type !== "image" || out[l.src] || !ref) continue;
+    const { data, error } = await db.storage.from(ref.bucket).download(ref.path);
     if (error || !data) throw new ProductionError(`L'image « ${l.name} » de cette création est introuvable. Prévenez l'équipe SAWWA.`, 502);
     const printable = await toPrintableImage(new Uint8Array(await data.arrayBuffer()), data.type || "image/png");
     out[l.src] = `data:${printable.mime};base64,${Buffer.from(printable.bytes).toString("base64")}`;

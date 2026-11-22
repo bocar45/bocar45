@@ -23,6 +23,18 @@ interface LayerBase {
   heightMm: number;
   hidden?: boolean;
   locked?: boolean;
+  /** Ready-to-personalise template (E15): what the customer fills in the assistant. */
+  field?: TemplateField | undefined;
+}
+
+/**
+ * A template field: `photo` on an image layer (the customer's photo replaces it, cropped to the same box),
+ * `text` on a text layer (the customer types it, at most `maxLength` characters).
+ */
+export interface TemplateField {
+  kind: "photo" | "text";
+  label: string;
+  maxLength?: number;
 }
 
 export interface TextLayer extends LayerBase {
@@ -114,6 +126,12 @@ export function parseDesign(input: unknown): { ok: true; value: DesignDocument }
       const at = `surface ${si} layer ${li}`;
       if (typeof l?.id !== "string") errors.push(`${at}: id`);
       for (const k of ["xMm", "yMm", "rotation", "widthMm", "heightMm"] as const) if (!isNum(l?.[k])) errors.push(`${at}: ${k}`);
+      if (l?.field !== undefined) {
+        const f = l.field as Partial<TemplateField> | null;
+        const kindOk = f && ((f.kind === "photo" && l.type === "image") || (f.kind === "text" && l.type === "text"));
+        if (!kindOk || typeof f.label !== "string" || f.label.trim().length === 0 || f.label.length > 60
+          || (f.maxLength !== undefined && (!Number.isInteger(f.maxLength) || f.maxLength < 1 || f.maxLength > 200))) errors.push(`${at}: field`);
+      }
       if (l?.type === "text") {
         if (typeof l.text !== "string" || l.text.length > 200) errors.push(`${at}: text`);
         if (!(l.font in FONTS)) errors.push(`${at}: font`);

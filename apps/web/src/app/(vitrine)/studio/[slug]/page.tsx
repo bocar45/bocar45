@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { parseDesign } from "@sawwa/design";
+import { getSession, hasPlatformRole } from "@/lib/auth";
+import { signedDesignUrls } from "@/lib/orders";
+import { publishedTemplate, templateForEdit } from "@/lib/templates";
 import { Studio } from "@/components/studio/studio";
 import { isSupabaseConfigured } from "@/lib/env";
 import { loadStudioProduct } from "@/lib/studio-data";
 import { createClient } from "@/lib/supabase/server";
 import { getStudioQuote, placeOrder, resubmitCorrection, saveDesign } from "./actions";
+import { saveTemplate } from "./template-actions";
 
 export const metadata = { title: "Studio de création" };
 
-export default async function StudioPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ creation?: string; commande?: string }> }) {
+export default async function StudioPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ creation?: string; commande?: string; modele?: string; gabarit?: string }> }) {
   const { slug } = await params;
-  const { creation, commande } = await searchParams;
+  const { creation, commande, modele, gabarit } = await searchParams;
   if (!isSupabaseConfigured()) {
     return (
       <div className="mx-auto grid max-w-xl gap-4 px-4 py-16">
@@ -31,13 +35,7 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
     const { data } = await supabase.from("designs").select("id, title, document").eq("id", creation).maybeSingle();
     const parsed = data ? parseDesign(data.document) : null;
     if (data && parsed?.ok && parsed.value.product === slug) {
-      const paths = parsed.value.surfaces.flatMap((s) => s.layers).flatMap((l) => (l.type === "image" && l.src.startsWith("storage:design-assets/") ? [l.src.slice("storage:design-assets/".length)] : []));
-      const urls: Record<string, string> = {};
-      if (paths.length) {
-        const { data: signed } = await supabase.storage.from("design-assets").createSignedUrls(paths, 3600);
-        for (const s of signed ?? []) if (s.signedUrl && s.path) urls[`storage:design-assets/${s.path}`] = s.signedUrl;
-      }
-      initial = { id: data.id as string, title: data.title as string, document: parsed.value, urls };
+      initial = { id: data.id as string, title: data.title as string, document: parsed.value, urls: await signedDesignUrls(supabase, parsed.value) };
     }
   }
   // E10: correcting an order opens the version that was ordered.
@@ -52,16 +50,29 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
     const parsed = item ? parseDesign(item.version.document) : null;
     if (o && item && status === "changes_requested" && parsed?.ok && parsed.value.product === slug) {
       const { data: d } = await supabase.from("designs").select("id, title").eq("id", item.version.design_id).maybeSingle();
-      const paths = parsed.value.surfaces.flatMap((s) => s.layers).flatMap((l) => (l.type === "image" && l.src.startsWith("storage:design-assets/") ? [l.src.slice("storage:design-assets/".length)] : []));
-      const urls: Record<string, string> = {};
-      if (paths.length) {
-        const { data: signed } = await supabase.storage.from("design-assets").createSignedUrls(paths, 3600);
-        for (const s of signed ?? []) if (s.signedUrl && s.path) urls[`storage:design-assets/${s.path}`] = s.signedUrl;
-      }
-      initial = { id: item.version.design_id, title: d?.title ?? "Ma création", document: parsed.value, urls };
+      initial = { id: item.version.design_id, title: d?.title ?? "Ma création", document: parsed.value, urls: await signedDesignUrls(supabase, parsed.value) };
       const last = ((o.events ?? []) as { event: string; payload: { comment?: string }; at: string }[]).filter((e) => e.event === "request_changes").sort((a, b) => b.at.localeCompare(a.at))[0];
       correction = { orderId: o.id as string, number: o.number as string, comment: last?.payload.comment ?? null };
     }
   }
-  return <Studio product={product} quote={getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={placeOrder} correction={correction} resubmit={resubmitCorrection} />;
+  // E15: a customer opens a published template (assistant), or the catalogue team edits one.
+  let assistant = null;
+  if (!initial && !correction && modele) {
+    const t = await publishedTemplate(modele, slug);
+    if (t) {
+      initial = { id: null, title: t.title, document: t.document, urls: t.urls };
+      assistant = { slug: t.slug, title: t.title, description: t.description };
+    }
+  }
+  let template = null;
+  if (!initial && !correction && gabarit) {
+    const session = await getSession();
+    if (!session || !hasPlatformRole(session.memberships, ["catalog"])) notFound();
+    const t = await templateForEdit(gabarit);
+    if (!t || t.productSlug !== slug) notFound();
+    initial = { id: null, title: t.title, document: t.document, urls: t.urls };
+    template = { id: t.id, title: t.title, status: t.status };
+  }
+  return <Studio product={product} quote={getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={placeOrder} correction={correction} resubmit={resubmitCorrection}
+    assistant={assistant} template={template} saveTemplate={saveTemplate} />;
 }

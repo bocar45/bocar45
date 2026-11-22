@@ -23,4 +23,5 @@ create function storage.foldername(name text) returns text[] language sql immuta
 alter table storage.objects enable row level security;
 grant usage on schema storage to anon, authenticated, service_role;
 grant all on storage.objects to authenticated, service_role;
+grant select on storage.objects to anon;
 grant select on storage.buckets to anon, authenticated, service_role;

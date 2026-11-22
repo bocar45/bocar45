@@ -11,6 +11,7 @@ export function SiteHeader() {
         </Link>
         <nav aria-label="Navigation principale" className="ml-auto flex items-center gap-1 text-sm font-semibold sm:gap-5">
           <Link href="/catalogue" className="hidden rounded-full px-3 py-2 hover:bg-sable sm:inline-block">Catalogue</Link>
+          <Link href="/modeles" className="hidden rounded-full px-3 py-2 hover:bg-sable sm:inline-block">Modèles</Link>
           <Link href="/catalogue#equipes" className="hidden rounded-full px-3 py-2 hover:bg-sable md:inline-block">Équipes &amp; entreprises</Link>
           <Link href="/pro" className="hidden rounded-full px-3 py-2 hover:bg-sable lg:inline-block">Ateliers</Link>
           <Link href="/connexion" className="btn btn-brun !px-4 !py-2 text-sm">Mon compte</Link>
@@ -30,7 +31,7 @@ export function SiteFooter() {
           <p className="display text-3xl">Donner forme <em>aux idées.</em></p>
           <p className="text-sm text-ivoire/60">Give Form to Ideas.</p>
         </div>
-        <FooterCol title="Créer" links={[["Catalogue", "/catalogue"], ["Vêtements", "/catalogue/vetements"], ["Cadeaux photo", "/catalogue/cadeaux-photo"], ["Objets", "/catalogue/objets"]]} />
+        <FooterCol title="Créer" links={[["Catalogue", "/catalogue"], ["Modèles prêts à personnaliser", "/modeles"], ["Vêtements", "/catalogue/vetements"], ["Cadeaux photo", "/catalogue/cadeaux-photo"], ["Objets", "/catalogue/objets"]]} />
         <FooterCol title="Organisations" links={[["Équipes & entreprises", "/catalogue#equipes"], ["Devenir atelier partenaire", "/pro/candidature"], ["Espace atelier", "/pro"]]} />
         <FooterCol title="SAWWA" links={[["Mon compte", "/compte"], ["Connexion", "/connexion"]]} />
       </div>

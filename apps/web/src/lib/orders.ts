@@ -1,18 +1,12 @@
 import "server-only";
 import { parseDesign, type DesignDocument } from "@sawwa/design";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { imageUrls } from "./storage-refs";
 
 export const fcfa = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 
-/** Signed URLs for the images of a design (1 hour). The client passed must be allowed to read them. */
-export async function signedDesignUrls(client: SupabaseClient, doc: DesignDocument): Promise<Record<string, string>> {
-  const paths = doc.surfaces.flatMap((s) => s.layers).flatMap((l) => (l.type === "image" && l.src.startsWith("storage:design-assets/") ? [l.src.slice("storage:design-assets/".length)] : []));
-  if (paths.length === 0) return {};
-  const { data } = await client.storage.from("design-assets").createSignedUrls(paths, 3600);
-  const urls: Record<string, string> = {};
-  for (const s of data ?? []) if (s.signedUrl && s.path) urls[`storage:design-assets/${s.path}`] = s.signedUrl;
-  return urls;
-}
+/** URLs for the images of a design (signed for 1 hour, or public for template images). The client must be allowed to read them. */
+export const signedDesignUrls = (client: SupabaseClient, doc: DesignDocument) => imageUrls(client, doc);
 
 export function readDoc(raw: unknown): DesignDocument | null {
   const p = parseDesign(raw);

@@ -79,3 +79,24 @@ export function publishBlockers(p: ProductSummary): string[] {
   if (p.zonesWithoutTechnique > 0) out.push("Chaque zone doit accepter au moins une technique.");
   return out;
 }
+
+/** Occasions of ready-to-personalise templates (E15): local calendar first (docs/BENCHMARK_CATALOGUE.md). */
+export const OCCASIONS = {
+  mariage: "Mariage",
+  bapteme: "Baptême",
+  anniversaire: "Anniversaire",
+  tabaski: "Tabaski",
+  korite: "Korité",
+  magal: "Magal",
+  rentree: "Rentrée",
+  "fin-annee": "Fêtes de fin d'année",
+  "saint-valentin": "Saint-Valentin",
+  "fete-meres": "Fête des mères",
+  sport: "Sport et supporters",
+  entreprise: "Entreprise",
+  association: "Association",
+  humour: "Humour",
+  autre: "Autre",
+} as const;
+export type Occasion = keyof typeof OCCASIONS;
+export const isOccasion = (v: string): v is Occasion => Object.hasOwn(OCCASIONS, v);

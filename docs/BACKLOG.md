@@ -77,10 +77,11 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Erreurs serveur journalisées en JSON structuré (`instrumentation.ts`).
 - [ ] 🧑‍💼 Service de suivi des erreurs (Sentry ou équivalent) : compte et clé à fournir par le porteur, branchement dans `instrumentation.ts`.
 
-## E15 — Modèles prêts à personnaliser ⏳
-- [ ] Table `templates` (emplacements photo/texte, éléments verrouillés), RLS et tests.
-- [ ] Admin : créer un modèle depuis le studio.
-- [ ] Client : galerie de modèles par produit et occasion → assistant (photo, texte) → aperçu → studio complet ou commande.
+## E15 — Modèles prêts à personnaliser 🔎
+- [x] Table `templates` (emplacements photo/texte, éléments verrouillés), RLS et tests (migration 6, section 14 de `rls.test.sql`).
+- [x] Admin : créer un modèle (`/admin/modeles`), l'éditer dans le studio (`?gabarit=`), marquer les champs client, publier (contrôle app + SQL), retirer, archiver ; journal d'audit.
+- [x] Client : galerie `/modeles` par occasion (et par produit depuis la fiche produit) → assistant dans le studio (`?modele=`) : photo recadrée au cadre, texte limité → aperçu 2D/3D, prix, contrôle de fabrication → commande ou « Modifier librement dans le studio ». Brouillon gardé sur l'appareil. Décision D19.
+- [ ] Reporté : champ `variable` par exemplaire (E16), recadrage sur le visage (E22), popularité alimentée par les commandes.
 
 ## E16 — Commandes d'équipe : noms et numéros ⏳
 - [ ] Champ texte « variable » dans le studio.
