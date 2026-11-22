@@ -2,6 +2,26 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E17 — À CORRIGER
+Commit examiné : 6e69136 (depuis 8c8e63e ; 5a401f7 = skills tiers, hors périmètre), `git status` propre, branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (130, 21 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0)
+Vérification navigateur : non refaite (pas de Supabase réel). Bout en bout sur un vrai projet : en attente du porteur (E11).
+Critères de l'étape :
+- [x] Formulaire `/devis` : `(vitrine)/devis/actions.ts` (session, limite de débit, contrôles et messages français, logo limité au dossier du client) ; deuxième barrière SQL `app.check_quote_request` (logo et création du client) ; « Mes devis » `compte/devis` ; annulation `cancel_quote_request` (testée, devis retiré).
+- [ ] Chiffrage par l'équipe : rôle ops/support (`admin/devis/actions.ts` `staff()`), prix par `bestQuote`, coût atelier et marge en aperçu, validité 1-90 j, version précédente remplacée, refus motivé, audit ✅ … **mais** « coût atelier et marge visibles en interne » n'est pas tenu : `sendB2bQuote` écrit `snapshot: { ...q.snapshot, vendorCost, margin }` (`admin/devis/actions.ts`, insert `b2b_quotes`) et la politique `b2b_quotes_read` (migration 8) donne au client la lecture de toutes les colonnes de ses devis, `snapshot` compris (aucune restriction de colonnes). Le client lit donc la marge SAWWA et le coût de l'atelier par l'API Supabase avec sa session ; la page `compte/devis/[id]/page.tsx:17` charge d'ailleurs `b2b_quotes(*)`. → correction attendue : point 1.
+- [ ] Lien de commande : contrôles produit/couleur/quantité/tailles/`fitsQuote`, réservation atomique, rejeu `repriceFrozen` + vérification du montant, libération si échec, liaison après succès ✅ (`studio/[slug]/actions.ts`, tests SQL de `claim`/`release`) … **mais** devis sans tailles (`sizes` null) : le rejeu reprend les lignes figées (toute la quantité sur la première variante, `quoting.ts:65`) et le serveur ne vérifie pas que l'atelier figé (`snapshot.vendorId`) propose les tailles choisies par le client dans sa grille. Une commande peut ainsi partir avec des tailles que l'atelier pressenti ne fabrique pas, et `quote_snapshot.lines` ne correspond pas à `order_items.sizes`. → correction attendue : point 2.
+- [x] Migration 8 : tables, devis figés (trigger `freeze_b2b_quote`, `no_delete`), versions uniques, RLS sur les deux tables ; section 16 de `rls.test.sql` (demande déjà chiffrée refusée, logo d'autrui refusé, statut non modifiable par le client, atelier sans accès, prix figé, client lecteur non écrivain, `claim` interdit au client, expiré / autre client / double réservation refusés, libération, annulation).
+Critères communs : C1 ✅ · C2 ❌ (montants entiers, prix via `packages/pricing`, aucune transition de commande ajoutée ; mais donnée interne exposée au client par la RLS, point 1) · C3 ✅ (grep secrets vide ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ (`b2b.test.ts`, section 16) · C6 ✅ (D21, ROADMAP, DATABASE, BACKLOG ; aucune nouvelle dépendance ; poussé).
+Corrections à faire (par priorité) :
+1. Ne plus exposer coût atelier et marge au client : les retirer de `b2b_quotes.snapshot` (les recalculer à l'aperçu admin, ou les stocker dans une colonne/table lisible seulement par ops/support/finance), et ajouter dans la section 16 un test « le client ne lit ni coût atelier ni marge ». Remplacer `b2b_quotes(*)` par une liste de colonnes dans `compte/devis/[id]/page.tsx`.
+2. Commande sur devis sans tailles : vérifier côté serveur que chaque taille choisie existe dans la grille de l'atelier figé pour la couleur (sinon message clair), et rejouer le prix avec les lignes réelles du client tout en gardant le montant du devis (ou, à défaut, enregistrer dans `p_quote` la répartition réelle et documenter l'écart dans D21).
+Remarques non bloquantes :
+- `unit_price: Math.round(goods/quantity)` est calculé dans l'action admin : chiffre d'affichage, mais à obtenir de `packages/pricing` (règle 4).
+- `order_id` et `created_by` ne sont pas dans la liste figée du trigger : un membre ops/support peut relier un devis à n'importe quelle commande.
+- Le client peut annuler une demande dont le devis est réservé (`accepted`) pendant la création de la commande ; `link_b2b_quote` la repasse ensuite en « ordered ». Exclure ce cas dans `cancel_quote_request`.
+- Section 16 : pas de test de lecture par finance, d'écriture refusée à finance, de suppression refusée ni de `link_b2b_quote`.
+Décision : reprendre E17
+
 ## 2026-11-22 — E16 — VALIDÉ
 Commit examiné : 51718ff (depuis 22daeb5), `git status` propre, branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (127, 20 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅

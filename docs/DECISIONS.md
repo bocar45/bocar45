@@ -143,7 +143,8 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Besoin** : associations, clubs et entreprises veulent un prix ferme avant de lancer une commande (B2B).
 - **Choix** : demande en ligne → l'équipe chiffre avec le moteur de prix (`bestQuote`, mêmes règles que le studio) → devis figé et versionné, valable 30 jours → le client crée sa création dans le studio et commande au prix du devis.
 - **Règle 4 respectée** : à la commande, le devis est rejoué par `packages/pricing` avec **ses** versions de règles et de grille atelier (immuables une fois utilisées), en ajoutant la livraison ; le serveur vérifie que le montant des articles est identique au devis.
-- **Prix ferme pour la quantité** : si le devis ne fixe pas les tailles, le client les répartit librement sans changer le prix (les écarts de coût entre tailles restent à la charge de la marge, à surveiller au pilote).
+- **Prix ferme pour la quantité** : si le devis ne fixe pas les tailles, le client les répartit librement sans changer le prix. Le serveur vérifie que l'atelier prévu fabrique chaque taille choisie dans cette couleur (sinon refus clair), recalcule avec les vraies tailles et les mêmes versions figées, et, si le montant diffère du devis, garde le prix du devis et enregistre l'écart (`b2bSizeMix` dans le devis figé de la commande) pour la finance.
+- **Chiffres internes** : coût atelier et marge du devis dans `b2b_quote_internals`, lisible seulement par ops, support et finance ; jamais dans le devis lisible par le client.
 - **Contrôle** : la création doit rester dans les marquages devisés (zone, technique, taille maximale + 2 mm, couleurs), sinon pas de commande au prix du devis.
 - **Un devis, une commande** : réservation atomique (`claim_b2b_quote`), libérée si la commande échoue.
 - **Plus tard** : notification au client quand le devis est prêt (E12), paiement en ligne de l'acompte (E13), PDF du devis à télécharger.

@@ -631,6 +631,16 @@ select r.id, 1, r.base_product_id, 'ivory', 60, '[]', 5600, 336000, 51254, 5, '{
 insert into public.b2b_quotes (request_id, version, base_product_id, color_key, quantity, decorations, unit_price, goods_total, tax, lead_time_days, snapshot, valid_until)
 select r.id, 2, r.base_product_id, 'ivory', 60, '[]', 5000, 300000, 45763, 5, '{"ruleSetVersion":1}', now() - interval '1 day' from public.quote_requests r where organization_name = 'ASC Jaraaf';
 update public.quote_requests set status = 'quoted' where organization_name = 'ASC Jaraaf';
+insert into public.b2b_quote_internals (quote_id, vendor_cost, margin) select id, 210000, 74746 from public.b2b_quotes where version = 1;
+do $$ declare ok boolean := false; begin
+  begin update public.b2b_quotes set order_id = (select id from public.orders limit 1) where version = 1;
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL staff linked a quote to an arbitrary order'; end if;
+end $$;
+do $$ begin
+  begin delete from public.b2b_quotes where version = 2; exception when insufficient_privilege then null; end;
+  if not exists (select 1 from public.b2b_quotes where version = 2) then raise exception 'FAIL quote deleted'; end if;
+end $$;
 do $$ declare ok boolean := false; begin
   begin update public.b2b_quotes set unit_price = 1 where version = 1;
   exception when check_violation then ok := true; end;
@@ -641,6 +651,8 @@ begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
 do $$ declare ok boolean := false; begin
   if (select count(*) from public.b2b_quotes) <> 2 then raise exception 'FAIL customer cannot read own quotes'; end if;
+  if exists (select 1 from public.b2b_quote_internals) then raise exception 'FAIL customer reads workshop cost and margin'; end if;
+  if exists (select 1 from public.b2b_quotes where snapshot ? 'margin' or snapshot ? 'vendorCost') then raise exception 'FAIL internal figures in the customer-readable snapshot'; end if;
   begin insert into public.b2b_quotes (request_id, version, base_product_id, color_key, quantity, decorations, unit_price, goods_total, tax, lead_time_days, snapshot, valid_until)
     select request_id, 3, base_product_id, color_key, 60, '[]', 1, 60, 0, 5, '{}', now() + interval '30 days' from public.b2b_quotes where version = 1;
   exception when insufficient_privilege then ok := true; end;
@@ -658,6 +670,17 @@ do $$ begin
   if exists (select 1 from public.b2b_quotes) then raise exception 'FAIL workshop reads quotes'; end if;
 end $$;
 rollback;
+-- finance reads quotes and internal figures, but does not write quotes
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000f1');
+do $$ declare ok boolean := false; begin
+  if (select count(*) from public.b2b_quotes) <> 2 or (select count(*) from public.b2b_quote_internals) <> 1 then raise exception 'FAIL finance cannot read quotes'; end if;
+  begin insert into public.b2b_quotes (request_id, version, base_product_id, color_key, quantity, decorations, unit_price, goods_total, tax, lead_time_days, snapshot, valid_until)
+    select request_id, 9, base_product_id, color_key, 60, '[]', 1, 60, 0, 5, '{}', now() + interval '30 days' from public.b2b_quotes where version = 1;
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL finance wrote a quote'; end if;
+end $$;
+rollback;
 -- the server claims the valid quote once; an expired one or a second claim gets nothing
 set role service_role;
 do $$ begin
@@ -668,14 +691,45 @@ do $$ begin
   perform public.release_b2b_quote((select id from public.b2b_quotes where version = 1));
   if (select status from public.b2b_quotes where version = 1) <> 'sent' then raise exception 'FAIL quote not released'; end if;
 end $$;
+-- while a quote is being ordered, the customer cannot cancel the request
+do $$ begin
+  perform public.claim_b2b_quote((select id from public.b2b_quotes where version = 1), '00000000-0000-0000-0000-0000000000c1');
+end $$;
 reset role;
--- the customer cancels their request: the quote is withdrawn
 begin;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
-select public.cancel_quote_request((select id from public.quote_requests where organization_name = 'ASC Jaraaf'));
+do $$ declare ok boolean := false; begin
+  begin perform public.cancel_quote_request((select id from public.quote_requests where organization_name = 'ASC Jaraaf'));
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL request cancelled while its quote is being ordered'; end if;
+end $$;
+rollback;
+set role service_role;
 do $$ begin
-  if (select status from public.quote_requests where organization_name = 'ASC Jaraaf') <> 'cancelled' then raise exception 'FAIL request not cancelled'; end if;
-  if (select status from public.b2b_quotes where version = 1) <> 'withdrawn' then raise exception 'FAIL quote not withdrawn'; end if;
+  perform public.link_b2b_quote((select id from public.b2b_quotes where version = 1), (select id from public.orders order by created_at limit 1));
+  if (select order_id from public.b2b_quotes where version = 1) is null then raise exception 'FAIL quote not linked to its order'; end if;
+  if (select status from public.quote_requests where organization_name = 'ASC Jaraaf') <> 'ordered' then raise exception 'FAIL request not marked ordered'; end if;
+  perform public.release_b2b_quote((select id from public.b2b_quotes where version = 1));
+  if (select status from public.b2b_quotes where version = 1) <> 'accepted' then raise exception 'FAIL linked quote released'; end if;
+end $$;
+reset role;
+-- the customer cancels a request that is only quoted: its quote is withdrawn
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+insert into public.quote_requests (organization_name, contact_name, phone, quantity) values ('Club Médina', 'Awa Diop', '+221770000005', 20);
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+update public.quote_requests set status = 'quoted' where organization_name = 'Club Médina';
+insert into public.b2b_quotes (request_id, version, base_product_id, color_key, quantity, decorations, unit_price, goods_total, tax, lead_time_days, snapshot, valid_until)
+select r.id, 1, (select id from public.base_products where slug = 'tee-crew-180'), 'ivory', 20, '[]', 5600, 112000, 17085, 5, '{}', now() + interval '30 days' from public.quote_requests r where organization_name = 'Club Médina';
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+select public.cancel_quote_request((select id from public.quote_requests where organization_name = 'Club Médina'));
+do $$ begin
+  if (select status from public.quote_requests where organization_name = 'Club Médina') <> 'cancelled' then raise exception 'FAIL request not cancelled'; end if;
+  if (select q.status from public.b2b_quotes q join public.quote_requests r on r.id = q.request_id where r.organization_name = 'Club Médina') <> 'withdrawn' then raise exception 'FAIL quote not withdrawn'; end if;
 end $$;
 rollback;
 

@@ -142,16 +142,26 @@ export async function placeOrder(input: PlaceOrderInput) {
     b2b = quote;
   }
   let q: Quote, suggestedVendorId: string, leadTimeDays: number;
+  let sizeMix: Record<string, unknown> | null = null;
   if (b2b) {
     const { data: claimed, error: claimError } = await createServiceClient().rpc("claim_b2b_quote", { p_quote: b2b.id, p_customer: user.id });
     if (claimError || !claimed?.length) return { error: "Ce devis a expiré ou a déjà été utilisé. Demandez une mise à jour dans « Mes devis »." };
-    const repriced = await repriceFrozen(product.id, b2b.snapshot, shipping);
-    if (!repriced || repriced.goodsSubtotal.amount !== b2b.goods_total) {
+    const repriced = await repriceFrozen(product.id, b2b.snapshot, shipping, { colorKey: doc.colorKey, sizes });
+    if (repriced?.missingSizes.length) {
+      await createServiceClient().rpc("release_b2b_quote", { p_quote: b2b.id });
+      return { error: `L'atelier prévu pour ce devis ne fabrique pas la taille ${repriced.missingSizes.join(", ")} dans cette couleur. Choisissez d'autres tailles ou demandez une mise à jour du devis.` };
+    }
+    if (!repriced || repriced.frozen.goodsSubtotal.amount !== b2b.goods_total) {
       await createServiceClient().rpc("release_b2b_quote", { p_quote: b2b.id });
       logError("b2b_reprice_failed", { message: "frozen quote could not be priced again" }, { quoteId: b2b.id });
       return { error: "Le devis n'a pas pu être appliqué. L'équipe SAWWA est prévenue ; réessayez plus tard." };
     }
-    q = repriced; suggestedVendorId = b2b.snapshot.vendorId; leadTimeDays = b2b.lead_time_days;
+    // Firm price: the quoted amount. If the real sizes would cost something else, both are kept for the finance team.
+    q = repriced.actual && repriced.actual.goodsSubtotal.amount === b2b.goods_total ? repriced.actual : repriced.frozen;
+    sizeMix = repriced.actual && q !== repriced.actual
+      ? { actualGoods: repriced.actual.goodsSubtotal.amount, actualLines: repriced.actual.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })) }
+      : null;
+    suggestedVendorId = b2b.snapshot.vendorId; leadTimeDays = b2b.lead_time_days;
   } else {
     const { best } = await bestQuote({
       productId: product.id, categorySlug: product.category?.slug ?? "default", colorKey: doc.colorKey,
@@ -174,7 +184,7 @@ export async function placeOrder(input: PlaceOrderInput) {
       decorations, roster,
     }],
     p_totals: { subtotal: q.goodsSubtotal.amount, shipping: q.shipping.amount, discount: q.discount.amount, tax: q.tax.amount, total: q.total.amount, deposit_due: q.depositDue?.amount ?? null },
-    p_quote: { ...q.snapshot, suggestedVendorId, leadTimeDays, ...(b2b ? { b2bQuoteId: b2b.id, b2bQuoteVersion: b2b.version } : {}), lines: q.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })), setupFee: q.setupFee.amount, delivery: input.delivery },
+    p_quote: { ...q.snapshot, suggestedVendorId, leadTimeDays, ...(b2b ? { b2bQuoteId: b2b.id, b2bQuoteVersion: b2b.version, ...(sizeMix ? { b2bSizeMix: sizeMix } : {}) } : {}), lines: q.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })), setupFee: q.setupFee.amount, delivery: input.delivery },
     p_address: { name, phone, district, landmark: String(input.address?.landmark ?? "").trim().slice(0, 160), city: String(input.address?.city ?? "Dakar").trim().slice(0, 60), delivery: input.delivery },
   });
   if (error || !data?.[0]) {

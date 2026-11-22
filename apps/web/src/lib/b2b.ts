@@ -18,22 +18,49 @@ export interface B2bQuoteRow {
 }
 
 
+export interface FrozenPricing {
+  /** The quote replayed exactly as quoted (+ delivery): its goods amount is the quoted one. */
+  frozen: Quote;
+  /** The same frozen versions applied to the sizes the customer actually chose (null when identical or not priceable). */
+  actual: Quote | null;
+  /** Sizes chosen by the customer that the quoted workshop does not make in this colour. */
+  missingSizes: string[];
+}
+
 /**
  * Price an accepted quote again with exactly the versions it was made with (rule set and workshop grid are immutable
- * once used), adding the delivery chosen at order time. The goods amount is therefore the quoted one, and every
- * figure still comes from packages/pricing (rule 4).
+ * once used), adding the delivery chosen at order time. Every figure still comes from packages/pricing (rule 4).
+ * When the quote left the sizes free, the customer's real sizes are checked against the quoted workshop and priced
+ * too, so the difference with the firm quoted price is recorded rather than hidden.
  */
-export async function repriceFrozen(productId: string, snapshot: B2bQuoteRow["snapshot"], shipping: number): Promise<Quote | null> {
+export async function repriceFrozen(
+  productId: string, snapshot: B2bQuoteRow["snapshot"], shipping: number, real?: { colorKey: string; sizes: Record<string, number> },
+): Promise<FrozenPricing | null> {
   const db = createServiceClient();
-  const [{ data: rules }, { data: offer }] = await Promise.all([
+  const [{ data: rules }, { data: offer }, { data: variants }] = await Promise.all([
     db.from("price_rule_sets").select("rules").eq("version", snapshot.ruleSetVersion).eq("currency", "XOF").maybeSingle(),
     db.from("vendor_offers").select("id, grids:vendor_price_grids(version, grid)").eq("vendor_id", snapshot.vendorId).eq("base_product_id", productId).maybeSingle(),
+    real ? db.from("base_product_variants").select("id, size").eq("base_product_id", productId).eq("color_key", real.colorKey) : Promise.resolve({ data: [] as { id: string; size: string }[] }),
   ]);
   const grid = ((offer?.grids ?? []) as { version: number; grid: VendorPriceGrid }[]).find((g) => g.version === snapshot.vendorGridVersion)?.grid;
   if (!rules || !grid) return null;
+  const ship = shipping ? { shipping: { amount: shipping, currency: "XOF" as const } } : {};
+  const { shipping: _s, ...request } = snapshot.request;
   try {
-    const { shipping: _s, ...request } = snapshot.request;
-    return price({ ...request, ...(shipping ? { shipping: { amount: shipping, currency: "XOF" as const } } : {}) }, rules.rules as PlatformRuleSet, grid);
+    const frozen = price({ ...request, ...ship }, rules.rules as PlatformRuleSet, grid);
+    let actual: Quote | null = null;
+    const missingSizes: string[] = [];
+    if (real) {
+      const lines = Object.entries(real.sizes).filter(([, n]) => n > 0).map(([size, quantity]) => {
+        const v = (variants ?? []).find((x) => x.size === size && x.id in grid.blanks);
+        if (!v) missingSizes.push(size);
+        return { variantId: v?.id ?? "", quantity };
+      });
+      if (missingSizes.length === 0) {
+        try { actual = price({ ...request, lines, ...ship }, rules.rules as PlatformRuleSet, grid); } catch (e) { if (!(e instanceof PricingError)) throw e; }
+      }
+    }
+    return { frozen, actual, missingSizes };
   } catch (e) {
     if (e instanceof PricingError) return null;
     throw e;

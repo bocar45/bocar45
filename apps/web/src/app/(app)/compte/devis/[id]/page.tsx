@@ -14,7 +14,7 @@ export default async function QuoteDetail({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const { supabase } = await requireUser(`/compte/devis/${id}`);
   const { data: r } = await supabase.from("quote_requests")
-    .select("id, number, organization_name, contact_name, quantity, deadline, message, status, staff_note, created_at, product:base_products(name), quotes:b2b_quotes(*, product:base_products(slug, name))")
+    .select("id, number, organization_name, contact_name, quantity, deadline, message, status, staff_note, created_at, product:base_products(name), quotes:b2b_quotes(id, version, unit_price, color_key, sizes, quantity, decorations, goods_total, setup_fee, tax, deposit_due, lead_time_days, customer_note, valid_until, status, order_id, product:base_products(slug, name))")
     .eq("id", id).maybeSingle();
   if (!r) notFound();
   const quotes = ((r.quotes ?? []) as unknown as (B2bQuoteRow & { product: { slug: string; name: unknown } | null })[]).sort((a, b) => b.version - a.version);
@@ -42,7 +42,7 @@ export default async function QuoteDetail({ params }: { params: Promise<{ id: st
           <div className="grid gap-2 rounded-2xl bg-brun p-5 text-ivoire">
             <span className="text-sm text-ivoire/75">{fr(current.product?.name)} · {current.quantity} pièces{current.sizes ? ` (${Object.entries(current.sizes).map(([s, n]) => `${s} × ${n}`).join(", ")})` : " · tailles au choix"}</span>
             <b className="display text-4xl">{fcfa(current.goods_total)} <span className="font-sans text-sm text-ivoire/70">TTC, hors livraison</span></b>
-            <span className="text-sm text-ivoire/80">Soit {fcfa(Math.round(current.goods_total / current.quantity))} la pièce en moyenne{current.setup_fee ? `, dont ${fcfa(current.setup_fee)} de préparation` : ""} · TVA {fcfa(current.tax)}</span>
+            <span className="text-sm text-ivoire/80">Soit {fcfa(current.unit_price)} la pièce{current.setup_fee ? `, dont ${fcfa(current.setup_fee)} de préparation` : ""} · TVA {fcfa(current.tax)}</span>
             {current.deposit_due != null && <span className="text-sm text-ivoire/80">Acompte à la commande : {fcfa(current.deposit_due)}</span>}
             <span className="text-sm text-ivoire/80">Fabrication en {current.lead_time_days} jours ouvrés après validation du BAT</span>
           </div>

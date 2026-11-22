@@ -77,6 +77,30 @@ begin
   return new;
 end $$;
 create trigger freeze_quote before update on public.b2b_quotes for each row execute function app.freeze_b2b_quote();
+-- Auteur jamais modifié ; le lien vers la commande n'est posé que par le serveur (link_b2b_quote), une seule fois.
+create function app.guard_b2b_quote_link() returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.created_by is distinct from old.created_by then raise exception 'quote author is frozen' using errcode = 'check_violation'; end if;
+  if new.order_id is distinct from old.order_id and (old.order_id is not null or current_user in ('authenticated', 'anon')) then
+    raise exception 'quote order link is set by the server only' using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+create trigger guard_link before update on public.b2b_quotes for each row execute function app.guard_b2b_quote_link();
+
+-- Chiffres internes (coût atelier, marge) : jamais lisibles par le client.
+create table public.b2b_quote_internals (
+  quote_id uuid primary key references public.b2b_quotes (id) on delete cascade,
+  vendor_cost bigint not null check (vendor_cost >= 0),
+  margin bigint not null,
+  created_at timestamptz not null default now()
+);
+create trigger internals_append_only before update or delete on public.b2b_quote_internals for each row execute function app.forbid_change();
+alter table public.b2b_quote_internals enable row level security;
+create policy b2b_internals_read on public.b2b_quote_internals for select to authenticated
+  using (app.has_platform_role('{ops,support,finance}'));
+create policy b2b_internals_insert on public.b2b_quote_internals for insert to authenticated
+  with check (app.has_platform_role('{ops,support}'));
 create trigger no_delete before delete on public.b2b_quotes for each row execute function app.forbid_change();
 
 alter table public.quote_requests enable row level security;
@@ -108,7 +132,8 @@ create function public.cancel_quote_request(p_request uuid) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
   update public.quote_requests set status = 'cancelled'
-  where id = p_request and customer_id = auth.uid() and status in ('new', 'quoted');
+  where id = p_request and customer_id = auth.uid() and status in ('new', 'quoted')
+    and not exists (select 1 from public.b2b_quotes q where q.request_id = p_request and q.status = 'accepted'); -- commande en cours
   if not found then raise exception 'request cannot be cancelled' using errcode = '42501'; end if;
   update public.b2b_quotes set status = 'withdrawn' where request_id = p_request and status = 'sent';
 end $$;

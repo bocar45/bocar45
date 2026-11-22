@@ -78,13 +78,15 @@ export async function sendB2bQuote(input: QuoteBuildInput) {
   }
   const { data: created, error } = await supabase.from("b2b_quotes").insert({
     request_id: req.id, version, base_product_id: r.product.id, color_key: String(input.colorKey), sizes: r.sizes, quantity: r.quantity,
-    decorations: r.decorations, unit_price: Math.round(q.goodsSubtotal.amount / r.quantity), goods_total: q.goodsSubtotal.amount,
+    decorations: r.decorations, unit_price: q.lines[0]!.unitPrice.amount, goods_total: q.goodsSubtotal.amount,
     setup_fee: q.setupFee.amount, tax: q.tax.amount, deposit_due: q.depositDue?.amount ?? null, lead_time_days: r.best.leadTimeDays,
-    snapshot: { ...q.snapshot, vendorCost: q.vendorCost.amount, margin: q.margin.amount },
+    snapshot: q.snapshot, // reproducible price; internal figures go to b2b_quote_internals (never readable by the customer)
     customer_note: String(input.note ?? "").trim().slice(0, 2000),
     valid_until: new Date(Date.now() + days * 86400000).toISOString(),
   }).select("id").single();
   if (error) { logError("b2b_quote_insert_failed", error, { requestId: req.id }); return { error: TRY_AGAIN }; }
+  const { error: eInt } = await supabase.from("b2b_quote_internals").insert({ quote_id: created.id, vendor_cost: q.vendorCost.amount, margin: q.margin.amount });
+  if (eInt) logError("b2b_quote_internals_failed", eInt, { quoteId: created.id });
   const { error: e2 } = await supabase.from("quote_requests").update({ status: "quoted" }).eq("id", req.id);
   if (e2) logError("quote_request_status_failed", e2, { requestId: req.id });
   await audit({ actorUserId: user.id, action: "b2b_quote.send", entityType: "quote_request", entityId: req.id, after: { quoteId: created.id, version, goodsTotal: q.goodsSubtotal.amount } });
