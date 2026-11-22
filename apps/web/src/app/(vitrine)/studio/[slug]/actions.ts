@@ -6,7 +6,7 @@ import { transition, type FulfillmentStatus } from "@sawwa/workflow";
 import type { Quote } from "@sawwa/pricing";
 import { fitsQuote, isQuoteValid, repriceFrozen, type B2bQuoteRow } from "@/lib/b2b";
 import { planCorrection } from "@/lib/correction";
-import { foreignImages } from "@/lib/design-ownership";
+import { foreignImages, needsRightsDeclaration } from "@/lib/design-ownership";
 import { TOO_MANY, clientIp, rateLimit } from "@/lib/rate-limit";
 import { normalizeSenegalPhone } from "@/lib/phone";
 import { bestQuote, sanitizeDecorations } from "@/lib/quoting";
@@ -22,7 +22,7 @@ export async function getStudioQuote(slug: string, colorKey: string, quantity: n
 
 const onDeviceImages = (d: DesignDocument) => d.surfaces.some((s) => s.layers.some((l) => l.type === "image" && !l.src.startsWith("storage:")));
 
-export async function saveDesign(input: { id: string | null; slug: string; title: string; document: unknown }) {
+export async function saveDesign(input: { id: string | null; slug: string; title: string; document: unknown; rightsDeclared?: boolean }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Connectez-vous pour enregistrer votre création." };
@@ -35,12 +35,23 @@ export async function saveDesign(input: { id: string | null; slug: string; title
   const { data: product } = await supabase.from("base_products").select("id").eq("slug", input.slug).eq("status", "active").maybeSingle();
   if (!product) return { error: "Ce produit n'est plus disponible." };
   const title = String(input.title ?? "").trim().slice(0, 80) || "Ma création";
+  // E18d: imported images need the customer's declaration that they may print them (date kept on the design).
+  const declared = input.rightsDeclared === true;
+  let alreadyDeclared = false;
   if (input.id) {
-    const { error } = await supabase.from("designs").update({ title, document: parsed.value }).eq("id", input.id);
+    const { data: existing } = await supabase.from("designs").select("rights_declared_at").eq("id", input.id).maybeSingle();
+    alreadyDeclared = Boolean(existing?.rights_declared_at);
+  }
+  if (needsRightsDeclaration(parsed.value) && !declared && !alreadyDeclared) {
+    return { error: "Confirmez que vous avez le droit d'utiliser les images importées (case à cocher dans le studio)." };
+  }
+  const rights = declared && !alreadyDeclared ? { rights_declared_at: new Date().toISOString() } : {};
+  if (input.id) {
+    const { error } = await supabase.from("designs").update({ title, document: parsed.value, ...rights }).eq("id", input.id);
     if (error) { logError("design_update_failed", error, { designId: input.id }); return { error: TRY_AGAIN }; }
     return { ok: true as const, id: input.id };
   }
-  const { data, error } = await supabase.from("designs").insert({ owner_id: user.id, base_product_id: product.id, title, document: parsed.value }).select("id").single();
+  const { data, error } = await supabase.from("designs").insert({ owner_id: user.id, base_product_id: product.id, title, document: parsed.value, ...rights }).select("id").single();
   if (error || !data) { logError("design_insert_failed", error, { userId: user.id }); return { error: TRY_AGAIN }; }
   return { ok: true as const, id: data.id as string };
 }
@@ -82,7 +93,7 @@ export async function placeOrder(input: PlaceOrderInput) {
 
   // Design (owner only, through RLS)
   const { data: design } = await supabase
-    .from("designs").select("id, document, product:base_products(id, slug, status, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques))")
+    .from("designs").select("id, document, rights_declared_at, product:base_products(id, slug, status, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques))")
     .eq("id", input.designId).maybeSingle();
   const product = design?.product as unknown as { id: string; slug: string; status: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[] }[] } | null;
   if (!design || !product || product.status !== "active") return { error: "Création ou produit introuvable." };
@@ -91,6 +102,7 @@ export async function placeOrder(input: PlaceOrderInput) {
   const doc = parsed.value;
   if (onDeviceImages(doc)) return { error: "Enregistrez d'abord votre création dans votre compte." };
   if (foreignImages(doc, user.id).length) return { error: "Cette création utilise des images qui ne vous appartiennent pas." };
+  if (needsRightsDeclaration(doc) && !design.rights_declared_at) return { error: "Confirmez que vous avez le droit d'utiliser les images importées, puis enregistrez à nouveau." };
 
   // Fabrication checks, recomputed on the server
   const zoneSizes = product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm }));

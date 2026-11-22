@@ -48,6 +48,16 @@ const TRANSITION_MESSAGES: Record<string, string> = {
   MISSING_DATA: "Informations manquantes pour cette étape.",
 };
 
+/** Reasons a workshop gives at the proof (BAT) or when refusing an order, as shown to the customer. */
+export const REASON_LABEL: Record<string, string> = {
+  low_resolution: "Image trop peu définie", outside_zone: "Dépasse la zone", too_many_colors: "Trop de couleurs",
+  too_fine: "Détails trop fins", file_format: "Fichier inutilisable", capacity: "Capacité de l'atelier",
+  trademark: "Marque déposée (logo ou nom d'une marque sans autorisation)",
+  protected_character: "Personnage ou œuvre protégés (dessin animé, film, club, artiste…)",
+  prohibited_content: "Contenu interdit (haine, violence, contenu sexuel, atteinte à une personne)",
+  other: "Autre",
+};
+
 export const STATUS_LABEL: Record<string, string> = {
   pending_assignment: "En attente d'un atelier",
   assigned: "Affectée à l'atelier",

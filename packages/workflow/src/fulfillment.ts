@@ -22,7 +22,11 @@ export type FulfillmentStatus = (typeof FULFILLMENT_STATUSES)[number];
 
 export type ActorRole = "customer" | "vendor" | "admin" | "system";
 
-export type RejectReason = "low_resolution" | "outside_zone" | "too_many_colors" | "too_fine" | "file_format" | "capacity" | "other";
+export type RejectReason =
+  | "low_resolution" | "outside_zone" | "too_many_colors" | "too_fine" | "file_format" | "capacity"
+  // E18d: rights and content (the workshop refuses to print a protected trademark, character or forbidden content)
+  | "trademark" | "protected_character" | "prohibited_content"
+  | "other";
 
 export type FulfillmentEvent =
   | { type: "assign"; vendorId: string }

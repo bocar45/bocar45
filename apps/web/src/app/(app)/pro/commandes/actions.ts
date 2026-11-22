@@ -6,7 +6,7 @@ import { requireUser, vendorMembership } from "@/lib/auth";
 import { runTransition } from "@/lib/fulfillment";
 import { str } from "@/lib/form";
 
-const REASONS: RejectReason[] = ["low_resolution", "outside_zone", "too_many_colors", "too_fine", "file_format", "capacity", "other"];
+const REASONS: RejectReason[] = ["low_resolution", "outside_zone", "too_many_colors", "too_fine", "file_format", "capacity", "trademark", "protected_character", "prohibited_content", "other"];
 type Kind = "accept" | "reject" | "approve_proof" | "request_changes" | "start_production" | "submit_qc" | "ship";
 
 export async function vendorEvent(fulfillmentId: string, kind: Kind, fd: FormData) {

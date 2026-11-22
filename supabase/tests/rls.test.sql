@@ -733,4 +733,57 @@ do $$ begin
 end $$;
 rollback;
 
+-- 17. Modération des images (E18d)
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+insert into public.content_reports (target_type, target_id, reporter_role, reason, details)
+values ('order', (select order_id from public.fulfillments where vendor_id is not null limit 1), 'vendor', 'trademark', 'Logo d''une marque connue');
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+do $$ declare ok boolean := false; begin
+  begin insert into public.content_reports (target_type, target_id, reporter_role, reason)
+    values ('order', (select order_id from public.fulfillments where vendor_id is not null limit 1), 'vendor', 'trademark');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL other workshop reported an order it does not have'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin insert into public.content_reports (target_type, target_id, reporter_role, reason)
+    values ('order', (select order_id from public.fulfillments limit 1), 'customer', 'other');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL report on someone else''s order'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin insert into public.content_reports (target_type, target_id, reporter_role, reason) values ('template', gen_random_uuid(), 'customer', 'other');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL report on an unknown template'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin insert into public.content_reports (target_type, target_id, reporter_role, reason)
+    values ('template', (select id from public.templates where status = 'published' limit 1), 'staff', 'other');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL non-staff reported as staff'; end if;
+end $$;
+insert into public.content_reports (target_type, target_id, reporter_role, reason, details)
+values ('template', (select id from public.templates where status = 'published' limit 1), 'customer', 'protected_character', 'Personnage de dessin animé');
+do $$ declare n int; begin
+  if (select count(*) from public.content_reports) <> 1 then raise exception 'FAIL reporter sees other reports'; end if;
+  update public.content_reports set status = 'dismissed';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAIL reporter resolved a report'; end if;
+end $$;
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  if (select count(*) from public.content_reports where status = 'open') <> 2 then raise exception 'FAIL staff cannot see the queue'; end if;
+  update public.content_reports set status = 'upheld', resolution_note = 'Marque déposée', resolved_by = auth.uid(), resolved_at = now() where reason = 'trademark';
+  if (select status from public.content_reports where reason = 'trademark') <> 'upheld' then raise exception 'FAIL staff cannot resolve'; end if;
+end $$;
+rollback;
+-- rights declaration is stored on the design
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name = 'designs' and column_name = 'rights_declared_at') then raise exception 'FAIL rights column'; end if;
+end $$;
+
 select 'ALL RLS TESTS PASSED' as result;

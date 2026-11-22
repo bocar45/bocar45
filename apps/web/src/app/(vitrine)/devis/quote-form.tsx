@@ -12,12 +12,14 @@ export function QuoteForm({ userId, products, designs, defaultPhone, action }: {
 }) {
   const [f, setF] = useState({ organizationName: "", contactName: "", phone: defaultPhone, productId: "", quantity: 50, deadline: "", message: "", designId: "" });
   const [logo, setLogo] = useState<File | null>(null);
+  const [rights, setRights] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((x) => ({ ...x, [k]: k === "quantity" ? Number(e.target.value) : e.target.value }));
   const submit = () => start(async () => {
     setError(null);
     let logoPath: string | null = null;
+    if (logo && !rights) { setError("Confirmez que vous avez le droit d'utiliser ce logo."); return; }
     if (logo) {
       if (!["image/png", "image/jpeg", "image/webp"].includes(logo.type) || logo.size > 25 * 1024 * 1024) { setError("Logo : PNG, JPG ou WebP, 25 Mo au plus."); return; }
       const ext = logo.type === "image/png" ? "png" : logo.type === "image/webp" ? "webp" : "jpg";
@@ -28,7 +30,7 @@ export function QuoteForm({ userId, products, designs, defaultPhone, action }: {
       } catch { setError("Le logo n'a pas pu être envoyé. Vérifiez votre connexion et réessayez."); return; }
       logoPath = path;
     }
-    const r = await action({ ...f, productId: f.productId || null, deadline: f.deadline || null, designId: f.designId || null, logoPath });
+    const r = await action({ ...f, productId: f.productId || null, deadline: f.deadline || null, designId: f.designId || null, logoPath, rightsDeclared: rights });
     if (r && "error" in r) setError(r.error);
   });
   return (
@@ -49,6 +51,12 @@ export function QuoteForm({ userId, products, designs, defaultPhone, action }: {
       <label className="grid gap-1 text-sm font-semibold">Votre logo (facultatif)
         <input type="file" accept="image/png,image/jpeg,image/webp" className={field} onChange={(e) => setLogo(e.target.files?.[0] ?? null)} />
       </label>
+      {logo && (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-1" checked={rights} onChange={(e) => setRights(e.target.checked)} />
+          Ce logo est celui de mon organisation, ou j&apos;ai l&apos;autorisation de son titulaire pour le faire imprimer.
+        </label>
+      )}
       {designs.length > 0 && (
         <label className="grid gap-1 text-sm font-semibold">Ou une de vos créations
           <select className={field} value={f.designId} onChange={set("designId")}>

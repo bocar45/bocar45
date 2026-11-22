@@ -52,8 +52,10 @@ export function TemplateSavePanel({ title, status, saving, onSave }: { title: st
 }
 
 /** Customer: the assistant (« Ajoutez votre photo », « Votre texte »), then order or open the full studio. */
-export function AssistantPanel({ title, description, fields, busy, onText, onPhoto, onFree }: {
-  title: string; description: string; fields: FieldRef[]; busy: string | null;
+export function AssistantPanel({ templateId, title, description, fields, busy, onText, onPhoto, onFree, guard }: {
+  templateId: string; title: string; description: string; fields: FieldRef[]; busy: string | null;
+  /** Runs `go` once the customer has declared holding the rights on the images they import (E18d). */
+  guard: (go: () => void) => void;
   onText: (f: FieldRef, text: string) => void; onPhoto: (f: FieldRef, file: File) => void; onFree: () => void;
 }) {
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -76,7 +78,7 @@ export function AssistantPanel({ title, description, fields, busy, onText, onPho
               </>
             ) : (
               <>
-                <button type="button" className={btn} disabled={busy === f.layerId} onClick={() => inputs.current[f.layerId]?.click()}>
+                <button type="button" className={btn} disabled={busy === f.layerId} onClick={() => guard(() => inputs.current[f.layerId]?.click())}>
                   {busy === f.layerId ? "Préparation de la photo…" : "📷 Choisir une photo"}
                 </button>
                 <input ref={(el) => { inputs.current[f.layerId] = el; }} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label={f.label}
@@ -88,6 +90,7 @@ export function AssistantPanel({ title, description, fields, busy, onText, onPho
         ))}
       </ol>
       <button type="button" className={`${btn} w-fit`} onClick={onFree}>Modifier librement dans le studio</button>
+      <a href={`/signaler?modele=${templateId}`} className="w-fit text-xs text-muted underline">Signaler ce modèle</a>
     </section>
   );
 }

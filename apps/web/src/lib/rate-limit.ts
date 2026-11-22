@@ -13,6 +13,7 @@ export const LIMITS = {
   productionPerUser: { limit: 60, windowSeconds: 600 },
   vendorApplyPerUser: { limit: 5, windowSeconds: 3600 },
   quoteRequestPerUser: { limit: 5, windowSeconds: 3600 },
+  reportPerUser: { limit: 10, windowSeconds: 3600 },
 } as const;
 export type LimitName = keyof typeof LIMITS;
 

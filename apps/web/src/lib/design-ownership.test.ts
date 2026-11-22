@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyDocument, type DesignDocument } from "@sawwa/design";
-import { foreignImages } from "./design-ownership";
+import { foreignImages, needsRightsDeclaration } from "./design-ownership";
 
 const doc = (srcs: string[]): DesignDocument => ({
   ...emptyDocument("tee", "ivoire"),
@@ -24,5 +24,11 @@ describe("design image ownership", () => {
       `storage:design-assets/${me}x/a.png`,
     ];
     expect(foreignImages(doc(bad), me)).toEqual(bad);
+  });
+  it("asks for a rights declaration only for images the customer imported (E18d)", () => {
+    expect(needsRightsDeclaration(doc([`storage:design-assets/${me}/a.png`]))).toBe(true);
+    expect(needsRightsDeclaration(doc(["idb:abc"]))).toBe(true);
+    expect(needsRightsDeclaration(doc(["storage:template-assets/t1/exemple.jpg"]))).toBe(false);
+    expect(needsRightsDeclaration(doc([]))).toBe(false);
   });
 });

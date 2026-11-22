@@ -62,7 +62,7 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
     const t = await publishedTemplate(modele, slug);
     if (t) {
       initial = { id: null, title: t.title, document: t.document, urls: t.urls };
-      assistant = { slug: t.slug, title: t.title, description: t.description };
+      assistant = { id: t.id, slug: t.slug, title: t.title, description: t.description };
     }
   }
   let template = null;

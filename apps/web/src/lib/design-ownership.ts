@@ -13,3 +13,11 @@ export function foreignImages(doc: DesignDocument, userId: string): string[] {
     return ok ? [] : [l.src];
   });
 }
+
+/**
+ * E18d: does this design contain images the customer imported (not SAWWA template images)? Then the customer must
+ * have declared holding the rights to print them.
+ */
+export function needsRightsDeclaration(doc: DesignDocument): boolean {
+  return doc.surfaces.some((s) => s.layers.some((l) => l.type === "image" && storageRef(l.src)?.bucket !== "template-assets"));
+}

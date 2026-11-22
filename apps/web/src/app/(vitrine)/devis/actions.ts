@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/server";
 export interface QuoteRequestInput {
   organizationName: string; contactName: string; phone: string; productId: string | null; quantity: number;
   deadline: string | null; message: string; logoPath: string | null; designId: string | null;
+  /** E18d: required with a logo. */
+  rightsDeclared?: boolean;
 }
 
 /** Create a quote request for the signed-in customer (RLS: own row, status « new »). */
@@ -29,6 +31,7 @@ export async function requestQuote(input: QuoteRequestInput) {
   if (deadline && Date.parse(deadline) < Date.now() - 86400000) return { error: "La date souhaitée est déjà passée." };
   const logoPath = input.logoPath && input.logoPath.startsWith(`${user.id}/`) && !input.logoPath.includes("..") ? input.logoPath : null;
   if (input.logoPath && !logoPath) return { error: "Logo invalide : importez-le à nouveau." };
+  if (logoPath && input.rightsDeclared !== true) return { error: "Confirmez que vous avez le droit d'utiliser ce logo." };
   const { data, error } = await supabase.from("quote_requests").insert({
     organization_name: organizationName, contact_name: contactName, phone, quantity, deadline,
     base_product_id: input.productId || null, message: String(input.message ?? "").trim().slice(0, 2000),

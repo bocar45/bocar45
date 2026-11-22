@@ -2,7 +2,7 @@ import { RosterList } from "@/components/roster-list";
 import type { RosterEntry } from "@sawwa/design";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { EVENT_LABEL, STATUS_LABEL } from "@/lib/fulfillment";
+import { EVENT_LABEL, REASON_LABEL, STATUS_LABEL } from "@/lib/fulfillment";
 import Link from "next/link";
 import { dateTime, fcfa, loadVersions, readDoc, signedDesignUrls, zoneList, type ZoneRow } from "@/lib/orders";
 import { VersionHistory } from "@/components/version-history";
@@ -52,7 +52,10 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
       {f?.status === "changes_requested" && (
         <Section title="L'atelier demande une correction" id="correction">
-          {lastChange && <p className="rounded-lg bg-ocre/20 p-3">« {lastChange.payload.comment} »</p>}
+          {lastChange && <p className="rounded-lg bg-ocre/20 p-3">{lastChange.payload.reason && REASON_LABEL[lastChange.payload.reason] ? <b className="block">{REASON_LABEL[lastChange.payload.reason]}</b> : null}« {lastChange.payload.comment} »</p>}
+          {lastChange?.payload.reason && ["trademark", "protected_character", "prohibited_content"].includes(lastChange.payload.reason) && (
+            <p className="text-sm">SAWWA et ses ateliers n&apos;impriment pas de marque, de personnage ou d&apos;œuvre protégés sans autorisation de leur titulaire. Remplacez l&apos;élément concerné, ou annulez pour être remboursé.</p>
+          )}
           <p className="text-sm text-muted">Corrigez votre création dans le studio et renvoyez-la à l&apos;atelier, faites produire telle quelle, ou annulez pour être remboursé.</p>
           <div className="flex flex-wrap gap-3">
             {item && <Link href={`/studio/${item.product.slug}?commande=${o.id}`} className="btn btn-brun !py-2 text-sm">Corriger ma création</Link>}

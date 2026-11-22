@@ -23,6 +23,7 @@ import { getAsset, loadDraft, putAsset, saveDraft } from "./asset-store";
 import { LayerShape, StudioCanvas, isDark } from "./canvas";
 import { ImageTools } from "./image-tools";
 import { PerItemEditor, RosterEditor } from "./roster-panel";
+import { RightsGate } from "./rights-gate";
 import { AssistantPanel, FieldEditor, TemplateSavePanel } from "./template-panels";
 import { moveLayerToZone } from "./move";
 import { useHistory } from "./use-history";
@@ -37,7 +38,7 @@ export interface StudioProps {
   userId: string | null;
   /** Starting document: a saved design (id), or a template for the assistant / the catalogue team (id null). */
   initial: { id: string | null; title: string; document: DesignDocument; urls: Record<string, string> } | null;
-  save: (input: { id: string | null; slug: string; title: string; document: unknown }) => Promise<{ ok: true; id: string } | { error: string }>;
+  save: (input: { id: string | null; slug: string; title: string; document: unknown; rightsDeclared?: boolean }) => Promise<{ ok: true; id: string } | { error: string }>;
   order: (input: {
     designId: string; sizes: Record<string, number>; delivery: string; acceptWarnings: boolean; roster?: RosterEntry[] | null; quoteId?: string;
     address: { name: string; phone: string; district: string; landmark: string; city: string };
@@ -46,7 +47,7 @@ export interface StudioProps {
   correction?: { orderId: string; number: string; comment: string | null; roster?: RosterEntry[] | null } | null;
   resubmit?: (input: { orderId: string; document: unknown; acceptWarnings: boolean; acceptedSurcharge: number | null }) => Promise<{ ok: true; surcharge: number } | { error: string; surcharge?: number }>;
   /** E15: a ready-to-personalise template opened by a customer (assistant first). */
-  assistant?: { slug: string; title: string; description: string } | null;
+  assistant?: { id: string; slug: string; title: string; description: string } | null;
   /** E15: a template edited by the catalogue team. */
   template?: { id: string; title: string; status: string } | null;
   saveTemplate?: (input: { id: string; slug: string; document: unknown }) => Promise<{ ok: true } | { error: string }>;
@@ -60,6 +61,7 @@ export interface B2bForStudio {
   decorations: { zoneKey: string; technique: string; widthMm: number; heightMm: number; colors: number }[];
 }
 
+const RIGHTS_KEY = "sawwa:droits-images";
 const SWATCHES = ["#2A1A12", "#F2E9D8", "#FFFFFF", "#000000", "#B5562A", "#C9923E", "#2F4B7C", "#68705A", "#A4262C"];
 const fcfa = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).slice(0, 12);
@@ -71,6 +73,11 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const draftKey = `sawwa:studio:${product.slug}${correction ? `:commande:${correction.orderId}` : template ? `:gabarit:${template.id}` : b2b ? `:devis:${b2b.id}` : assistant ? `:modele:${assistant.slug}` : initial ? `:${initial.id}` : ""}`;
   const [assistantOpen, setAssistantOpen] = useState(Boolean(assistant));
   const [photoBusy, setPhotoBusy] = useState<string | null>(null);
+  // E18d: rights declaration before importing images (once per device, recorded on the design when saved).
+  const [rightsOk, setRightsOk] = useState(false);
+  const [rightsGate, setRightsGate] = useState<null | (() => void)>(null);
+  useEffect(() => { try { setRightsOk(Boolean(localStorage.getItem(RIGHTS_KEY))); } catch { /* storage blocked */ } }, []);
+  const requireRights = (go: () => void) => { if (rightsOk) go(); else setRightsGate(() => go); };
   // E16: one line per piece (size, name, number) when a text changes on every piece; kept on this device.
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
@@ -258,7 +265,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
       }
       if (next !== doc) { setUrls((u) => ({ ...u, ...newUrls })); history.commit(next); }
       if (JSON.stringify(next).length > MAX_DOCUMENT_CHARS) throw new Error("Création trop lourde à enregistrer : remplacez un élément vectorisé très détaillé par l'image d'origine, ou vectorisez avec moins de couleurs.");
-      const r = await save({ id: designId, slug: product.slug, title, document: next });
+      const r = await save({ id: designId, slug: product.slug, title, document: next, rightsDeclared: rightsOk });
       if ("error" in r) throw new Error(r.error);
       setDesignId(r.id);
       setNotice("Création enregistrée dans votre compte.");
@@ -424,7 +431,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
         {/* Tools (hidden while the customer fills a template in the assistant) */}
         <div className={`${assistantOpen ? "hidden" : "flex"} gap-2 overflow-x-auto border-b border-line bg-ivoire p-3 lg:flex-col lg:border-b-0 lg:border-r`}>
           <Tool label="Texte" icon="T" onClick={addText} />
-          <Tool label="Image" icon="▣" onClick={() => fileInput.current?.click()} />
+          <Tool label="Image" icon="▣" onClick={() => requireRights(() => fileInput.current?.click())} />
           <Tool label="Losange" icon="◆" onClick={() => addShape("losange")} />
           <Tool label="Cercle" icon="●" onClick={() => addShape("circle")} />
           <Tool label="Carré" icon="■" onClick={() => addShape("rect")} />
@@ -493,15 +500,19 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             )}
           </div>
           {notice && <p role="alert" className="text-sm text-error">⚠ {notice}</p>}
+          {rightsGate && (
+            <RightsGate onCancel={() => setRightsGate(null)}
+              onAccept={() => { setRightsOk(true); try { localStorage.setItem(RIGHTS_KEY, new Date().toISOString()); } catch { /* storage blocked */ } const go = rightsGate; setRightsGate(null); go(); }} />
+          )}
         </div>
 
         {/* Side panel */}
         <aside className="grid content-start gap-5 border-t border-line bg-ivoire p-4 lg:border-l lg:border-t-0">
           {template && <TemplateSavePanel title={template.title} status={template.status} saving={saving} onSave={() => void saveTemplateDoc()} />}
           {assistantOpen && assistant ? (
-            <AssistantPanel title={assistant.title} description={assistant.description} fields={fields} busy={photoBusy}
+            <AssistantPanel templateId={assistant.id} title={assistant.title} description={assistant.description} fields={fields} busy={photoBusy}
               onText={(f, text) => { history.commit((d) => fillText(d, f.layerId, text)); if (f.zoneKey !== zone.key) setZoneKey(f.zoneKey); }}
-              onPhoto={(f, file) => void fillPhotoField(f, file)}
+              onPhoto={(f, file) => void fillPhotoField(f, file)} guard={requireRights}
               onFree={() => setAssistantOpen(false)} />
           ) : null}
           {assistantOpen && unfilled.length > 0 && (

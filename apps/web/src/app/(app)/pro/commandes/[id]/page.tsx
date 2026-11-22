@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { layerBox, unionBox, visibleLayers, type RosterEntry } from "@sawwa/design";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import { requireUser, vendorMembership } from "@/lib/auth";
-import { EVENT_LABEL, STATUS_LABEL } from "@/lib/fulfillment";
+import { EVENT_LABEL, REASON_LABEL, STATUS_LABEL } from "@/lib/fulfillment";
 import { dateTime, loadVersions, readDoc, signedDesignUrls, zoneList, type ZoneRow } from "@/lib/orders";
 import { VersionHistory } from "@/components/version-history";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -11,10 +11,12 @@ import { DesignPreview } from "@/components/design-preview";
 import { PageHeader, Section, fr, inputClass } from "@/components/ui";
 import { vendorEvent } from "../actions";
 import { QcUpload } from "./qc-upload";
+import { reportContent } from "@/app/(vitrine)/signaler/actions";
+import { REPORT_REASONS } from "@/lib/report-reasons";
 
 export const metadata = { title: "Fiche de production" };
 
-const REASONS = [["low_resolution", "Image trop peu définie"], ["outside_zone", "Dépasse la zone"], ["too_many_colors", "Trop de couleurs"], ["too_fine", "Détails trop fins"], ["file_format", "Fichier inutilisable"], ["other", "Autre"]] as const;
+const REASONS = (["low_resolution", "outside_zone", "too_many_colors", "too_fine", "file_format", "trademark", "protected_character", "prohibited_content", "other"] as const).map((k) => [k, REASON_LABEL[k]!] as const);
 
 function ReasonFields() {
   return (
@@ -147,6 +149,18 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
               <p className="text-xs text-muted">Images importées par le client, en pleine résolution. Liens valables 1 heure.</p>
             </Section>
           )}
+          <Section title="Droits et contenu" id="report">
+            <p className="text-sm text-muted">Marque, personnage protégé, photo d&apos;une personne sans accord, contenu interdit : refusez au BAT avec le motif adapté. En cas de doute, prévenez l&apos;équipe SAWWA.</p>
+            <details>
+              <summary className="cursor-pointer text-sm underline">Signaler cette création à SAWWA</summary>
+              <ActionForm action={reportContent.bind(null, "order", f.order_id as string)} submitLabel="Envoyer le signalement" variant="secondary">
+                <select name="reason" required className={inputClass} aria-label="Motif">
+                  {Object.entries(REPORT_REASONS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                </select>
+                <textarea name="details" rows={2} maxLength={1000} className={inputClass} placeholder="Ce que vous avez remarqué" aria-label="Détails" />
+              </ActionForm>
+            </details>
+          </Section>
           <Section title="Historique" id="history">
             <ol className="grid gap-2 text-sm">
               {events.filter((e) => e.event !== "order_placed" && e.event !== "payment_confirmed").map((e, i) => (
