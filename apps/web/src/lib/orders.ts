@@ -24,3 +24,18 @@ export const zoneList = (zones: ZoneRow[] | null | undefined) =>
   (zones ?? []).map((z) => ({ key: z.key, label: z.anchor?.label ?? z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm }));
 
 export const dateTime = (iso: string) => new Date(iso).toLocaleString("fr-SN", { dateStyle: "medium", timeStyle: "short" });
+
+/** Version history of an order line (RLS decides who can read it), with signed image URLs for every version. */
+export async function loadVersions(client: SupabaseClient, orderItemId: string, signer: SupabaseClient = client) {
+  const { data } = await client
+    .from("order_item_versions")
+    .select("proof_round, surcharge, created_at, version:design_versions(id, number, document)")
+    .eq("order_item_id", orderItemId);
+  const rows = (data ?? []).map((r) => {
+    const v = r.version as unknown as { id: string; number: number; document: unknown };
+    return { id: v.id, number: v.number, proofRound: r.proof_round as number, surcharge: Number(r.surcharge), createdAt: r.created_at as string, doc: readDoc(v.document) };
+  });
+  const urls: Record<string, string> = {};
+  for (const r of rows) if (r.doc) Object.assign(urls, await signedDesignUrls(signer, r.doc));
+  return { versions: rows, urls };
+}

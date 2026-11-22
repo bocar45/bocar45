@@ -39,7 +39,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Accès réservé à l'atelier affecté (actif) et à l'équipe ops ; refusé avant affectation.
 - [x] Tests du rendu SVG et du PDF.
 
-## E10 — Correction de la création par le client 🛠️ en cours
+## E10 — Correction de la création par le client 🔎
 **But** : après « correction demandée », le client corrige dans le studio et renvoie au BAT.
 - [ ] Depuis la commande, « Corriger ma création » ouvre le studio sur la version commandée.
 - [ ] Le renvoi crée une **nouvelle version figée**, rattachée à la commande, et passe l'ordre en « BAT en cours » (`resubmit_design`).

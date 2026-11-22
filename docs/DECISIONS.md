@@ -103,3 +103,8 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Problème** : l'agrégateur de paiement (Wave/Orange Money/carte) demande un compte marchand que SAWWA n'a pas encore ; les tarifs de livraison ne sont pas encore négociés.
 - **Choix pour le pilote** : la commande est créée « Paiement attendu » ; SAWWA envoie les instructions de paiement par WhatsApp ; la finance confirme le paiement dans l'admin avec la référence de transaction (journalisé). Livraison : 4 forfaits fixes (retrait gratuit, Dakar 2 000, banlieue 3 000, régions 5 000 FCFA) dans `apps/web/src/lib/shipping.ts`.
 - **Ensuite** : webhook de l'agrégateur → `mark_order_paid` automatique ; tarifs de livraison gérés dans l'admin (`shipping_rates`).
+
+## D16 🟢 Prix d'une correction (décision CTO, 22/11/2026)
+- Une correction qui coûte **autant ou moins** est acceptée sans remboursement de la différence (le prix convenu reste dû).
+- Une correction qui coûte **plus** exige l'accord explicite du client sur le montant exact du supplément ; le supplément est enregistré et signalé à la finance (encaissement manuel pendant le pilote).
+- La couleur et la répartition par tailles ne changent pas pendant une correction (ce serait une nouvelle commande).

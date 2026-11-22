@@ -5,13 +5,13 @@ import { Studio } from "@/components/studio/studio";
 import { isSupabaseConfigured } from "@/lib/env";
 import { loadStudioProduct } from "@/lib/studio-data";
 import { createClient } from "@/lib/supabase/server";
-import { getStudioQuote, placeOrder, saveDesign } from "./actions";
+import { getStudioQuote, placeOrder, resubmitCorrection, saveDesign } from "./actions";
 
 export const metadata = { title: "Studio de création" };
 
-export default async function StudioPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ creation?: string }> }) {
+export default async function StudioPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ creation?: string; commande?: string }> }) {
   const { slug } = await params;
-  const { creation } = await searchParams;
+  const { creation, commande } = await searchParams;
   if (!isSupabaseConfigured()) {
     return (
       <div className="mx-auto grid max-w-xl gap-4 px-4 py-16">
@@ -40,5 +40,28 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
       initial = { id: data.id as string, title: data.title as string, document: parsed.value, urls };
     }
   }
-  return <Studio product={product} quote={getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={placeOrder} />;
+  // E10: correcting an order opens the version that was ordered.
+  let correction = null;
+  if (user && commande) {
+    const { data: o } = await supabase
+      .from("orders")
+      .select("id, number, items:order_items(version:design_versions(design_id, document)), fulfillments(status), events:status_events(event, payload, at)")
+      .eq("id", commande).maybeSingle();
+    const item = (o?.items as unknown as { version: { design_id: string; document: unknown } }[] | undefined)?.[0];
+    const status = (o?.fulfillments as { status: string }[] | undefined)?.[0]?.status;
+    const parsed = item ? parseDesign(item.version.document) : null;
+    if (o && item && status === "changes_requested" && parsed?.ok && parsed.value.product === slug) {
+      const { data: d } = await supabase.from("designs").select("id, title").eq("id", item.version.design_id).maybeSingle();
+      const paths = parsed.value.surfaces.flatMap((s) => s.layers).flatMap((l) => (l.type === "image" && l.src.startsWith("storage:design-assets/") ? [l.src.slice("storage:design-assets/".length)] : []));
+      const urls: Record<string, string> = {};
+      if (paths.length) {
+        const { data: signed } = await supabase.storage.from("design-assets").createSignedUrls(paths, 3600);
+        for (const s of signed ?? []) if (s.signedUrl && s.path) urls[`storage:design-assets/${s.path}`] = s.signedUrl;
+      }
+      initial = { id: item.version.design_id, title: d?.title ?? "Ma création", document: parsed.value, urls };
+      const last = ((o.events ?? []) as { event: string; payload: { comment?: string }; at: string }[]).filter((e) => e.event === "request_changes").sort((a, b) => b.at.localeCompare(a.at))[0];
+      correction = { orderId: o.id as string, number: o.number as string, comment: last?.payload.comment ?? null };
+    }
+  }
+  return <Studio product={product} quote={getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={placeOrder} correction={correction} resubmit={resubmitCorrection} />;
 }

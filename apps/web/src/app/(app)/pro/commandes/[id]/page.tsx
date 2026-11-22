@@ -3,7 +3,8 @@ import { layerBox, unionBox, visibleLayers } from "@sawwa/design";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import { requireUser, vendorMembership } from "@/lib/auth";
 import { EVENT_LABEL, STATUS_LABEL } from "@/lib/fulfillment";
-import { dateTime, readDoc, signedDesignUrls, zoneList, type ZoneRow } from "@/lib/orders";
+import { dateTime, loadVersions, readDoc, signedDesignUrls, zoneList, type ZoneRow } from "@/lib/orders";
+import { VersionHistory } from "@/components/version-history";
 import { createServiceClient } from "@/lib/supabase/server";
 import { ActionForm } from "@/components/action-form";
 import { DesignPreview } from "@/components/design-preview";
@@ -32,14 +33,15 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
   // RLS: only the assigned workshop can read this fulfillment and its items.
   const { data: f } = await supabase
     .from("fulfillments")
-    .select("id, status, sla_due_at, vendor_cost, proof_round, carrier, tracking_number, order_id, items:order_items(color_key, sizes, quantity, decorations, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), events:status_events(event, payload, at)")
+    .select("id, status, sla_due_at, vendor_cost, proof_round, carrier, tracking_number, order_id, items:order_items(id, design_version_id, color_key, sizes, quantity, decorations, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), events:status_events(event, payload, at)")
     .eq("id", id).eq("vendor_id", vendor.organization.id).maybeSingle();
   if (!f) notFound();
-  const item = (f.items as unknown as { color_key: string; sizes: Record<string, number>; quantity: number; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: (ZoneRow & { anchor: { label?: string; note?: string } | null })[] } }[])[0];
+  const item = (f.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: (ZoneRow & { anchor: { label?: string; note?: string } | null })[] } }[])[0];
   if (!item) notFound();
   const doc = readDoc(item.version.document);
   const urls = doc ? await signedDesignUrls(createServiceClient(), doc) : {};
   const zones = zoneList(item.product.zones);
+  const history = await loadVersions(supabase, item.id, createServiceClient());
   const events = ((f.events ?? []) as { event: string; payload: Record<string, string>; at: string }[]).sort((a, b) => a.at.localeCompare(b.at));
   const hex = item.product.variants.find((v) => v.color_key === item.color_key)?.color_hex ?? "#F2E9D8";
   const images = doc ? doc.surfaces.flatMap((s) => s.layers).flatMap((l) => (l.type === "image" && urls[l.src] ? [{ name: l.name, url: urls[l.src]!, px: `${l.pxWidth} × ${l.pxHeight} px` }] : [])) : [];
@@ -84,6 +86,11 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
         <Section title="Création à produire" id="design">
           {doc && <DesignPreview doc={doc} zones={zones} urls={urls} garmentHex={hex} />}
           <p className="text-xs text-muted">Version figée · empreinte {item.version.sha256.slice(0, 12)} · BAT n° {f.proof_round || 1}</p>
+          {history.versions.length > 1 && (
+            <div className="grid gap-2"><h3 className="font-bold">Versions précédentes (pour comparer)</h3>
+              <VersionHistory versions={history.versions} currentId={item.design_version_id} zones={zones} urls={history.urls} garmentHex={hex} />
+            </div>
+          )}
         </Section>
         <div className="grid content-start gap-6">
           <Section title="Fiche technique" id="sheet">

@@ -2,6 +2,8 @@
 
 import { createHash } from "node:crypto";
 import { blocking, decorationsFor, parseDesign, preflight, type DesignDocument } from "@sawwa/design";
+import { transition, type FulfillmentStatus } from "@sawwa/workflow";
+import { correctionPricing } from "@/lib/correction";
 import { normalizeSenegalPhone } from "@/lib/phone";
 import { bestQuote, sanitizeDecorations } from "@/lib/quoting";
 import { DELIVERY_OPTIONS, isDeliveryKey } from "@/lib/shipping";
@@ -113,4 +115,63 @@ export async function placeOrder(input: PlaceOrderInput) {
   });
   if (error || !data?.[0]) return { error: `La commande n'a pas pu être créée : ${error?.message ?? "réessayez"}` };
   return { ok: true as const, orderId: data[0].order_id as string, number: data[0].order_number as string };
+}
+
+/**
+ * E10 — the customer sends a corrected design back to the workshop (order in « correction demandée »).
+ * Same checks as an order; price recomputed; a higher price needs explicit agreement on the exact surcharge.
+ */
+export async function resubmitCorrection(input: { orderId: string; document: unknown; acceptWarnings: boolean; acceptedSurcharge: number | null }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Connectez-vous pour corriger votre commande." };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, total, shipping, shipping_address, items:order_items(color_key, sizes, quantity, product:base_products(id, slug, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques))), fulfillments(id, status, vendor_id, proof_round, held_from)")
+    .eq("id", input.orderId).maybeSingle();
+  if (!order) return { error: "Commande introuvable." };
+  const item = (order.items as unknown as { color_key: string; sizes: Record<string, number>; quantity: number; product: { id: string; slug: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[] }[] } }[])[0];
+  const f = (order.fulfillments as { id: string; status: string; vendor_id: string | null; proof_round: number; held_from: string | null }[])[0];
+  if (!item || !f) return { error: "Commande incomplète." };
+  if (f.status !== "changes_requested") return { error: "Cette commande n'attend pas de correction." };
+
+  const parsed = parseDesign(input.document);
+  if (!parsed.ok || parsed.value.product !== item.product.slug) return { error: "Création illisible ou produit différent." };
+  const doc = parsed.value;
+  if (doc.colorKey !== item.color_key) return { error: "La couleur du produit ne peut pas changer pendant une correction." };
+  if (onDeviceImages(doc)) return { error: "Enregistrez d'abord votre création (les images doivent être envoyées)." };
+
+  const zoneSizes = item.product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm }));
+  const issues = doc.surfaces.flatMap((s) => { const z = zoneSizes.find((x) => x.key === s.zoneKey); return z ? preflight(s, z) : []; });
+  if (blocking(issues)) return { error: "Votre création contient encore des points bloquants." };
+  if (issues.length > 0 && !input.acceptWarnings) return { error: "Confirmez que vous acceptez les remarques de fabrication." };
+  const decorations = sanitizeDecorations(decorationsFor(doc, zoneSizes), item.product.zones);
+  if (decorations.length === 0) return { error: "Votre création est vide." };
+
+  const { best } = await bestQuote({
+    productId: item.product.id, categorySlug: item.product.category?.slug ?? "default", colorKey: doc.colorKey,
+    sizes: item.sizes, quantity: item.quantity, decorations, shipping: order.shipping,
+  });
+  if (!best) return { error: "Aucun atelier ne peut fabriquer cette version (taille du marquage ou technique). Modifiez-la." };
+  const pricing = correctionPricing(order.total, best.quote.total.amount, input.acceptedSurcharge);
+  if (!pricing.ok) return { error: pricing.message, surcharge: pricing.surcharge };
+
+  let next;
+  try {
+    next = transition(
+      { status: f.status as FulfillmentStatus, vendorId: f.vendor_id, proofRound: f.proof_round, heldFrom: (f.held_from as FulfillmentStatus | null) ?? null },
+      { type: "resubmit_design", designVersionId: "pending" },
+      { role: "customer" },
+    );
+  } catch {
+    return { error: "Cette correction n'est plus possible à cette étape." };
+  }
+  const { error } = await createServiceClient().rpc("resubmit_design", {
+    p_order: order.id, p_customer: user.id, p_document: doc,
+    p_sha256: createHash("sha256").update(JSON.stringify(doc)).digest("hex"), p_preflight: issues,
+    p_decorations: decorations, p_surcharge: pricing.surcharge, p_state: next.state,
+  });
+  if (error) return { error: error.message.includes("conflict") ? "Cette commande vient de changer. Rechargez la page." : `Renvoi impossible : ${error.message}` };
+  return { ok: true as const, surcharge: pricing.surcharge };
 }

@@ -321,4 +321,66 @@ do $$ declare ok boolean := false; begin
 end $$;
 rollback;
 
+-- 12. Correction by the customer (E10)
+set role service_role;
+select public.apply_fulfillment_transition((select id from public.fulfillments), 'assigned',
+  jsonb_build_object('status','proof_review','vendorId',(select vendor_id from public.fulfillments),'proofRound',1,'heldFrom',null), 'accept', null, 'vendor', '{}');
+select public.apply_fulfillment_transition((select id from public.fulfillments), 'proof_review',
+  jsonb_build_object('status','changes_requested','vendorId',(select vendor_id from public.fulfillments),'proofRound',1,'heldFrom',null), 'request_changes', null, 'vendor', '{"comment":"Logo flou"}');
+reset role;
+-- the customer cannot call the function directly
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+do $$ declare ok boolean := false; begin
+  begin perform public.resubmit_design((select id from public.orders), auth.uid(), '{}', 'x', '[]', '[]', 0, '{"status":"proof_review","proofRound":2}');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL customer called resubmit_design'; end if;
+end $$;
+rollback;
+-- another customer's id is refused
+set role service_role;
+do $$ declare ok boolean := false; begin
+  begin perform public.resubmit_design((select id from public.orders), '00000000-0000-0000-0000-0000000000c2', '{}', 'x', '[]', '[]', 0, '{"status":"proof_review","proofRound":2}');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL resubmit for another customer'; end if;
+end $$;
+select public.resubmit_design((select id from public.orders), '00000000-0000-0000-0000-0000000000c1', '{"schemaVersion":1,"v":2}', 'def', '[]',
+  '[{"zoneKey":"front","technique":"dtf","widthMm":100,"heightMm":100}]', 1500, '{"status":"proof_review","proofRound":2}');
+reset role;
+do $$ begin
+  if (select count(*) from public.design_versions) <> 2 then raise exception 'FAIL new version'; end if;
+  if (select status from public.fulfillments) <> 'proof_review' or (select proof_round from public.fulfillments) <> 2 then raise exception 'FAIL fulfillment after resubmit'; end if;
+  if (select v.number from public.order_items i join public.design_versions v on v.id = i.design_version_id) <> 2 then raise exception 'FAIL item not on new version'; end if;
+  if (select count(*) from public.order_item_versions) <> 2 then raise exception 'FAIL version history'; end if;
+  if (select surcharge from public.order_item_versions where proof_round = 2) <> 1500 then raise exception 'FAIL surcharge recorded'; end if;
+  if not exists (select 1 from public.status_events where event = 'resubmit_design') then raise exception 'FAIL resubmit event'; end if;
+end $$;
+-- a second resubmit is refused (no longer waiting for a correction)
+set role service_role;
+do $$ declare ok boolean := false; begin
+  begin perform public.resubmit_design((select id from public.orders), '00000000-0000-0000-0000-0000000000c1', '{}', 'x', '[]', '[]', 0, '{"status":"proof_review","proofRound":3}');
+  exception when serialization_failure then ok := true; end;
+  if not ok then raise exception 'FAIL double resubmit'; end if;
+end $$;
+reset role;
+-- the assigned workshop sees both versions and the history; another workshop sees nothing
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ begin
+  if (select count(*) from public.design_versions) <> 2 then raise exception 'FAIL workshop cannot compare versions: %', (select count(*) from public.design_versions); end if;
+  if (select count(*) from public.order_item_versions) <> 2 then raise exception 'FAIL workshop history'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+do $$ begin
+  if exists (select 1 from public.design_versions) or exists (select 1 from public.order_item_versions) then raise exception 'FAIL other workshop sees versions'; end if;
+end $$;
+rollback;
+-- history is append-only
+do $$ declare ok boolean := false; begin
+  begin delete from public.order_item_versions; exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL history deleted'; end if;
+end $$;
+
 select 'ALL RLS TESTS PASSED' as result;

@@ -28,6 +28,9 @@ export interface StudioProps {
     designId: string; sizes: Record<string, number>; delivery: string; acceptWarnings: boolean;
     address: { name: string; phone: string; district: string; landmark: string; city: string };
   }) => Promise<{ ok: true; orderId: string; number: string } | { error: string }>;
+  /** E10: the studio opened to correct an order waiting for a correction. */
+  correction?: { orderId: string; number: string; comment: string | null } | null;
+  resubmit?: (input: { orderId: string; document: unknown; acceptWarnings: boolean; acceptedSurcharge: number | null }) => Promise<{ ok: true; surcharge: number } | { error: string; surcharge?: number }>;
 }
 
 const SWATCHES = ["#2A1A12", "#F2E9D8", "#FFFFFF", "#000000", "#B5562A", "#C9923E", "#2F4B7C", "#68705A", "#A4262C"];
@@ -36,9 +39,9 @@ const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).sl
 const btn = "inline-flex items-center justify-center gap-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-sable disabled:opacity-40";
 const field = "w-full rounded-md border border-line bg-bg px-2 py-1.5 text-sm";
 
-export function Studio({ product, quote, userId, initial, save, order }: StudioProps) {
+export function Studio({ product, quote, userId, initial, save, order, correction, resubmit }: StudioProps) {
   const router = useRouter();
-  const draftKey = `sawwa:studio:${product.slug}${initial ? `:${initial.id}` : ""}`;
+  const draftKey = `sawwa:studio:${product.slug}${correction ? `:commande:${correction.orderId}` : initial ? `:${initial.id}` : ""}`;
   const [designId, setDesignId] = useState<string | null>(initial?.id ?? null);
   const [title, setTitle] = useState(initial?.title ?? "Ma création");
   const [saving, setSaving] = useState(false);
@@ -238,6 +241,7 @@ export function Studio({ product, quote, userId, initial, save, order }: StudioP
       <div className="flex flex-wrap items-center gap-3 border-b border-line bg-ivoire px-4 py-3">
         <Link href={`/produits/${product.slug}`} className="text-sm text-muted underline">← Produit</Link>
         <b className="display on-light text-xl">{product.name}</b>
+        {correction && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Correction · {correction.number}</span>}
         <div className="flex items-center gap-1.5" role="group" aria-label="Couleur du produit">
           {product.colors.map((c) => (
             <button key={c.key} type="button" onClick={() => history.commit((d) => ({ ...d, colorKey: c.key }))} aria-pressed={c.key === color.key} aria-label={c.key}
@@ -380,14 +384,27 @@ export function Studio({ product, quote, userId, initial, save, order }: StudioP
             </label>
             <div className="flex flex-wrap gap-2">
               <button type="button" className={btn} disabled={saving} onClick={() => void saveToAccount()}>{saving ? "Enregistrement…" : designId ? "Enregistrer" : "Enregistrer dans mon compte"}</button>
-              <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={decorations.length === 0 || blocking(allIssues)}
-                onClick={() => (userId ? setOrdering(true) : router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}`)}`))}>
-                Commander
-              </button>
+              {!correction && (
+                <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={decorations.length === 0 || blocking(allIssues)}
+                  onClick={() => (userId ? setOrdering(true) : router.push(`/connexion?suite=${encodeURIComponent(`/studio/${product.slug}`)}`))}>
+                  Commander
+                </button>
+              )}
             </div>
             {blocking(allIssues) && <p className="text-xs text-error">Corrigez les points bloquants pour pouvoir commander.</p>}
             <p className="text-xs text-muted">{designId ? "Enregistrée dans votre compte." : "Enregistrée automatiquement sur cet appareil."}</p>
           </Panel>
+          {correction && resubmit && (
+            <CorrectionPanel correction={correction} issues={allIssues.length} blocked={blocking(allIssues) || decorations.length === 0}
+              onSend={async (acceptWarnings, acceptedSurcharge) => {
+                const id = await saveToAccount();
+                if (!id) return { error: "Enregistrez d'abord votre création." };
+                const r = await resubmit({ orderId: correction.orderId, document: history.value, acceptWarnings, acceptedSurcharge });
+                if ("error" in r) return r;
+                router.push(`/compte/commandes/${correction.orderId}`);
+                return null;
+              }} />
+          )}
           {ordering && (
             <OrderPanel sizes={color.sizes} issues={allIssues.length} price={price}
               onQuantity={setQuantity} onCancel={() => setOrdering(false)}
@@ -579,6 +596,48 @@ function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm }: {
         </button>
         <button type="button" className={btn} onClick={onCancel}>Annuler</button>
       </div>
+    </section>
+  );
+}
+
+function CorrectionPanel({ correction, issues, blocked, onSend }: {
+  correction: { orderId: string; number: string; comment: string | null }; issues: number; blocked: boolean;
+  onSend: (acceptWarnings: boolean, acceptedSurcharge: number | null) => Promise<{ error: string; surcharge?: number } | null>;
+}) {
+  const [accept, setAccept] = useState(false);
+  const [surcharge, setSurcharge] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const send = async (accepted: number | null) => {
+    setBusy(true); setError(null);
+    const r = await onSend(accept, accepted);
+    if (r) { setError(r.error); if (r.surcharge) setSurcharge(r.surcharge); }
+    setBusy(false);
+  };
+  return (
+    <section className="grid gap-3 rounded-2xl border-2 border-ocre bg-surface p-4" aria-labelledby="correction-title">
+      <h2 id="correction-title" className="display on-light text-2xl">Correction de {correction.number}</h2>
+      {correction.comment && <p className="rounded-lg bg-ocre/20 p-3 text-sm">L&apos;atelier : « {correction.comment} »</p>}
+      <p className="text-xs text-muted">Corrigez votre création puis renvoyez-la : l&apos;atelier vérifie la nouvelle version (nouveau BAT). La couleur et les tailles restent celles de la commande.</p>
+      {issues > 0 && (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="mt-1" />
+          J&apos;ai lu les remarques de fabrication et je renvoie quand même.
+        </label>
+      )}
+      {error && <p role="alert" className="text-sm text-error">⚠ {error}</p>}
+      <div className="flex flex-wrap gap-2">
+        {surcharge ? (
+          <button type="button" className="btn btn-terra !py-2 text-sm" disabled={busy} onClick={() => void send(surcharge)}>
+            {busy ? "Envoi…" : `J'accepte le supplément de ${fcfa(surcharge)} et je renvoie`}
+          </button>
+        ) : (
+          <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={busy || blocked} onClick={() => void send(null)}>
+            {busy ? "Envoi…" : "Renvoyer au BAT"}
+          </button>
+        )}
+      </div>
+      {blocked && <p className="text-xs text-error">Corrigez les points bloquants pour pouvoir renvoyer.</p>}
     </section>
   );
 }

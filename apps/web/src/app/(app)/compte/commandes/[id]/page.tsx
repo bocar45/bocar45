@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { EVENT_LABEL, STATUS_LABEL } from "@/lib/fulfillment";
-import { dateTime, fcfa, readDoc, signedDesignUrls, zoneList, type ZoneRow } from "@/lib/orders";
+import Link from "next/link";
+import { dateTime, fcfa, loadVersions, readDoc, signedDesignUrls, zoneList, type ZoneRow } from "@/lib/orders";
+import { VersionHistory } from "@/components/version-history";
 import { DELIVERY_OPTIONS, isDeliveryKey } from "@/lib/shipping";
 import { ActionForm } from "@/components/action-form";
 import { DesignPreview } from "@/components/design-preview";
@@ -17,15 +19,17 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const { supabase } = await requireUser(`/compte/commandes/${id}`);
   const { data: o } = await supabase
     .from("orders")
-    .select("id, number, payment_status, subtotal, shipping, tax, total, deposit_due, shipping_address, created_at, items:order_items(color_key, sizes, quantity, unit_price, line_total, version:design_versions(document), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), fulfillments(id, status, carrier, tracking_number), events:status_events(event, payload, at)")
+    .select("id, number, payment_status, subtotal, shipping, tax, total, deposit_due, shipping_address, created_at, items:order_items(id, color_key, sizes, quantity, unit_price, line_total, design_version_id, version:design_versions(document), product:base_products(slug, name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), fulfillments(id, status, carrier, tracking_number), events:status_events(event, payload, at)")
     .eq("id", id)
     .maybeSingle();
   if (!o) notFound();
-  const item = (o.items as unknown as { color_key: string; sizes: Record<string, number>; quantity: number; unit_price: number; line_total: number; version: { document: unknown }; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: ZoneRow[] } }[])[0];
+  const item = (o.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; unit_price: number; line_total: number; version: { document: unknown }; product: { slug: string; name: unknown; variants: { color_key: string; color_hex: string }[]; zones: ZoneRow[] } }[])[0];
   const f = (o.fulfillments as { id: string; status: string; carrier: string | null; tracking_number: string | null }[])[0];
   const events = ((o.events ?? []) as { event: string; payload: { comment?: string; reason?: string }; at: string }[]).sort((a, b) => a.at.localeCompare(b.at));
   const doc = item ? readDoc(item.version.document) : null;
   const urls = doc ? await signedDesignUrls(supabase, doc) : {};
+  const history = item ? await loadVersions(supabase, item.id) : { versions: [], urls: {} };
+  const garment = item?.product.variants.find((v) => v.color_key === item.color_key)?.color_hex ?? "#F2E9D8";
   const address = o.shipping_address as { name: string; phone: string; district: string; landmark: string; city: string; delivery: string };
   const lastChange = [...events].reverse().find((e) => e.event === "request_changes");
   const reached = f ? Math.max(0, STEPS.indexOf(f.status === "assigned" ? "pending_assignment" : f.status === "changes_requested" ? "proof_review" : f.status === "quality_check" ? "in_production" : f.status)) : 0;
@@ -47,8 +51,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       {f?.status === "changes_requested" && (
         <Section title="L'atelier demande une correction" id="correction">
           {lastChange && <p className="rounded-lg bg-ocre/20 p-3">« {lastChange.payload.comment} »</p>}
-          <p className="text-sm text-muted">Vous pouvez faire produire telle quelle, ou annuler et être remboursé. Pour corriger votre création, contactez l&apos;équipe SAWWA en indiquant {o.number}.</p>
+          <p className="text-sm text-muted">Corrigez votre création dans le studio et renvoyez-la à l&apos;atelier, faites produire telle quelle, ou annulez pour être remboursé.</p>
           <div className="flex flex-wrap gap-3">
+            {item && <Link href={`/studio/${item.product.slug}?commande=${o.id}`} className="btn btn-brun !py-2 text-sm">Corriger ma création</Link>}
             <ActionForm action={answerCorrection.bind(null, f.id, "accept_as_is")} submitLabel="Produire telle quelle" className="contents" />
             <ActionForm action={answerCorrection.bind(null, f.id, "cancel")} submitLabel="Annuler la commande" variant="secondary" className="contents" />
           </div>
@@ -64,6 +69,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <Section title={item ? `${fr(item.product.name)} · ${item.color_key.replace(/_/g, " ")}` : "Article"} id="design">
           {doc && item && <DesignPreview doc={doc} zones={zoneList(item.product.zones)} urls={urls} garmentHex={item.product.variants.find((v) => v.color_key === item.color_key)?.color_hex ?? "#F2E9D8"} />}
+          {item && history.versions.length > 1 && (
+            <div className="grid gap-2"><h3 className="font-bold">Versions de votre création</h3>
+              <VersionHistory versions={history.versions} currentId={item.design_version_id} zones={zoneList(item.product.zones)} urls={history.urls} garmentHex={garment} />
+            </div>
+          )}
           {item && <p className="text-sm">Tailles : {Object.entries(item.sizes).map(([s, n]) => `${s} × ${n}`).join(" · ")}</p>}
         </Section>
         <div className="grid content-start gap-6">
