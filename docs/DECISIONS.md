@@ -173,3 +173,10 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Pourquoi pas un service en ligne** : coût par image, envoi des photos des clients à un tiers (données personnelles), dépendance réseau. Ici : zéro coût, rien ne quitte l'appareil.
 - **Écartés** : `@imgly/background-removal` (licence AGPL, incompatible avec un service fermé), RMBG-1.4 (licence non commerciale), modèles plus gros (> 40 Mo, trop lourds sur réseau mobile).
 - **Limites** : ≈ 8 Mo au premier usage (signalé au client) ; qualité moyenne sur cheveux fins ; le résultat reste modifiable (annuler, recadrer, « Retirer le fond »).
+
+## D26 🟢 Impression intégrale : pièces de patron = zones, motif continu vectoriel (décision CTO, 22/11/2026)
+- **Pièces = zones d'impression** : chaque pièce de patron est une zone du produit (boîte = contour + couture + fond perdu), son contour est stocké dans `zones.anchor.pattern`. Pas de nouvelle table, et tout le reste (studio, prix, contrôles, BAT, fichiers, corrections, devis) fonctionne sans cas particulier.
+- **Repère commun au vêtement** : les pièces visibles en 3D sont dessinées dans le repère des modèles 3D (x centré, y = 0 sur la ligne d'épaule). L'aperçu 3D tombe juste et le motif continu se raccorde exactement aux coutures de côté (test de rendu réel).
+- **Motif continu vectoriel** (losanges, bandes tissées, damier, pois) plutôt qu'une image du client : rendu identique et net partout, aucune nouvelle chaîne d'images à sécuriser ; l'image en motif continu viendra ensuite.
+- **Prix** : chaque pièce imprimée est chiffrée sur sa surface entière, une fois par pièce coupée (deux manches = deux marquages), par le moteur de prix existant.
+- **À valider avec l'atelier** : patrons de référence taille M seulement ; laize supposée 150 cm ; la mise en vente attend un atelier capable (sublimation + coupe-couture), 🧑‍💼.

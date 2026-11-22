@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → **E18b** (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → E18b (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -110,11 +110,12 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Performances mesurées sur processeur graphique logiciel : 54–60 images/s, produit affiché en ≈ 0,65 s (serveur local). À confirmer sur un Android milieu de gamme réel en 4G (E11).
 - [ ] 🧑‍💼 Modèles 3D définitifs produits par un artiste. En attendant : modèles provisoires générés par le code, signalés « modèle provisoire » (D17).
 
-## E18b — Impression intégrale par pièces de patron ⏳ (vente : 🧑‍💼 atelier capable requis)
-- [ ] Produit de référence « coupé-cousu » : pièces de patron avec dimensions réelles (devant, dos, manches, capuche, poche, bord-côtes, ceinture) et marges de couture.
-- [ ] Édition à plat de chaque pièce (vue « patron ») avec la 3D en direct ; option « continuer le motif par-dessus les coutures ».
-- [ ] Fichiers de production par pièce (PNG 300 dpi avec marges de couture et repères) + plan de coupe.
-- [ ] Contrôle de fabrication propre à la sublimation / impression textile (fond perdu, résolution, couleurs).
+## E18b — Impression intégrale par pièces de patron 🔎 (vente : 🧑‍💼 atelier capable requis)
+- [x] Patrons de référence coupé-cousu, taille M, en mm : t-shirt (devant, dos, 2 manches, bord-côte du col) et hoodie (devant, dos, 2 manches, 2 capuches, poche kangourou, 2 poignets, ceinture), marges de couture 10 mm et fond perdu 5 mm ; créés en un clic dans l'admin catalogue comme zones « sublimation » (contour stocké dans la zone). Décision D26.
+- [x] Édition à plat de chaque pièce (pièce telle que coupée : motif, bord imprimé, trait de coupe, ligne de couture) avec la 3D en direct (pièces à leur place réelle, seconde manche en miroir) ; « Motif continu » (losanges, bandes tissées, damier, pois, 2 couleurs, taille réglable) posé sur tout le vêtement et raccordé exactement d'une pièce à l'autre (vérifié au rendu réel sur la couture de côté).
+- [x] Fichiers de production par pièce : PNG 300 dpi couvrant le fond perdu, découpé au contour imprimé, seconde pièce d'une paire en miroir (`copie=2`) ; fiche PDF avec le trait de coupe sur l'aperçu et une page « Plan de coupe » (laize 150 cm, longueur de tissu par vêtement et totale).
+- [x] Contrôle de fabrication propre à l'impression intégrale : pièce non couverte jusqu'au bord (tissu blanc aux coutures), élément hors de la pièce ; prix sur la surface entière de chaque pièce imprimée (×2 pour les paires) ; résolution contrôlée comme ailleurs.
+- [ ] Plus tard : motif continu à partir d'une image du client ; repères de montage (crans) ; gradation des tailles S à XXL (patron de l'atelier pilote).
 - [ ] 🧑‍💼 Au moins un atelier partenaire capable (sublimation ou impression textile + coupe-couture) avant mise en vente.
 
 ## E18c — Outils d'image du studio ✅
