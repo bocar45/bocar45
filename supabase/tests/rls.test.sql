@@ -595,4 +595,88 @@ do $$ begin
 end $$;
 rollback;
 
+-- 16. Devis B2B (E17)
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+insert into public.quote_requests (organization_name, contact_name, phone, base_product_id, quantity, message, logo_path)
+select 'ASC Jaraaf', 'Awa Diop', '+221770000005', id, 60, 'Maillots saison', '00000000-0000-0000-0000-0000000000c1/logo.png'
+from public.base_products where slug = 'tee-crew-180';
+do $$ declare ok boolean := false; begin
+  begin insert into public.quote_requests (organization_name, contact_name, phone, quantity, status) values ('X', 'Yy', '+221770000005', 10, 'quoted');
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL customer created a request already quoted'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin insert into public.quote_requests (organization_name, contact_name, phone, quantity, logo_path) values ('Xx', 'Yy', '+221770000005', 10, '00000000-0000-0000-0000-0000000000a1/logo.png');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL request with someone else''s logo'; end if;
+end $$;
+do $$ declare n int; begin
+  update public.quote_requests set status = 'quoted', staff_note = 'x';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception 'FAIL customer changed the request status'; end if;
+end $$;
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1');
+do $$ begin
+  if exists (select 1 from public.quote_requests) then raise exception 'FAIL workshop reads quote requests'; end if;
+end $$;
+rollback;
+-- the team quotes it (super admin)
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+insert into public.b2b_quotes (request_id, version, base_product_id, color_key, quantity, decorations, unit_price, goods_total, tax, lead_time_days, snapshot, valid_until)
+select r.id, 1, r.base_product_id, 'ivory', 60, '[]', 5600, 336000, 51254, 5, '{"ruleSetVersion":1}', now() + interval '30 days' from public.quote_requests r where organization_name = 'ASC Jaraaf';
+insert into public.b2b_quotes (request_id, version, base_product_id, color_key, quantity, decorations, unit_price, goods_total, tax, lead_time_days, snapshot, valid_until)
+select r.id, 2, r.base_product_id, 'ivory', 60, '[]', 5000, 300000, 45763, 5, '{"ruleSetVersion":1}', now() - interval '1 day' from public.quote_requests r where organization_name = 'ASC Jaraaf';
+update public.quote_requests set status = 'quoted' where organization_name = 'ASC Jaraaf';
+do $$ declare ok boolean := false; begin
+  begin update public.b2b_quotes set unit_price = 1 where version = 1;
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL frozen quote price changed'; end if;
+end $$;
+commit;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+do $$ declare ok boolean := false; begin
+  if (select count(*) from public.b2b_quotes) <> 2 then raise exception 'FAIL customer cannot read own quotes'; end if;
+  begin insert into public.b2b_quotes (request_id, version, base_product_id, color_key, quantity, decorations, unit_price, goods_total, tax, lead_time_days, snapshot, valid_until)
+    select request_id, 3, base_product_id, color_key, 60, '[]', 1, 60, 0, 5, '{}', now() + interval '30 days' from public.b2b_quotes where version = 1;
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL customer wrote own quote'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin perform public.claim_b2b_quote((select id from public.b2b_quotes where version = 1), auth.uid());
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL customer claimed a quote directly'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+do $$ begin
+  if exists (select 1 from public.b2b_quotes) then raise exception 'FAIL workshop reads quotes'; end if;
+end $$;
+rollback;
+-- the server claims the valid quote once; an expired one or a second claim gets nothing
+set role service_role;
+do $$ begin
+  if (select count(*) from public.claim_b2b_quote((select id from public.b2b_quotes where version = 2), '00000000-0000-0000-0000-0000000000c1')) <> 0 then raise exception 'FAIL expired quote claimed'; end if;
+  if (select count(*) from public.claim_b2b_quote((select id from public.b2b_quotes where version = 1), '00000000-0000-0000-0000-0000000000b1')) <> 0 then raise exception 'FAIL quote claimed by another customer'; end if;
+  if (select count(*) from public.claim_b2b_quote((select id from public.b2b_quotes where version = 1), '00000000-0000-0000-0000-0000000000c1')) <> 1 then raise exception 'FAIL valid quote not claimed'; end if;
+  if (select count(*) from public.claim_b2b_quote((select id from public.b2b_quotes where version = 1), '00000000-0000-0000-0000-0000000000c1')) <> 0 then raise exception 'FAIL quote claimed twice'; end if;
+  perform public.release_b2b_quote((select id from public.b2b_quotes where version = 1));
+  if (select status from public.b2b_quotes where version = 1) <> 'sent' then raise exception 'FAIL quote not released'; end if;
+end $$;
+reset role;
+-- the customer cancels their request: the quote is withdrawn
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+select public.cancel_quote_request((select id from public.quote_requests where organization_name = 'ASC Jaraaf'));
+do $$ begin
+  if (select status from public.quote_requests where organization_name = 'ASC Jaraaf') <> 'cancelled' then raise exception 'FAIL request not cancelled'; end if;
+  if (select status from public.b2b_quotes where version = 1) <> 'withdrawn' then raise exception 'FAIL quote not withdrawn'; end if;
+end $$;
+rollback;
+
 select 'ALL RLS TESTS PASSED' as result;
