@@ -2,6 +2,24 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E18b (partie code, 2e passage) — VALIDÉ
+Commit examiné : 22a1ca8 (depuis 958f9c0), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (162) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé, build compris.
+Vérification navigateur : non refaite.
+Critères de l'étape :
+- [x] Point 1 corrigé, motif raccordé à la vraie couture : `motifFrame` (`pattern.ts`) ancre la grille sur le vêtement vu de face, avec s = −1 pour une pièce de dos et tx = body.x + W pour la copie miroir (calcul refait : u' = W − u en X' = −X). Le même repère est appliqué dans `renderSurfaceSvg` (le miroir ne retourne que le contour, les éléments et le trait de coupe), `canvas.tsx` et la texture 3D du dos (`viewer.tsx`, `ctx.scale(-1,1)`, plage x inversée).
+- [x] Test corrigé : `render.test.ts` compare le devant en X et le dos en −X − body.x, sur les 4 motifs, les deux côtés et 3 hauteurs, avec des points pris à l'intérieur des formes. Il vérifie aussi que les deux couleurs sont bien touchées. Test unitaire `motifFrame` (devant, dos, copie miroir).
+- [x] Contre-épreuve indépendante refaite (mon script resvg, même côté du porteur) : le damier passe de 0/5 à 8/8 points identiques, et pois 8/8. Les seuls écarts restants (losanges, bandes) sont des pixels lissés sur les bords des formes : couleurs intermédiaires proches, décalage de 1 px dû au miroir. Aucun point intérieur ne diffère.
+- [x] Remarque traitée : `blankPieces` (`preflight.ts`) signale les pièces sans impression ni motif, dans le studio et dans `placeOrder` (`actions.ts:134`), avec un test.
+- [x] Les autres critères sont acquis au 1er passage (patrons, fichiers par pièce et plan de coupe, contrôle et prix côté serveur).
+- 🧑‍💼 Il faut un atelier capable avant la mise en vente. La gradation S à XXL, les crans de montage et le motif à partir d'une image sont reportés.
+Critères communs : C1 ✅ · C2 ✅ · C3 ✅ (pas de secret dans apps/packages/supabase ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ · C6 ✅ (D26 précisée : repère, raccord approché des manches, pièces blanches ; poussé ; aucune nouvelle dépendance dans ce passage).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- `resubmitCorrection` n'ajoute pas `blankPieces`. Ce n'est qu'une remarque, mais le serveur devrait suivre la même règle que `placeOrder`.
+- Le contour (`zones.anchor.pattern`) est relu en direct dans le catalogue au moment de la production, pas figé avec la commande. À figer quand les patrons de l'atelier arriveront.
+Décision : passer à E24, partie code (revue de sécurité, tests de charge locaux, référencement, version anglaise), à découper d'abord en étape(s) avec critères dans BACKLOG. E11, E12, E13, E19, E23 et la partie non-code d'E24 attendent le porteur.
+
 ## 2026-11-22 — E18b (partie code : impression intégrale par pièces de patron) — À CORRIGER
 Commit examiné : 958f9c0 (depuis ad9ad7d, wip 3f53c1f, 40989bb, 21a152f, 559d4ab inclus), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (158, 26 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.

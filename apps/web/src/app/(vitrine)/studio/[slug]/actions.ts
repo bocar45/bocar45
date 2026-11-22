@@ -242,6 +242,7 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
 
   const zoneSizes = item.product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm, pattern: patternOf(z.anchor) }));
   const issues = doc.surfaces.flatMap((s) => { const z = zoneSizes.find((x) => x.key === s.zoneKey); return z ? checkSurface(s, z, doc.allOver) : []; });
+  issues.push(...blankPieces(doc, item.product.zones.map((z) => ({ key: z.key, label: (z.anchor as { label?: string } | null)?.label ?? z.key, pattern: patternOf(z.anchor) }))));
   if (blocking(issues)) return { error: "Votre création contient encore des points bloquants." };
   if (issues.length > 0 && !input.acceptWarnings) return { error: "Confirmez que vous acceptez les remarques de fabrication." };
   // E16: the team list is frozen with the order; the corrected design must still print it correctly.
