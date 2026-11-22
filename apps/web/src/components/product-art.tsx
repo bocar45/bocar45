@@ -32,6 +32,7 @@ export function ProductArt({
   className,
   label,
   withPrint = true,
+  design,
 }: {
   kind: ArtKind;
   color?: string;
@@ -39,13 +40,19 @@ export function ProductArt({
   className?: string;
   label?: string;
   withPrint?: boolean;
+  /** Real design to place on the print spot: content drawn in a zone of widthMm × heightMm. */
+  design?: { widthMm: number; heightMm: number; content: React.ReactNode } | undefined;
 }) {
   const shape = SHAPES[kind];
   return (
     <svg viewBox="0 0 200 200" className={className} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
       <ellipse cx="100" cy="192" rx="70" ry="6" fill="#000" opacity=".18" />
       <path d={shape.path} fill={color} fillRule="evenodd" stroke="rgba(0,0,0,.12)" strokeWidth="1.5" />
-      {withPrint && <Print {...shape.print} ink={ink} />}
+      {design ? (
+        <svg x={shape.print.x - shape.print.w * 0.75} y={shape.print.y - shape.print.w * 0.75 * (design.heightMm / design.widthMm) * 0.55}
+          width={shape.print.w * 1.5} height={shape.print.w * 1.5 * (design.heightMm / design.widthMm)}
+          viewBox={`0 0 ${design.widthMm} ${design.heightMm}`} overflow="hidden">{design.content}</svg>
+      ) : withPrint && <Print {...shape.print} ink={ink} />}
     </svg>
   );
 }

@@ -36,6 +36,8 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 - [x] Phase 2 — fiche atelier admin : simulation des prix publics par le moteur de prix
 - [x] Refonte visuelle du site (direction « atelier contemporain ouest-africain », logo réel, aplats, bandes tissées)
 - [x] Phase 3 (début) — catalogue public par catégorie et fiches produits ; prix « dès » et prix par quantité calculés par le moteur sur les offres actives (seuls les prix publics quittent le serveur), cache 10 min + rafraîchissement à chaque modification admin/atelier
+- [x] Phase 3 — studio V1 : texte (6 polices libres), images (PNG/JPG/WebP), formes (losange, cercle, carré), zones en mm réels, déplacement/redimensionnement/rotation avec aimantation, calques (ordre, masquer, verrouiller), annuler/rétablir, raccourcis clavier, choix de technique par zone, contrôle de fabrication en direct (`@sawwa/design`), prix en direct (moteur de prix, serveur), aperçu sur le produit, brouillon enregistré sur l'appareil (images en IndexedDB)
+- [ ] Phase 3 — enregistrer les créations dans le compte (Supabase Storage), version figée à la commande, export 300 dpi + fiche technique, limitation de débit du calcul de prix
 - [ ] Phase 2 — créer les projets Supabase/Vercel (porteur), types générés, enregistrement d'offre atomique (RPC), test des écrans de bout en bout sur un vrai projet Supabase
 
 ## Critères d'acceptation par jalon

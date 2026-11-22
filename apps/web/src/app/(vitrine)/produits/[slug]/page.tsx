@@ -89,9 +89,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </ul>
           </div>
 
-          <div className="grid gap-2 rounded-xl border border-terra/40 bg-terra/5 p-4">
-            <b>Le studio de création ouvre bientôt.</b>
-            <span className="text-sm text-muted">Vous pourrez y placer votre texte, votre logo ou vos photos et voir le rendu en 3D avant de commander.</span>
+          <div className="flex flex-wrap items-center gap-4 rounded-[24px] bg-terra p-5 text-ivoire">
+            <div className="grid flex-1 gap-1">
+              <b className="display text-2xl">Créez le vôtre</b>
+              <span className="text-sm text-ivoire/85">Texte, logo, photos : placez-les au millimètre, vérifiez la fabrication et voyez le prix en direct.</span>
+            </div>
+            <Link href={`/studio/${product.slug}`} className="btn btn-brun">Personnaliser dans le studio →</Link>
           </div>
         </div>
       </div>

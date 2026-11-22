@@ -91,3 +91,10 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 
 ## D13 🟢 Réseau de designers
 - **Recommandation** : graphistes partenaires (dont designers d'Afrique de l'Ouest) qui créent des modèles payés en royalties et proposent un service « Faire appel à un designer ». Phase V1.x.
+
+## D14 🟢 Studio : éditeur SVG natif plutôt que Fabric.js (décision CTO, 22/11/2026)
+- **Problème** : `ARCHITECTURE.md` prévoyait Fabric.js comme moteur d'édition, branché sur notre format de document.
+- **Choix** : éditeur construit directement en **SVG**, piloté par le SAWWA Design Document (millimètres réels).
+- **Pourquoi** : le format est déjà en mm et les fichiers de production seront produits en SVG → ce que voit le client est exactement ce que reçoit l'atelier ; pas de conversion Fabric ↔ document à maintenir ; aucune dépendance lourde ; même code de rendu pour l'aperçu produit (et demain la 3D et l'export).
+- **Limites assumées** : pas d'édition de texte directement sur le canevas (le texte se modifie dans le panneau) ; pas d'outils vectoriels avancés. Fabric.js reste une option si ces besoins deviennent prioritaires.
+- **Réversible** : oui, le document ne dépend pas de l'éditeur.

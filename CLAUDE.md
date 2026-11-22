@@ -35,6 +35,9 @@ Next.js (Vercel) + Supabase (Postgres, Auth, Storage). Migrations SQL dans `supa
 ## Commandes
 `pnpm install` · `pnpm test` · `pnpm typecheck` · `pnpm db:test` (migrations + RLS sur un Postgres local) · `pnpm --filter web dev`
 
+## Paquets métier
+`domain` (Money) · `pricing` (prix, grilles, prix catalogue) · `workflow` (statuts) · `catalog` (règles catalogue) · `design` (document de création, géométrie, contrôle de fabrication)
+
 ## Règles non négociables
 1. Rien de déployé, publié, acheté, supprimé ou configuré sur un service externe sans accord explicite.
 2. Aucun paiement réel : agrégateur de paiement en mode test (sandbox) uniquement jusqu'à validation.

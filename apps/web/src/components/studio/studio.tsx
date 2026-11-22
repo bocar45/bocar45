@@ -1,0 +1,435 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
+import {
+  FONTS, blocking, decorationsFor, effectiveDpi, emptyDocument, parseDesign, preflight,
+  type DesignDocument, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
+} from "@sawwa/design";
+import { ProductArt, artKindFor } from "../product-art";
+import { getAsset, loadDraft, putAsset, saveDraft } from "./asset-store";
+import { LayerShape, StudioCanvas, isDark } from "./canvas";
+import { useHistory } from "./use-history";
+
+export interface StudioZoneProps { key: string; label: string; viewLabel: string; maxWidthMm: number; maxHeightMm: number; techniques: Technique[] }
+export interface StudioProps {
+  product: { slug: string; name: string; categorySlug: string; colors: { key: string; hex: string; sizes: string[] }[]; zones: StudioZoneProps[] };
+  quote: (slug: string, colorKey: string, quantity: number, decorations: ReturnType<typeof decorationsFor>) => Promise<
+    { ok: true; unitPrice: number; total: number; quantity: number; leadTimeDays: number; depositDue: number | null; setupFee: number } | { ok: false; message: string }
+  >;
+}
+
+const SWATCHES = ["#2A1A12", "#F2E9D8", "#FFFFFF", "#000000", "#B5562A", "#C9923E", "#2F4B7C", "#68705A", "#A4262C"];
+const fcfa = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
+const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).slice(0, 12);
+const btn = "inline-flex items-center justify-center gap-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-semibold hover:bg-sable disabled:opacity-40";
+const field = "w-full rounded-md border border-line bg-bg px-2 py-1.5 text-sm";
+
+export function Studio({ product, quote }: StudioProps) {
+  const draftKey = `sawwa:studio:${product.slug}`;
+  const history = useHistory<DesignDocument>(emptyDocument(product.slug, product.colors[0]?.key ?? ""));
+  const doc = history.value;
+  const [zoneKey, setZoneKey] = useState(product.zones[0]?.key ?? "");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const [quantity, setQuantity] = useState(1);
+  const [price, setPrice] = useState<Awaited<ReturnType<StudioProps["quote"]>> | null>(null);
+  const [pricing, startPricing] = useTransition();
+  const [notice, setNotice] = useState<string | null>(null);
+  const [restored, setRestored] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const zone = product.zones.find((z) => z.key === zoneKey) ?? product.zones[0]!;
+  const color = product.colors.find((c) => c.key === doc.colorKey) ?? product.colors[0] ?? { key: "", hex: "#F2E9D8", sizes: [] };
+  const surface: Surface = doc.surfaces.find((s) => s.zoneKey === zone.key) ?? { zoneKey: zone.key, technique: zone.techniques[0] ?? "dtf", layers: [] };
+  const selected = surface.layers.find((l) => l.id === selectedId) ?? null;
+  const ink = isDark(color.hex) ? "#F2E9D8" : "#2A1A12";
+
+  // ── Restore the draft kept on this device ──
+  useEffect(() => {
+    const saved = loadDraft<DesignDocument>(draftKey);
+    const parsed = saved ? parseDesign(saved) : null;
+    if (parsed?.ok && parsed.value.product === product.slug) {
+      history.reset(parsed.value);
+      const ids = parsed.value.surfaces.flatMap((s) => s.layers).flatMap((l) => (l.type === "image" ? [l.src] : []));
+      void Promise.all(ids.map(async (src) => {
+        const blob = await getAsset(src.replace(/^idb:/, ""));
+        return blob ? ([src, URL.createObjectURL(blob)] as const) : null;
+      })).then((pairs) => setUrls(Object.fromEntries(pairs.filter((x): x is readonly [string, string] => x !== null))));
+    }
+    setRestored(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!restored) return;
+    const t = setTimeout(() => saveDraft(draftKey, doc), 400);
+    return () => clearTimeout(t);
+  }, [doc, draftKey, restored]);
+
+  // ── Surface editing helpers ──
+  const updateSurface = useCallback((d: DesignDocument, fn: (s: Surface) => Surface): DesignDocument => {
+    const existing = d.surfaces.find((s) => s.zoneKey === zone.key);
+    const base = existing ?? { zoneKey: zone.key, technique: zone.techniques[0] ?? "dtf", layers: [] };
+    const next = fn(base);
+    const surfaces = existing ? d.surfaces.map((s) => (s.zoneKey === zone.key ? next : s)) : [...d.surfaces, next];
+    return { ...d, surfaces: surfaces.filter((s) => s.layers.length > 0 || s.zoneKey === zone.key) };
+  }, [zone]);
+
+  const patchLayer = (id: string, patch: Partial<Layer>) => (d: DesignDocument) =>
+    updateSurface(d, (s) => ({ ...s, layers: s.layers.map((l) => (l.id === id ? ({ ...l, ...patch } as Layer) : l)) }));
+  const commitPatch = (id: string, patch: Partial<Layer>) => history.commit(patchLayer(id, patch));
+  const addLayer = (layer: Layer) => {
+    history.commit((d) => updateSurface(d, (s) => ({ ...s, layers: [...s.layers, layer] })));
+    setSelectedId(layer.id);
+    setMode("edit");
+  };
+  const removeLayer = (id: string) => {
+    history.commit((d) => updateSurface(d, (s) => ({ ...s, layers: s.layers.filter((l) => l.id !== id) })));
+    setSelectedId(null);
+  };
+  const duplicate = (l: Layer) => addLayer({ ...l, id: uid(), xMm: l.xMm + 8, yMm: l.yMm + 8, locked: false } as Layer);
+  const reorder = (id: string, dir: 1 | -1) => history.commit((d) => updateSurface(d, (s) => {
+    const i = s.layers.findIndex((l) => l.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= s.layers.length) return s;
+    const layers = [...s.layers];
+    [layers[i], layers[j]] = [layers[j]!, layers[i]!];
+    return { ...s, layers };
+  }));
+
+  const W = zone.maxWidthMm;
+  const H = zone.maxHeightMm;
+  const addText = () => addLayer({
+    id: uid(), type: "text", text: "Votre texte", font: "manrope", sizeMm: Math.round(Math.min(40, Math.max(10, H * 0.09))),
+    fill: ink, xMm: W / 2, yMm: H * 0.3, rotation: 0, widthMm: W * 0.5, heightMm: 20,
+  });
+  const addShape = (shape: ShapeKind) => {
+    const s = Math.round(Math.min(W, H) * 0.3);
+    addLayer({ id: uid(), type: "shape", shape, fill: "#B5562A", xMm: W / 2, yMm: H / 2, rotation: 0, widthMm: s, heightMm: s });
+  };
+  const importImage = async (file: File) => {
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setNotice("Formats acceptés : PNG, JPG ou WebP.");
+    if (file.size > 25 * 1024 * 1024) return setNotice("Image trop lourde (25 Mo maximum).");
+    try {
+      const bitmap = await createImageBitmap(file);
+      const id = uid();
+      await putAsset(id, file).catch(() => undefined);
+      const src = `idb:${id}`;
+      setUrls((u) => ({ ...u, [src]: URL.createObjectURL(file) }));
+      const scale = Math.min((W * 0.6) / bitmap.width, (H * 0.6) / bitmap.height);
+      addLayer({
+        id: uid(), type: "image", src, name: file.name, pxWidth: bitmap.width, pxHeight: bitmap.height,
+        xMm: W / 2, yMm: H / 2, rotation: 0, widthMm: Math.round(bitmap.width * scale), heightMm: Math.round(bitmap.height * scale),
+      });
+      setNotice(null);
+    } catch {
+      setNotice("Impossible de lire cette image.");
+    }
+  };
+
+  // ── Keyboard shortcuts ──
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) history.redo(); else history.undo(); return; }
+      if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); history.redo(); return; }
+      if (!selected || selected.locked) return;
+      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeLayer(selected.id); }
+      if (mod && e.key.toLowerCase() === "d") { e.preventDefault(); duplicate(selected); }
+      const step = e.shiftKey ? 10 : 1;
+      const arrows: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+      const a = arrows[e.key];
+      if (a) { e.preventDefault(); commitPatch(selected.id, { xMm: selected.xMm + a[0], yMm: selected.yMm + a[1] }); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  // ── Preflight and live price ──
+  const issuesByZone = useMemo(() => Object.fromEntries(doc.surfaces.map((s) => {
+    const z = product.zones.find((x) => x.key === s.zoneKey);
+    return [s.zoneKey, z ? preflight(s, z) : []];
+  })), [doc.surfaces, product.zones]);
+  const zoneIssues = issuesByZone[zone.key] ?? [];
+  const allIssues = Object.values(issuesByZone).flat();
+  const decorations = useMemo(() => decorationsFor(doc, product.zones.map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm }))), [doc, product.zones]);
+  const decoKey = JSON.stringify(decorations);
+
+  useEffect(() => {
+    if (decorations.length === 0) { setPrice(null); return; }
+    const t = setTimeout(() => startPricing(async () => setPrice(await quote(product.slug, doc.colorKey, quantity, decorations))), 450);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decoKey, quantity, doc.colorKey]);
+
+  const surfaceContent = (s: Surface) => s.layers.filter((l) => !l.hidden).map((l) => (
+    <g key={l.id} transform={`translate(${l.xMm} ${l.yMm}) rotate(${l.rotation})`}><LayerShape layer={l} url={l.type === "image" ? urls[l.src] : undefined} /></g>
+  ));
+
+  return (
+    <div className="grid min-h-[calc(100dvh-64px)] grid-rows-[auto_1fr] bg-sable/40">
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-line bg-ivoire px-4 py-3">
+        <Link href={`/produits/${product.slug}`} className="text-sm text-muted underline">← Produit</Link>
+        <b className="display on-light text-xl">{product.name}</b>
+        <div className="flex items-center gap-1.5" role="group" aria-label="Couleur du produit">
+          {product.colors.map((c) => (
+            <button key={c.key} type="button" onClick={() => history.commit((d) => ({ ...d, colorKey: c.key }))} aria-pressed={c.key === color.key} aria-label={c.key}
+              className={`size-7 rounded-full border-2 ${c.key === color.key ? "border-terra ring-2 ring-terra ring-offset-1" : "border-brun/20"}`} style={{ background: c.hex }} />
+          ))}
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button type="button" className={btn} onClick={history.undo} disabled={!history.canUndo} aria-label="Annuler (Ctrl+Z)">↶ Annuler</button>
+          <button type="button" className={btn} onClick={history.redo} disabled={!history.canRedo} aria-label="Rétablir (Ctrl+Maj+Z)">↷ Rétablir</button>
+          <div className="flex rounded-full bg-brun p-1 text-sm font-bold" role="group" aria-label="Mode">
+            {(["edit", "preview"] as const).map((m) => (
+              <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m}
+                className={`rounded-full px-4 py-1.5 ${mode === m ? "bg-ivoire text-brun" : "text-ivoire"}`}>{m === "edit" ? "Éditer" : "Aperçu"}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-0 lg:grid-cols-[88px_1fr_340px]">
+        {/* Tools */}
+        <div className="flex gap-2 overflow-x-auto border-b border-line bg-ivoire p-3 lg:flex-col lg:border-b-0 lg:border-r">
+          <Tool label="Texte" icon="T" onClick={addText} />
+          <Tool label="Image" icon="▣" onClick={() => fileInput.current?.click()} />
+          <Tool label="Losange" icon="◆" onClick={() => addShape("losange")} />
+          <Tool label="Cercle" icon="●" onClick={() => addShape("circle")} />
+          <Tool label="Carré" icon="■" onClick={() => addShape("rect")} />
+          <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void importImage(f); e.target.value = ""; }} />
+        </div>
+
+        {/* Canvas / preview */}
+        <div className="grid grid-rows-[auto_1fr] gap-3 p-4">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Zones à personnaliser">
+            {product.zones.map((z) => {
+              const n = doc.surfaces.find((s) => s.zoneKey === z.key)?.layers.length ?? 0;
+              const bad = blocking(issuesByZone[z.key] ?? []);
+              return (
+                <button key={z.key} role="tab" aria-selected={z.key === zone.key} type="button" onClick={() => { setZoneKey(z.key); setSelectedId(null); }}
+                  className={`rounded-full px-4 py-2 text-sm font-bold ${z.key === zone.key ? "bg-brun text-ivoire" : "border border-line bg-ivoire"}`}>
+                  {z.label}{n > 0 && <span className={`ml-2 rounded-full px-1.5 text-xs ${bad ? "bg-error text-white" : "bg-ocre text-brun"}`}>{n}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="relative min-h-[420px] overflow-hidden rounded-[24px] border border-line bg-ivoire">
+            {mode === "edit" ? (
+              <div className="absolute inset-0 p-4">
+                <StudioCanvas
+                  surface={surface}
+                  zone={{ maxWidthMm: W, maxHeightMm: H, label: zone.label }}
+                  garmentColor={color.hex}
+                  selectedId={selectedId}
+                  issueLayerIds={new Set(zoneIssues.filter((i) => i.severity === "error" && i.layerId).map((i) => i.layerId!))}
+                  imageUrls={urls}
+                  onSelect={setSelectedId}
+                  onPreview={(id, patch) => history.preview(patchLayer(id, patch))}
+                  onCommit={() => history.commit((d) => d)}
+                  onMeasure={(id, w, h) => history.silent(patchLayer(id, { widthMm: Math.round(w * 10) / 10, heightMm: Math.round(h * 10) / 10 }))}
+                />
+              </div>
+            ) : (
+              <div className="trame absolute inset-0 grid place-items-center bg-terra p-6">
+                <ProductArt kind={artKindFor(`${product.slug} ${product.categorySlug}`)} color={color.hex} className="h-full max-h-[560px] w-auto drop-shadow-2xl"
+                  design={surface.layers.length ? { widthMm: W, heightMm: H, content: surfaceContent(surface) } : undefined} withPrint={false}
+                  label={`Aperçu de ${product.name}, zone ${zone.label}`} />
+                <span className="absolute bottom-4 left-4 rounded-full bg-ivoire px-3 py-1 text-xs font-bold text-brun">Aperçu illustré · la vue 3D avec mannequins arrive ensuite</span>
+              </div>
+            )}
+            {surface.layers.length === 0 && mode === "edit" && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-6 grid place-items-center">
+                <p className="rounded-full bg-brun/85 px-4 py-2 text-sm font-semibold text-ivoire">Ajoutez un texte, une image ou une forme avec les outils</p>
+              </div>
+            )}
+          </div>
+          {notice && <p role="alert" className="text-sm text-error">⚠ {notice}</p>}
+        </div>
+
+        {/* Side panel */}
+        <aside className="grid content-start gap-5 border-t border-line bg-ivoire p-4 lg:border-l lg:border-t-0">
+          <Panel title="Technique pour cette zone">
+            <div className="flex flex-wrap gap-2">
+              {zone.techniques.map((t) => (
+                <button key={t} type="button" aria-pressed={surface.technique === t}
+                  onClick={() => history.commit((d) => updateSurface(d, (s) => ({ ...s, technique: t })))}
+                  className={`rounded-full px-3 py-1.5 text-sm font-semibold ${surface.technique === t ? "bg-terra text-white" : "border border-line"}`}>{TECHNIQUE_LABEL[t]}</button>
+              ))}
+            </div>
+          </Panel>
+
+          {selected ? (
+            <Properties key={selected.id} layer={selected} zone={{ W, H }} onChange={(patch) => commitPatch(selected.id, patch)}
+              onDelete={() => removeLayer(selected.id)} onDuplicate={() => duplicate(selected)} onReorder={(dir) => reorder(selected.id, dir)} onDone={() => setSelectedId(null)} />
+          ) : (
+            <Panel title={`Calques · ${zone.label}`}>
+              {surface.layers.length === 0 ? <p className="text-sm text-muted">Aucun élément dans cette zone.</p> : (
+                <ul className="grid gap-1.5">
+                  {[...surface.layers].reverse().map((l) => (
+                    <li key={l.id} className="flex items-center gap-2 rounded-lg border border-line bg-surface px-2 py-1.5 text-sm">
+                      <button type="button" className="min-w-0 flex-1 truncate text-left font-semibold" onClick={() => setSelectedId(l.id)}>{layerName(l)}</button>
+                      <button type="button" className="text-xs text-muted" onClick={() => commitPatch(l.id, { hidden: !l.hidden })} aria-label={l.hidden ? "Afficher" : "Masquer"}>{l.hidden ? "Afficher" : "Masquer"}</button>
+                      <button type="button" className="text-xs text-muted" onClick={() => commitPatch(l.id, { locked: !l.locked })} aria-label={l.locked ? "Déverrouiller" : "Verrouiller"}>{l.locked ? "🔒" : "🔓"}</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          )}
+
+          <Panel title="Vérification de fabrication">
+            {allIssues.length === 0 ? (
+              <p className="flex items-center gap-2 text-sm text-ok">✓ {decorations.length ? "Votre création peut être fabriquée telle quelle." : "Rien à vérifier pour l'instant."}</p>
+            ) : (
+              <ul className="grid gap-2 text-sm">
+                {allIssues.map((i, k) => (
+                  <li key={k} className={`rounded-lg px-3 py-2 ${i.severity === "error" ? "bg-error/10 text-error" : "bg-ocre/20 text-fg"}`}>
+                    {i.severity === "error" ? "⚠ " : "ⓘ "}{i.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          <Panel title="Prix">
+            <div className="flex items-center gap-2">
+              <label htmlFor="qty" className="text-sm">Quantité</label>
+              <input id="qty" type="number" min={1} max={5000} value={quantity} onChange={(e) => setQuantity(Math.max(1, Math.min(5000, Number(e.target.value) || 1)))} className={`${field} w-24`} />
+            </div>
+            {decorations.length === 0 ? <p className="text-sm text-muted">Le prix s&apos;affiche dès que vous ajoutez un élément.</p>
+              : !price ? <p className="text-sm text-muted">Calcul…</p>
+              : price.ok ? (
+                <div className={`grid gap-1 rounded-xl bg-brun p-4 text-ivoire ${pricing ? "opacity-60" : ""}`} aria-live="polite">
+                  <span className="display text-3xl">{fcfa(price.unitPrice)} <span className="font-sans text-sm text-ivoire/70">/ pièce TTC</span></span>
+                  <span className="text-sm text-ivoire/80">Total {fcfa(price.total)} pour {price.quantity} pièce{price.quantity > 1 ? "s" : ""}{price.setupFee ? `, dont ${fcfa(price.setupFee)} de préparation` : ""}</span>
+                  {price.depositDue && <span className="text-sm text-ivoire/80">Acompte à la commande : {fcfa(price.depositDue)}</span>}
+                  <span className="text-xs text-ivoire/60">Fabriqué en {price.leadTimeDays} jours ouvrés après le BAT</span>
+                </div>
+              ) : <p className="text-sm text-muted">{price.message}</p>}
+            <p className="text-xs text-muted">Votre création est enregistrée automatiquement sur cet appareil. La commande en ligne arrive à la prochaine étape.</p>
+          </Panel>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function Tool({ label, icon, onClick }: { label: string; icon: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="grid min-w-16 place-items-center gap-1 rounded-xl border border-line bg-surface px-2 py-2.5 text-xs font-bold hover:border-terra hover:text-terra">
+      <span className="text-xl leading-none" aria-hidden="true">{icon}</span>{label}
+    </button>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="grid gap-3">
+      <h2 className="eyebrow flex items-center gap-2 text-muted"><span className="losange !h-2 !w-2" aria-hidden="true" />{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function layerName(l: Layer) {
+  if (l.type === "text") return `T  ${l.text || "(vide)"}`;
+  if (l.type === "image") return `▣  ${l.name}`;
+  return { rect: "■  Carré", circle: "●  Cercle", losange: "◆  Losange" }[l.shape];
+}
+
+function Num({ label, value, onChange, step = 1, min, suffix }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number; suffix?: string }) {
+  return (
+    <label className="grid gap-1 text-xs font-semibold text-muted">
+      {label}{suffix ? ` (${suffix})` : ""}
+      <input type="number" step={step} min={min} value={Math.round(value * 10) / 10} className={field}
+        onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) onChange(v); }} />
+    </label>
+  );
+}
+
+function Properties({ layer: l, zone, onChange, onDelete, onDuplicate, onReorder, onDone }: {
+  layer: Layer; zone: { W: number; H: number }; onChange: (p: Partial<Layer>) => void;
+  onDelete: () => void; onDuplicate: () => void; onReorder: (dir: 1 | -1) => void; onDone: () => void;
+}) {
+  const ratio = l.heightMm / Math.max(l.widthMm, 0.1);
+  return (
+    <section className="grid gap-4">
+      <div className="flex items-center justify-between">
+        <h2 className="eyebrow flex items-center gap-2 text-muted"><span className="losange !h-2 !w-2" aria-hidden="true" />{l.type === "text" ? "Texte" : l.type === "image" ? "Image" : "Forme"}</h2>
+        <button type="button" className="text-sm underline" onClick={onDone}>Terminé</button>
+      </div>
+
+      {l.type === "text" && <TextProps layer={l} onChange={onChange} />}
+      {l.type === "image" && (
+        <p className="text-sm text-muted">{l.name} · {l.pxWidth} × {l.pxHeight} px · <b className={effectiveDpi(l) < 150 ? "text-error" : effectiveDpi(l) < 200 ? "text-ocre-700" : "text-ok"}>{effectiveDpi(l)} dpi</b> à cette taille</p>
+      )}
+      {(l.type === "shape") && <ColorPicker value={l.fill} onChange={(fill) => onChange({ fill })} />}
+
+      {l.type !== "text" && (
+        <div className="grid grid-cols-2 gap-2">
+          <Num label="Largeur" suffix="mm" value={l.widthMm} min={3} onChange={(w) => onChange({ widthMm: w, heightMm: l.type === "image" ? w * ratio : l.heightMm })} />
+          <Num label="Hauteur" suffix="mm" value={l.heightMm} min={3} onChange={(h) => onChange({ heightMm: h, widthMm: l.type === "image" ? h / ratio : l.widthMm })} />
+        </div>
+      )}
+      <div className="grid grid-cols-3 gap-2">
+        <Num label="X" suffix="mm" value={l.xMm} onChange={(xMm) => onChange({ xMm })} />
+        <Num label="Y" suffix="mm" value={l.yMm} onChange={(yMm) => onChange({ yMm })} />
+        <Num label="Angle" suffix="°" value={l.rotation} onChange={(rotation) => onChange({ rotation: ((rotation % 360) + 360) % 360 })} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={btn} onClick={() => onChange({ xMm: zone.W / 2 })}>Centrer ↔</button>
+        <button type="button" className={btn} onClick={() => onChange({ yMm: zone.H / 2 })}>Centrer ↕</button>
+        <button type="button" className={btn} onClick={() => onReorder(1)}>Avancer</button>
+        <button type="button" className={btn} onClick={() => onReorder(-1)}>Reculer</button>
+        <button type="button" className={btn} onClick={onDuplicate}>Dupliquer</button>
+        <button type="button" className={`${btn} !text-error`} onClick={onDelete}>Supprimer</button>
+      </div>
+    </section>
+  );
+}
+
+function TextProps({ layer: l, onChange }: { layer: TextLayer; onChange: (p: Partial<TextLayer>) => void }) {
+  const [text, setText] = useState(l.text);
+  useEffect(() => { const t = setTimeout(() => { if (text !== l.text) onChange({ text }); }, 300); return () => clearTimeout(t); });
+  return (
+    <div className="grid gap-3">
+      <label className="grid gap-1 text-xs font-semibold text-muted">Votre texte
+        <input value={text} maxLength={200} onChange={(e) => setText(e.target.value)} className={`${field} text-base`} />
+      </label>
+      <label className="grid gap-1 text-xs font-semibold text-muted">Police
+        <select value={l.font} onChange={(e) => onChange({ font: e.target.value as FontKey })} className={field}>
+          {(Object.keys(FONTS) as FontKey[]).map((k) => <option key={k} value={k}>{FONTS[k].label}</option>)}
+        </select>
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <Num label="Taille" suffix="mm" value={l.sizeMm} min={2} onChange={(sizeMm) => onChange({ sizeMm: Math.max(2, sizeMm) })} />
+        <Num label="Espacement" suffix="em" step={0.05} value={l.letterSpacing ?? 0} onChange={(letterSpacing) => onChange({ letterSpacing })} />
+      </div>
+      <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(l.italic)} onChange={(e) => onChange({ italic: e.target.checked })} /> Italique</label>
+      <ColorPicker value={l.fill} onChange={(fill) => onChange({ fill })} />
+    </div>
+  );
+}
+
+function ColorPicker({ value, onChange }: { value: string; onChange: (hex: string) => void }) {
+  return (
+    <div className="grid gap-2">
+      <span className="text-xs font-semibold text-muted">Couleur</span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {SWATCHES.map((c) => (
+          <button key={c} type="button" onClick={() => onChange(c)} aria-label={c} aria-pressed={value.toUpperCase() === c}
+            className={`size-7 rounded-full border-2 ${value.toUpperCase() === c ? "border-terra ring-2 ring-terra ring-offset-1" : "border-brun/20"}`} style={{ background: c }} />
+        ))}
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value.toUpperCase())} aria-label="Autre couleur" className="h-7 w-10 cursor-pointer rounded border border-line" />
+      </div>
+    </div>
+  );
+}
