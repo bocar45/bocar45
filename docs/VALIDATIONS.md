@@ -2,6 +2,27 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E18b (partie code : impression intégrale par pièces de patron) — À CORRIGER
+Commit examiné : 958f9c0 (depuis ad9ad7d, wip 3f53c1f, 40989bb, 21a152f, 559d4ab inclus), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (158, 26 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.
+Vérification navigateur : non refaite (mesure de l'auteur).
+Critères de l'étape :
+- [x] Patrons de référence t-shirt et hoodie taille M, couture 10 mm, fond perdu 5 mm, créés en un clic comme zones sublimation, contour dans `anchor.pattern`, audit (preuve : `pattern-templates.ts`, `admin/catalogue/actions.ts:159-181` derrière `guard()`, tests `pattern.test.ts` « reference patterns »). D26 écrite.
+- [x] Fichiers de production par pièce : clip au contour imprimé, fond perdu, `copie=2` en miroir refusé hors paire miroir (`route.ts:107-117`), trait de coupe seulement sur la fiche, page « Plan de coupe » (`sheet.ts`, test « adds a cutting plan page »), laize 150 cm, pièces trop larges signalées.
+- [x] Contrôle et prix : `checkSurface` = preflight + `patternPreflight` (pièce non couverte = remarque, élément hors pièce = bloquant), recalculé côté serveur dans `placeOrder` et `resubmitCorrection` (`actions.ts:132`, `:243`) ; prix sur la boîte entière, ×quantité (`pricing-bridge.ts`), passé à `packages/pricing` via `sanitizeDecorations` (limite portée à 20 : hoodie = 10 marquages). Tests « all-over pricing and checks ».
+- [ ] **Motif continu « raccordé exactement d'une pièce à l'autre » : faux pour le damier sur la couture de côté réelle.** Le fichier du dos est dans le repère « dos vu de derrière » (la 3D le prouve : `garment.ts:91` retourne la texture du dos, et `viewer.tsx` peint la surface du dos à `body.x` dans ce repère retourné). Le point du dos cousu au point x = +250 du devant est donc en x' = −250 dans le fichier du dos, pas en +250. Or `motifOffset` ancre la grille de la même façon sur les deux pièces, et le test `render.test.ts:140-147` compare le devant en +250 au dos en +250, c'est-à-dire **au côté opposé du vêtement** : il passe par construction et ne vérifie pas la couture. Contre-épreuve exécutée (rendu resvg, même côté du porteur, dos en x' = −gx) : damier **5/5 points différents**, pois 5/5 et bandes 5/5 identiques, losanges 3/5 (écarts probablement sur les bords anti-crénelés). Les motifs symétriques par x → −x tombent juste par chance ; le damier (le motif du test) est décalé d'une demi-case à chaque couture de côté, sur le vêtement imprimé comme dans la 3D.
+  → correction attendue : ancrer le motif des pièces vues de derrière (`body.panel === "back"`) en miroir du devant (grille calculée sur x = −x', ou tuile retournée), de façon identique dans `renderSurfaceSvg`, le canevas 2D et la peinture 3D du dos ; corriger le test pour comparer le même côté du porteur (dos en `−gx − back.body.x`), avec les 4 motifs et des points hors des bords des formes.
+- [x] Édition à plat et 3D (pièces à leur place, manche miroir) : code relu (`canvas.tsx`, `viewer.tsx:177-192`) ; vérification visuelle de l'auteur, non refaite.
+- 🧑‍💼 Atelier capable avant mise en vente ; gradation S–XXL, crans, motif image : reportés (BACKLOG).
+Critères communs : C1 ✅ · C2 ✅ (aucun montant manipulé hors `pricing` ; ni table ni transition ajoutée ; action admin gardée ; version et devis figés : `allOver` est dans le document versionné) · C3 ✅ (grep secrets vide hors docs/consigne ; pas de `SAWWA_PREVIEW_FIXTURE` ; bouton « Créer les pièces » réellement branché) · C4 ✅ (messages en français : « Cette pièce n'a pas de seconde copie en miroir. », etc.) · C5 ❌ (le test de raccord ne teste pas la couture réelle, point 1) · C6 ✅ (D26, ROADMAP, BACKLOG 🔎 ; poussé ; `@resvg/resvg-js` 2.6.2 en devDependency de `render`, justifiée dans le compte rendu, même version que l'app).
+Corrections à faire (par priorité) :
+1. Raccord du motif au dos (miroir du repère vu de derrière) dans les fichiers, le studio et la 3D ; test de couture corrigé sur le même côté du porteur pour les 4 motifs.
+Remarques non bloquantes :
+- Le contour (`zones.anchor.pattern`) est relu en direct dans le catalogue à la production, pas figé avec la commande ; comme les tailles de zones avant E18b. À figer quand les patrons de l'atelier remplaceront ceux de référence.
+- Sans motif continu, une pièce sans surface (ex. manches) n'est ni chiffrée ni signalée : elle sortira en tissu blanc. Une remarque « pièces non imprimées » éviterait la surprise.
+- Seconde manche en miroir : avec le damier, le miroir décale aussi la grille (même cause que le point 1).
+Décision : reprendre E18b
+
 ## 2026-11-22 — E22 (partie gratuite : détourage, 2e passage) — VALIDÉ
 Commit examiné : 1f7025d (depuis a0330bf), `git status` propre après build, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (145) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.
