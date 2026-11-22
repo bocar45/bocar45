@@ -135,7 +135,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] 🧑‍💼 Casting validé, studio de scan / artiste choisi, budget accordé (`VISUALISATION_3D.md`).
 - [ ] Intégration des avatars, choix de la personne, taille, mouvement, fond blanc ou ivoire, photo studio.
 
-## E20 — Administration avancée 🔎
+## E20 — Administration avancée ✅
 - [x] Tableau de bord `/admin/tableau-de-bord` (ops, finance) sur 7/30/90 jours/12 mois : chiffre d'affaires TTC et HT, coût ateliers, marge brute et taux, expédiées dans le délai, retards en cours, délai moyen, taux de BAT refusés, litiges et signalements ouverts (calculs purs testés, `lib/dashboard.ts`).
 - [x] Litiges et reprises : le client signale un problème sur une commande expédiée ou livrée (photos dans son dossier privé) ; l'équipe compare aux photos de contrôle et décide (refabrication, remboursement partiel ou total, rien) ; faute de l'atelier → pénalité au grand livre dans la même transaction.
 - [x] Grand livre ateliers en écriture seule : gain inscrit automatiquement à la livraison (coût figé), pénalités, ajustements justifiés (finance), versements (jamais plus que le solde, verrou contre deux versements simultanés) ; relevé pour l'admin et pour l'atelier (`/pro/releve`).

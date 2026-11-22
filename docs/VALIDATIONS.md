@@ -2,6 +2,22 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E20 (2e passage) — VALIDÉ
+Commit examiné : cab0fc6 (depuis 77f6f85), `git status` propre, branche à jour avec `origin`
+Contrôles : typecheck ✅ · tests ✅ (137, 23 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.
+Vérification navigateur : non faite (pas de Supabase réel). Bout en bout réel : en attente du porteur (E11).
+Critères de l'étape :
+- [x] Tableau de bord : HT des articles = `splitGross(money(total − livraison), vatBps).net` de `@sawwa/domain` (`lib/dashboard.ts:41`), même découpage que `goodsNet` (`packages/pricing/src/price.ts:180`), au taux du jeu de règles figé de chaque commande (`quote_snapshot.ruleSetVersion` → `price_rule_sets`, lisible par ops/finance, `tableau-de-bord/page.tsx:26-27`). Test refait avec des montants du moteur (13 800 TTC dont 2 000 de livraison, TVA 2 105 vérifiée par `splitGross` → 10 000 HT) ; commandes payées sans atelier comptées et signalées (« marge provisoire »).
+- [x] Litiges : `resolve_dispute` refuse les décisions incohérentes (migration :106-113 : non retenu avec remboursement, pénalité ou faute ; montant hors remboursement partiel ; partiel sans montant ; pénalité sans faute ou faute sans pénalité ; statut ou décision inconnus) ; l'action applique les mêmes règles avec des messages en français et n'envoie un montant que pour `partial_refund` (`admin/litiges/actions.ts:23-31`). 3 tests SQL (pénalité sur litige non retenu, remboursement avec « aucune compensation », partiel sans montant).
+- [x] Grand livre, versements, relevés, export : acquis au 1er passage, inchangés ; en plus, ajustement finance sans `fulfillment_id` et non antidaté (politique `ledger_adjust`), testé (antidaté refusé, atelier refusé).
+Critères communs : C1 ✅ · C2 ✅ (HT via `domain`, plus de calcul refait à la main ; permissions serveur ; tables avec RLS et tests) · C3 ✅ (grep secrets vide dans apps/packages ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ✅ · C6 ✅ (D23 complétée : refabrication manuelle, calcul du tableau de bord ; poussé ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- Si le jeu de règles d'une commande est introuvable, le taux retombe sur 1 800 pb sans le signaler (`tableau-de-bord/page.tsx:27`) ; à journaliser le jour où un 2e taux existera.
+- Le refus d'un ajustement par `ops` n'est toujours pas testé (seul l'atelier l'est) ; la politique le couvre (`has_platform_role('{finance}')`).
+- La migration 10 a été modifiée sur place : acceptable tant qu'aucune base réelle ne l'a appliquée (avant E11).
+Décision : passer à E21
+
 ## 2026-11-22 — E20 — À CORRIGER
 Commit examiné : 77f6f85 (depuis 5c2799e, wip 96f4ec0 inclus), `git status` propre, branche à jour avec `origin`
 Contrôles : typecheck ✅ · tests ✅ (136, 23 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0 ; routes `/admin/tableau-de-bord`, `/admin/litiges`, `/admin/finances[/vendorId]`, `/pro/releve`, `/api/export` présentes)
