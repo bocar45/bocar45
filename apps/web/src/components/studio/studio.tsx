@@ -367,7 +367,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   // Team order: the price follows the widest name/number of the list, exactly like the server (widestPiece).
   const decorations = useMemo(() => decorationsFor(teamMode ? widestPiece(doc, roster) : doc, product.zones.map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm }))), [doc, product.zones, teamMode, roster]);
   // E17: what the design prints must stay within the quote (same rule as the server).
-  const quoteProblems = useMemo(() => (b2b ? fitsQuote(decorations, b2b.decorations) : []), [b2b, decorations]);
+  const quoteProblems = useMemo(() => (b2b ? fitsQuote(decorations, b2b.decorations, Object.fromEntries(product.zones.map((z) => [z.key, z.label]))) : []), [b2b, decorations, product.zones]);
   const decoKey = JSON.stringify(decorations);
 
   useEffect(() => {

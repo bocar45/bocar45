@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → **E17** → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → **E18d** → E20 → E21 → E22 (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -92,9 +92,11 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Après validation : tailles de la ligne contrôlées en SQL contre la liste.
 - [ ] Reporté : largeur mesurée avec les métriques de la police (aujourd'hui au prorata des lettres) ; planche d'impression multi-pièces (imposition DTF) quand un atelier pilote aura donné son format de film ; supplément de personnalisation par pièce dans les grilles atelier si les ateliers le facturent.
 
-## E17 — Devis B2B ⏳
-- [ ] Formulaire de demande (quantités, logo, date souhaitée).
-- [ ] Devis préparé par l'admin à partir du moteur de prix, valable 30 jours, lien de commande.
+## E17 — Devis B2B 🔎
+- [x] Formulaire de demande `/devis` (organisation, contact, téléphone, produit, quantité, date souhaitée, logo dans le dossier privé du client ou une de ses créations, besoin) ; « Mes devis » dans le compte, annulation par le client.
+- [x] Devis chiffré par l'équipe (ops, support) dans `/admin/devis` : produit, couleur, quantité, tailles facultatives, marquages maximaux ; prix par le moteur de prix (`bestQuote`), avec coût atelier et marge visibles en interne ; validité 30 jours (réglable) ; nouvelle version = l'ancienne est remplacée ; refus motivé. Journal d'audit.
+- [x] Lien de commande : « Créer et commander au prix du devis » ouvre le studio (`?devis=`), couleur et quantité fixées, marquages contrôlés contre le devis ; le serveur réserve le devis une seule fois (`claim_b2b_quote`), le rejoue avec ses versions figées de règles et de grille (+ livraison) et vérifie que le montant est identique au devis. Décision D21.
+- [x] Migration 8 : demandes et devis, devis figés (prix non modifiables, jamais supprimés), droits testés (section 16).
 
 ## E18 — Studio 3D en direct ✅ (modèles d'artiste en attente du porteur) (priorité avancée : juste après E14, demande du porteur)
 **Référence** : `design/reference-studio-3d-blankbuilder.jpg` (inspiration fonctionnelle, pas de copie d'interface ni de marque).

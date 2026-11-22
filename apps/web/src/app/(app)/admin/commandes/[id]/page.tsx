@@ -80,6 +80,7 @@ export default async function AdminOrder({ params }: { params: Promise<{ id: str
             {item && (
               <ul className="grid gap-1 text-sm">
                 <li>Tailles : {Object.entries(item.sizes).map(([s, n]) => `${s} × ${n}`).join(" · ")} ({item.quantity} pc)</li>
+                {(o.quote_snapshot as { b2bQuoteId?: string; b2bQuoteVersion?: number } | null)?.b2bQuoteId && <li>Prix du devis B2B (version {(o.quote_snapshot as { b2bQuoteVersion?: number }).b2bQuoteVersion}), figé à la commande</li>}
                 {item.roster?.length ? <li><RosterList roster={item.roster} /></li> : null}
                 {item.decorations.map((d) => <li key={d.zoneKey}>{d.zoneKey} · {d.technique} · {d.widthMm / 10} × {d.heightMm / 10} cm</li>)}
                 {item.version && <li className="text-xs text-muted">Version figée · empreinte {item.version.sha256.slice(0, 12)}</li>}
