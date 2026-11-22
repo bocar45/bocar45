@@ -23,6 +23,13 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 | 9 | **Lancement public** | Tests de charge, sécurité (revue + tests d'intrusion légers), CGV/CGU/confidentialité relues par un juriste, SEO, analytics, FR/EN, procédure d'incident | 5, 6 | M |
 | 10 | **V2** | Turntable 3D vêtements, mobile money, boutiques créateurs, deuxième pays de facturation, application de l'API atelier | 9 | — |
 
+## Avancement
+- [x] Phase 0 — cadrage validé (22/11/2026), marché Sénégal
+- [x] Phase 1 (partiel) — DA, audit logo, maquettes, kit de recrutement ateliers
+- [ ] Phase 1 — vectorisation du logo, recrutement de 2 ateliers, casting 3D
+- [x] Phase 2 (début) — monorepo, CI, `domain` (Money XOF), `pricing` (moteur de prix), `workflow` (machine à états) avec tests
+- [ ] Phase 2 — application Next.js, base de données, comptes et rôles, admin catalogue
+
 ## Critères d'acceptation par jalon
 **Phase 1**
 - [ ] Logo validé en 8 déclinaisons, testé à 16 px et en broderie simulée 15 mm.

@@ -5,7 +5,7 @@
 ## Contexte en 5 lignes
 - SAWWA : SaaS de personnalisation et fabrication à la demande (studio → prix → commande → atelier partenaire → livraison).
 - 3 espaces : client (public, SEO), pro (ateliers), admin (opérations). Un seul design system.
-- Statut : **Phase 0 (cadrage) — aucun code applicatif tant que `docs/DECISIONS.md` n'est pas validé.**
+- Statut : décisions validées (22/11/2026). **Phase 2 en cours : socle technique.** Marché de lancement : Sénégal (XOF, sans décimales).
 - Langue des docs et de l'UI : français d'abord, anglais ensuite. Code et identifiants : anglais.
 - Le porteur du projet garde la main sur les grandes décisions (voir « Règles »).
 
@@ -25,11 +25,16 @@
 | Logo (audit, système) | `docs/LOGO_AUDIT.md` |
 | 3D, mannequins | `docs/VISUALISATION_3D.md` |
 | Benchmark, catalogue, modèles | `docs/BENCHMARK_CATALOGUE.md` |
+| Marché Sénégal | `docs/MARCHE_SENEGAL.md` |
+| Recrutement ateliers | `docs/RECRUTEMENT_ATELIERS.md` |
+
+## Commandes
+`pnpm install` · `pnpm test` · `pnpm typecheck`
 
 ## Règles non négociables
 1. Rien de déployé, publié, acheté, supprimé ou configuré sur un service externe sans accord explicite.
 2. Aucun paiement réel : Stripe en mode test uniquement jusqu'à validation.
-3. Montants en **entiers (unités mineures) + code devise**. Jamais de float pour l'argent.
+3. Montants en **entiers (unités mineures) + code devise** via `packages/domain` (`Money`). XOF = 0 décimale. Jamais de float pour l'argent.
 4. Tout calcul de prix passe par `packages/pricing`. Aucun calcul dans l'UI ni dans les routes.
 5. Toute transition de statut de commande passe par `packages/workflow`.
 6. Permissions vérifiées côté serveur ; chaque requête vendeur filtrée par `vendor_id`.
