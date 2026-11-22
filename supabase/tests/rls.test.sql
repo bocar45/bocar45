@@ -554,4 +554,38 @@ do $$ begin
 end $$;
 rollback;
 
+-- 15. Commandes d'équipe : liste figée avec la ligne (E16)
+set role service_role;
+create temp table e16_order as
+select * from public.create_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000d001', '{"schemaVersion":1}', 'e16', '[]',
+  '[{"color_key":"ivory","sizes":{"M":1,"L":1},"quantity":2,"unit_price":7200,"line_total":14400,"decorations":[],"roster":[{"size":"M","name":"Diop","number":"10"},{"size":"L","name":"Fall","number":"7"}]}]',
+  '{"subtotal":14400,"tax":2197,"total":14400}', '{"ruleSetVersion":1}', '{"name":"Awa","phone":"+221770000005"}');
+do $$ declare ok boolean := false; begin
+  if (select jsonb_array_length(roster) from public.order_items where order_id = (select order_id from e16_order)) <> 2 then raise exception 'FAIL roster not stored'; end if;
+  begin update public.order_items set roster = '[{"size":"M"},{"size":"L"}]' where order_id = (select order_id from e16_order);
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL roster changed after the order'; end if;
+end $$;
+do $$ declare ok boolean := false; begin
+  begin perform public.create_order('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-00000000d001', '{"schemaVersion":1}', 'e16b', '[]',
+    '[{"color_key":"ivory","sizes":{"M":3},"quantity":3,"unit_price":7200,"line_total":21600,"decorations":[],"roster":[{"size":"M"}]}]',
+    '{"subtotal":21600,"tax":3295,"total":21600}', '{"ruleSetVersion":1}', '{"name":"Awa","phone":"+221770000005"}');
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL roster of 1 accepted for 3 pieces'; end if;
+end $$;
+reset role;
+-- the customer reads the roster of their order, another workshop does not
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+do $$ begin
+  if not exists (select 1 from public.order_items where roster is not null) then raise exception 'FAIL customer cannot read own roster'; end if;
+end $$;
+rollback;
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1');
+do $$ begin
+  if exists (select 1 from public.order_items where roster is not null) then raise exception 'FAIL other workshop reads the roster'; end if;
+end $$;
+rollback;
+
 select 'ALL RLS TESTS PASSED' as result;

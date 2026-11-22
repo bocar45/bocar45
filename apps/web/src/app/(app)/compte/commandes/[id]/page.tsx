@@ -1,3 +1,5 @@
+import { RosterList } from "@/components/roster-list";
+import type { RosterEntry } from "@sawwa/design";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { EVENT_LABEL, STATUS_LABEL } from "@/lib/fulfillment";
@@ -19,11 +21,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const { supabase } = await requireUser(`/compte/commandes/${id}`);
   const { data: o } = await supabase
     .from("orders")
-    .select("id, number, payment_status, subtotal, shipping, tax, total, deposit_due, shipping_address, created_at, items:order_items(id, color_key, sizes, quantity, unit_price, line_total, design_version_id, version:design_versions(document), product:base_products(slug, name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), fulfillments(id, status, carrier, tracking_number), events:status_events(event, payload, at)")
+    .select("id, number, payment_status, subtotal, shipping, tax, total, deposit_due, shipping_address, created_at, items:order_items(id, color_key, sizes, quantity, roster, unit_price, line_total, design_version_id, version:design_versions(document), product:base_products(slug, name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), fulfillments(id, status, carrier, tracking_number), events:status_events(event, payload, at)")
     .eq("id", id)
     .maybeSingle();
   if (!o) notFound();
-  const item = (o.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; unit_price: number; line_total: number; version: { document: unknown }; product: { slug: string; name: unknown; variants: { color_key: string; color_hex: string }[]; zones: ZoneRow[] } }[])[0];
+  const item = (o.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; unit_price: number; line_total: number; version: { document: unknown }; product: { slug: string; name: unknown; variants: { color_key: string; color_hex: string }[]; zones: ZoneRow[] } }[])[0];
   const f = (o.fulfillments as { id: string; status: string; carrier: string | null; tracking_number: string | null }[])[0];
   const events = ((o.events ?? []) as { event: string; payload: { comment?: string; reason?: string }; at: string }[]).sort((a, b) => a.at.localeCompare(b.at));
   const doc = item ? readDoc(item.version.document) : null;
@@ -75,6 +77,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             </div>
           )}
           {item && <p className="text-sm">Tailles : {Object.entries(item.sizes).map(([s, n]) => `${s} × ${n}`).join(" · ")}</p>}
+          {item && <RosterList roster={item.roster} />}
         </Section>
         <div className="grid content-start gap-6">
           <Section title="Montant" id="amount">

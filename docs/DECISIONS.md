@@ -130,3 +130,11 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Assistant** : c'est le studio lui-même en mode simplifié (`/studio/<produit>?modele=<slug>`), donc même aperçu 2D/3D, même prix et même commande, sans code en double. L'équipe catalogue édite un modèle dans le studio (`?gabarit=<id>`).
 - **Plus tard** : `variable` par exemplaire (noms et numéros) arrive avec E16 ; designers partenaires et rémunération par commande en V2 ; recadrage sur le visage avec l'IA (E22).
 - **Alternatives écartées** : un format de modèle séparé (deux moteurs de rendu à maintenir) ; un assistant sur une page à part (aperçu, prix et commande à dupliquer).
+
+## D20 🟢 Noms et numéros : textes variables dans la création, liste figée avec la commande (décision CTO, 22/11/2026)
+- **Besoin** : maillots et tenues d'équipe : un même design, un nom et un numéro différents sur chaque pièce.
+- **Choix** : un calque texte peut porter `perItem` (`name` ou `number`, longueur maximale) ; son texte sert d'exemple. La commande porte la liste (taille, nom, numéro), enregistrée dans `order_items.roster`, figée comme la version et le devis (règle 7). Règles pures dans `@sawwa/design` (`checkRoster`, `personalize`, `widestPiece`, `parseRosterText`).
+- **Casse** : un exemple en majuscules imprime les noms en majuscules (usage des maillots).
+- **Prix** : calculé sur la pièce la plus large de la liste (`widestPiece`), dans le studio comme sur le serveur : le prix affiché est le prix payé.
+- **Production** : un PNG 300 dpi par pièce pour les zones variables, un seul fichier pour les zones fixes, liste à cocher dans la fiche PDF. Pas d'archive ZIP (pas de nouvelle dépendance) ni de planche d'imposition tant qu'aucun atelier pilote n'a donné son format.
+- **Limites** : 500 pièces par commande ; caractères latins avec accents (polices de production) ; pas d'ajout de nom/numéro pendant une correction (nouvelle commande).

@@ -1,8 +1,8 @@
 import path from "node:path";
 import { NextResponse, type NextRequest } from "next/server";
 import { Resvg } from "@resvg/resvg-js";
-import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
-import { layerBox, unionBox, visibleLayers, type DesignDocument } from "@sawwa/design";
+import { TECHNIQUE_LABEL, slugify, type Technique } from "@sawwa/catalog";
+import { layerBox, personalize, unionBox, visibleLayers, type DesignDocument, type RosterEntry } from "@sawwa/design";
 import { buildProductionSheet, fontFiles, renderSurfaceSvg, setPngDpi } from "@sawwa/render";
 import { getSession, hasPlatformRole, vendorMembership } from "@/lib/auth";
 import { logError } from "@/lib/log";
@@ -70,14 +70,14 @@ async function generate(request: NextRequest, fulfillmentId: string) {
   const db = createServiceClient();
   const { data: f } = await db
     .from("fulfillments")
-    .select("id, status, vendor_id, sla_due_at, order:orders(number), items:order_items(color_key, sizes, decorations, version:design_versions(document, sha256), product:base_products(name, zones(key, anchor, max_width_mm, max_height_mm)))")
+    .select("id, status, vendor_id, sla_due_at, order:orders(number), items:order_items(color_key, sizes, decorations, roster, version:design_versions(document, sha256), product:base_products(name, zones(key, anchor, max_width_mm, max_height_mm)))")
     .eq("id", fulfillmentId).maybeSingle();
   if (!f) return fail("Commande introuvable.", 404);
   const allowed = isOps || (vendor && vendor.organization.status === "active" && f.vendor_id === vendor.organization.id);
   if (!allowed) return fail("Ce fichier est réservé à l'atelier affecté à la commande.", 403);
   if (["pending_assignment", "cancelled"].includes(f.status) && !isOps) return fail("Cette commande n'est pas (ou plus) affectée à un atelier.", 409);
 
-  const item = (f.items as unknown as { color_key: string; sizes: Record<string, number>; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: { fr?: string }; zones: { key: string; anchor: { label?: string; note?: string } | null; max_width_mm: number; max_height_mm: number }[] } }[])[0];
+  const item = (f.items as unknown as { color_key: string; sizes: Record<string, number>; roster: RosterEntry[] | null; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: { fr?: string }; zones: { key: string; anchor: { label?: string; note?: string } | null; max_width_mm: number; max_height_mm: number }[] } }[])[0];
   const doc = item ? readDoc(item.version.document) : null;
   if (!item || !doc) return fail("La création de cette commande est illisible. Prévenez l'équipe SAWWA.", 500);
   const reference = (f.order as unknown as { number: string } | null)?.number ?? fulfillmentId.slice(0, 8);
@@ -86,12 +86,26 @@ async function generate(request: NextRequest, fulfillmentId: string) {
 
   if (format === "png") {
     const zoneKey = request.nextUrl.searchParams.get("zone");
-    const surface = doc.surfaces.find((s) => s.zoneKey === zoneKey);
+    // Team order (E16): ?piece=N (1-based) prints that piece's name and number.
+    const pieceParam = request.nextUrl.searchParams.get("piece");
+    const roster = item.roster ?? [];
+    let printed = doc;
+    let pieceLabel = "";
+    if (pieceParam !== null) {
+      const n = Number(pieceParam);
+      const entry = Number.isInteger(n) && n >= 1 ? roster[n - 1] : undefined;
+      if (!entry) return fail("Pièce inconnue pour cette commande.", 400);
+      printed = personalize(doc, entry);
+      pieceLabel = `-piece${String(n).padStart(3, "0")}-${entry.size}${entry.number ? `-n${entry.number}` : ""}${entry.name ? `-${slugify(entry.name)}` : ""}`;
+    } else if (roster.length && doc.surfaces.some((s) => s.zoneKey === zoneKey && s.layers.some((l) => l.type === "text" && l.perItem))) {
+      return fail("Cette zone change sur chaque pièce : téléchargez le fichier de chaque pièce.", 400);
+    }
+    const surface = printed.surfaces.find((s) => s.zoneKey === zoneKey);
     const zone = item.product.zones.find((z) => z.key === zoneKey);
     if (!surface || !zone) return fail("Zone inconnue pour cette commande.", 400);
     const { svg } = renderSurfaceSvg(surface, { maxWidthMm: zone.max_width_mm, maxHeightMm: zone.max_height_mm }, { dpi: 300, images });
     return new NextResponse(new Uint8Array(setPngDpi(new Uint8Array(rasterize(svg)), 300)), {
-      headers: { "Content-Type": "image/png", "Content-Disposition": `attachment; filename="${reference}-${zone.key}-300dpi.png"`, "Cache-Control": "private, no-store" },
+      headers: { "Content-Type": "image/png", "Content-Disposition": `attachment; filename="${reference}-${zone.key}${pieceLabel}-300dpi.png"`, "Cache-Control": "private, no-store" },
     });
   }
 
@@ -115,6 +129,9 @@ async function generate(request: NextRequest, fulfillmentId: string) {
     reference, productName: item.product.name.fr ?? "", colorName: item.color_key.replace(/_/g, " "), sizes: item.sizes,
     dueDate: f.sla_due_at ? new Date(f.sla_due_at).toLocaleString("fr-SN", { dateStyle: "short", timeStyle: "short" }) : null,
     versionHash: item.version.sha256, generatedAt: new Date().toLocaleString("fr-SN", { dateStyle: "short", timeStyle: "short" }), zones,
+    roster: item.roster,
+    variableZones: item.decorations.filter((d) => doc.surfaces.some((s) => s.zoneKey === d.zoneKey && s.layers.some((l) => l.type === "text" && l.perItem)))
+      .map((d) => item.product.zones.find((z) => z.key === d.zoneKey)?.anchor?.label ?? d.zoneKey),
   });
   return new NextResponse(new Uint8Array(pdf), {
     headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${reference}-fiche-production.pdf"`, "Cache-Control": "private, no-store" },

@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { layerBox, unionBox, visibleLayers } from "@sawwa/design";
+import { layerBox, unionBox, visibleLayers, type RosterEntry } from "@sawwa/design";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import { requireUser, vendorMembership } from "@/lib/auth";
 import { EVENT_LABEL, STATUS_LABEL } from "@/lib/fulfillment";
@@ -33,10 +33,10 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
   // RLS: only the assigned workshop can read this fulfillment and its items.
   const { data: f } = await supabase
     .from("fulfillments")
-    .select("id, status, sla_due_at, vendor_cost, proof_round, carrier, tracking_number, order_id, items:order_items(id, design_version_id, color_key, sizes, quantity, decorations, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), events:status_events(event, payload, at)")
+    .select("id, status, sla_due_at, vendor_cost, proof_round, carrier, tracking_number, order_id, items:order_items(id, design_version_id, color_key, sizes, quantity, decorations, roster, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), events:status_events(event, payload, at)")
     .eq("id", id).eq("vendor_id", vendor.organization.id).maybeSingle();
   if (!f) notFound();
-  const item = (f.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: (ZoneRow & { anchor: { label?: string; note?: string } | null })[] } }[])[0];
+  const item = (f.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; decorations: { zoneKey: string; technique: Technique; widthMm: number; heightMm: number; colors: number }[]; version: { document: unknown; sha256: string }; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: (ZoneRow & { anchor: { label?: string; note?: string } | null })[] } }[])[0];
   if (!item) notFound();
   const doc = readDoc(item.version.document);
   const urls = doc ? await signedDesignUrls(createServiceClient(), doc) : {};
@@ -97,6 +97,7 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-muted">Couleur</dt><dd className="flex items-center gap-2"><span className="inline-block size-4 rounded-full border border-line" style={{ background: hex }} />{item.color_key.replace(/_/g, " ")}</dd>
               <dt className="text-muted">Tailles</dt><dd className="font-semibold tabular-nums">{Object.entries(item.sizes).map(([s, n]) => `${s} × ${n}`).join(" · ")} = {item.quantity} pc</dd>
+              {item.roster?.length ? <><dt className="text-muted">Équipe</dt><dd>Nom et numéro différents sur chaque pièce (liste figée de {item.roster.length} pièces)</dd></> : null}
             </dl>
             <ul className="grid gap-3">
               {item.decorations.map((d) => {
@@ -118,10 +119,27 @@ export default async function ProductionSheet({ params }: { params: Promise<{ id
           <Section title="Fichiers de production" id="production">
             <ul className="grid gap-2 text-sm">
               <li><a className="btn btn-brun !py-2 text-sm" href={`/api/production/${f.id}?format=pdf`}>Fiche de production (PDF)</a></li>
-              {item.decorations.map((d) => (
-                <li key={d.zoneKey}><a className="underline" href={`/api/production/${f.id}?format=png&zone=${encodeURIComponent(d.zoneKey)}`}>Fichier d&apos;impression · {item.product.zones.find((z) => z.key === d.zoneKey)?.anchor?.label ?? d.zoneKey} (PNG transparent 300 dpi, taille réelle)</a></li>
-              ))}
+              {item.decorations.map((d) => {
+                const label = item.product.zones.find((z) => z.key === d.zoneKey)?.anchor?.label ?? d.zoneKey;
+                const variable = Boolean(item.roster?.length) && Boolean(doc?.surfaces.some((s) => s.zoneKey === d.zoneKey && s.layers.some((l) => l.type === "text" && l.perItem)));
+                const href = (piece?: number) => `/api/production/${f.id}?format=png&zone=${encodeURIComponent(d.zoneKey)}${piece ? `&piece=${piece}` : ""}`;
+                return variable ? (
+                  <li key={d.zoneKey}>
+                    <details>
+                      <summary className="cursor-pointer underline">Fichiers d&apos;impression · {label} : un par pièce ({item.roster!.length}, PNG 300 dpi)</summary>
+                      <ol className="mt-2 grid max-h-80 gap-1 overflow-y-auto pl-2">
+                        {item.roster!.map((e, i) => (
+                          <li key={i}><a className="underline" href={href(i + 1)}>Pièce {i + 1} · {e.size}{e.number ? ` · n° ${e.number}` : ""}{e.name ? ` · ${e.name}` : ""}</a></li>
+                        ))}
+                      </ol>
+                    </details>
+                  </li>
+                ) : (
+                  <li key={d.zoneKey}><a className="underline" href={href()}>Fichier d&apos;impression · {label} (PNG transparent 300 dpi, taille réelle{item.roster?.length ? ", identique sur toutes les pièces" : ""})</a></li>
+                );
+              })}
             </ul>
+            {item.roster?.length ? <p className="text-xs text-muted">Commande d&apos;équipe : la liste complète des pièces (taille, nom, numéro), à cocher au fur et à mesure, est à la fin de la fiche PDF.</p> : null}
           </Section>
           {images.length > 0 && (
             <Section title="Fichiers originaux" id="files">

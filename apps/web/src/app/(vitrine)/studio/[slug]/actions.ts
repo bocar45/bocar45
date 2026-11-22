@@ -1,7 +1,7 @@
 "use server";
 
 import { createHash } from "node:crypto";
-import { blocking, decorationsFor, parseDesign, preflight, type DesignDocument } from "@sawwa/design";
+import { MAX_ROSTER, blocking, checkRoster, decorationsFor, needsRoster, parseDesign, preflight, sizesFromRoster, widestPiece, type DesignDocument, type RosterEntry } from "@sawwa/design";
 import { transition, type FulfillmentStatus } from "@sawwa/workflow";
 import { planCorrection } from "@/lib/correction";
 import { foreignImages } from "@/lib/design-ownership";
@@ -49,6 +49,8 @@ export interface PlaceOrderInput {
   delivery: string;
   address: { name: string; phone: string; district: string; landmark: string; city: string };
   acceptWarnings: boolean;
+  /** E16: one line per piece when the design has a name or a number per piece (sizes are then taken from it). */
+  roster?: RosterEntry[] | null;
 }
 
 export async function placeOrder(input: PlaceOrderInput) {
@@ -58,14 +60,14 @@ export async function placeOrder(input: PlaceOrderInput) {
   if (!(await rateLimit("orderPerUser", user.id))) return { error: TOO_MANY };
 
   // Inputs
-  const sizes: Record<string, number> = {};
+  let sizes: Record<string, number> = {};
   for (const [k, v] of Object.entries(input.sizes ?? {})) {
     const n = Math.floor(Number(v));
     if (!Number.isFinite(n) || n < 0 || n > 5000) return { error: "Quantités invalides." };
     if (n > 0) sizes[String(k).slice(0, 10)] = n;
   }
-  const quantity = Object.values(sizes).reduce((a, b) => a + b, 0);
-  if (quantity < 1) return { error: "Indiquez au moins une pièce." };
+  let quantity = Object.values(sizes).reduce((a, b) => a + b, 0);
+  if (quantity < 1 && !Array.isArray(input.roster)) return { error: "Indiquez au moins une pièce." };
   if (!isDeliveryKey(input.delivery)) return { error: "Choisissez un mode de livraison." };
   const phone = normalizeSenegalPhone(input.address?.phone ?? "");
   const name = String(input.address?.name ?? "").trim().slice(0, 80);
@@ -88,6 +90,26 @@ export async function placeOrder(input: PlaceOrderInput) {
 
   // Fabrication checks, recomputed on the server
   const zoneSizes = product.zones.map((z) => ({ key: z.key, maxWidthMm: z.max_width_mm, maxHeightMm: z.max_height_mm }));
+
+  // E16: names and numbers per piece — the roster decides the sizes and the quantity.
+  let roster: RosterEntry[] | null = null;
+  if (needsRoster(doc)) {
+    if (!Array.isArray(input.roster) || input.roster.length === 0) return { error: "Ajoutez la liste des pièces (taille, nom, numéro)." };
+    if (input.roster.length > MAX_ROSTER) return { error: `${MAX_ROSTER} pièces au plus par commande.` };
+    roster = input.roster.map((e) => {
+      const name = String(e?.name ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
+      const number = String(e?.number ?? "").trim().slice(0, 6);
+      return { size: String(e?.size ?? "").slice(0, 10), ...(name ? { name } : {}), ...(number ? { number } : {}) };
+    });
+    const { data: variants } = await supabase.from("base_product_variants").select("size").eq("base_product_id", product.id).eq("color_key", doc.colorKey);
+    const { errors } = checkRoster(doc, roster, [...new Set((variants ?? []).map((v) => v.size as string))], zoneSizes);
+    if (errors.length) return { error: errors.slice(0, 3).join(" ") + (errors.length > 3 ? ` (et ${errors.length - 3} autre${errors.length > 4 ? "s" : ""})` : "") };
+    sizes = sizesFromRoster(roster);
+    quantity = roster.length;
+  } else if (Array.isArray(input.roster) && input.roster.length > 0) {
+    return { error: "Cette création n'a pas de nom ni de numéro par pièce." };
+  }
+  if (quantity < 1) return { error: "Indiquez au moins une pièce." };
   const issues = doc.surfaces.flatMap((s) => {
     const z = zoneSizes.find((x) => x.key === s.zoneKey);
     return z ? preflight(s, z) : [];
@@ -95,7 +117,8 @@ export async function placeOrder(input: PlaceOrderInput) {
   if (blocking(issues)) return { error: "Votre création contient des points bloquants (voir « Vérification de fabrication »)." };
   if (issues.length > 0 && !input.acceptWarnings) return { error: "Confirmez que vous acceptez les remarques de fabrication." };
 
-  const decorations = sanitizeDecorations(decorationsFor(doc, zoneSizes), product.zones);
+  // Team order: priced and printed at the widest name/number of the list (same rule as the studio).
+  const decorations = sanitizeDecorations(decorationsFor(roster ? widestPiece(doc, roster) : doc, zoneSizes), product.zones);
   if (decorations.length === 0) return { error: "Votre création est vide." };
   const shipping = DELIVERY_OPTIONS[input.delivery].price;
   const { best } = await bestQuote({
@@ -115,7 +138,7 @@ export async function placeOrder(input: PlaceOrderInput) {
       color_key: doc.colorKey, sizes, quantity,
       unit_price: q.lines[0]!.unitPrice.amount,
       line_total: q.goodsSubtotal.amount,
-      decorations,
+      decorations, roster,
     }],
     p_totals: { subtotal: q.goodsSubtotal.amount, shipping: q.shipping.amount, discount: q.discount.amount, tax: q.tax.amount, total: q.total.amount, deposit_due: q.depositDue?.amount ?? null },
     p_quote: { ...q.snapshot, suggestedVendorId: best.vendorId, leadTimeDays: best.leadTimeDays, lines: q.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice.amount })), setupFee: q.setupFee.amount, delivery: input.delivery },
@@ -140,10 +163,10 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id, total, shipping, shipping_address, items:order_items(color_key, sizes, quantity, decorations, product:base_products(id, slug, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques))), fulfillments(id, status, vendor_id, proof_round, held_from)")
+    .select("id, total, shipping, shipping_address, items:order_items(color_key, sizes, quantity, decorations, roster, product:base_products(id, slug, category:categories(slug), zones(key, max_width_mm, max_height_mm, allowed_techniques))), fulfillments(id, status, vendor_id, proof_round, held_from)")
     .eq("id", input.orderId).maybeSingle();
   if (!order) return { error: "Commande introuvable." };
-  const item = (order.items as unknown as { color_key: string; sizes: Record<string, number>; quantity: number; decorations: ReturnType<typeof sanitizeDecorations>; product: { id: string; slug: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[] }[] } }[])[0];
+  const item = (order.items as unknown as { color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; decorations: ReturnType<typeof sanitizeDecorations>; product: { id: string; slug: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[] }[] } }[])[0];
   const f = (order.fulfillments as { id: string; status: string; vendor_id: string | null; proof_round: number; held_from: string | null }[])[0];
   if (!item || !f) return { error: "Commande incomplète." };
   if (f.status !== "changes_requested") return { error: "Cette commande n'attend pas de correction." };
@@ -159,7 +182,15 @@ export async function resubmitCorrection(input: { orderId: string; document: unk
   const issues = doc.surfaces.flatMap((s) => { const z = zoneSizes.find((x) => x.key === s.zoneKey); return z ? preflight(s, z) : []; });
   if (blocking(issues)) return { error: "Votre création contient encore des points bloquants." };
   if (issues.length > 0 && !input.acceptWarnings) return { error: "Confirmez que vous acceptez les remarques de fabrication." };
-  const decorations = sanitizeDecorations(decorationsFor(doc, zoneSizes), item.product.zones);
+  // E16: the team list is frozen with the order; the corrected design must still print it correctly.
+  if (item.roster?.length) {
+    if (!needsRoster(doc)) return { error: "Cette commande d'équipe doit garder le nom et/ou le numéro variables." };
+    const { errors } = checkRoster(doc, item.roster, Object.keys(item.sizes), zoneSizes);
+    if (errors.length) return { error: `Avec la liste de l'équipe : ${errors.slice(0, 2).join(" ")}` };
+  } else if (needsRoster(doc)) {
+    return { error: "Un nom ou un numéro par pièce ne peut pas être ajouté pendant une correction : il faudrait une nouvelle commande." };
+  }
+  const decorations = sanitizeDecorations(decorationsFor(item.roster?.length ? widestPiece(doc, item.roster) : doc, zoneSizes), item.product.zones);
   if (decorations.length === 0) return { error: "Votre création est vide." };
 
   // Both versions are priced with the workshop already assigned (D16): feasibility and surcharge are its own.

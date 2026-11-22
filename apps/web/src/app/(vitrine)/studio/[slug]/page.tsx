@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { parseDesign } from "@sawwa/design";
+import { parseDesign, type RosterEntry } from "@sawwa/design";
 import { getSession, hasPlatformRole } from "@/lib/auth";
 import { signedDesignUrls } from "@/lib/orders";
 import { publishedTemplate, templateForEdit } from "@/lib/templates";
@@ -43,16 +43,16 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
   if (user && commande) {
     const { data: o } = await supabase
       .from("orders")
-      .select("id, number, items:order_items(version:design_versions(design_id, document)), fulfillments(status), events:status_events(event, payload, at)")
+      .select("id, number, items:order_items(roster, version:design_versions(design_id, document)), fulfillments(status), events:status_events(event, payload, at)")
       .eq("id", commande).maybeSingle();
-    const item = (o?.items as unknown as { version: { design_id: string; document: unknown } }[] | undefined)?.[0];
+    const item = (o?.items as unknown as { roster: RosterEntry[] | null; version: { design_id: string; document: unknown } }[] | undefined)?.[0];
     const status = (o?.fulfillments as { status: string }[] | undefined)?.[0]?.status;
     const parsed = item ? parseDesign(item.version.document) : null;
     if (o && item && status === "changes_requested" && parsed?.ok && parsed.value.product === slug) {
       const { data: d } = await supabase.from("designs").select("id, title").eq("id", item.version.design_id).maybeSingle();
       initial = { id: item.version.design_id, title: d?.title ?? "Ma création", document: parsed.value, urls: await signedDesignUrls(supabase, parsed.value) };
       const last = ((o.events ?? []) as { event: string; payload: { comment?: string }; at: string }[]).filter((e) => e.event === "request_changes").sort((a, b) => b.at.localeCompare(a.at))[0];
-      correction = { orderId: o.id as string, number: o.number as string, comment: last?.payload.comment ?? null };
+      correction = { orderId: o.id as string, number: o.number as string, comment: last?.payload.comment ?? null, roster: item.roster };
     }
   }
   // E15: a customer opens a published template (assistant), or the catalogue team edits one.

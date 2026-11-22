@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
-import type { Surface } from "@sawwa/design";
+import { emptyDocument, personalize, type Surface } from "@sawwa/design";
 import { buildProductionSheet, fontFiles, renderSurfaceSvg } from "./index.ts";
 
 const surface: Surface = {
@@ -37,6 +37,23 @@ describe("production SVG", () => {
   });
 });
 
+describe("team order piece (E16)", () => {
+  it("prints the piece's name and number, and nothing for an empty name", () => {
+    const doc = { ...emptyDocument("maillot", "blanc"), surfaces: [{ zoneKey: "back", technique: "dtf", layers: [
+      { id: "n", type: "text" as const, text: "NOM", font: "anton" as const, sizeMm: 50, fill: "#2A1A12", xMm: 150, yMm: 60, rotation: 0, widthMm: 90, heightMm: 60, perItem: { key: "name" as const, maxLength: 12 } },
+      { id: "d", type: "text" as const, text: "10", font: "anton" as const, sizeMm: 180, fill: "#2A1A12", xMm: 150, yMm: 240, rotation: 0, widthMm: 120, heightMm: 180, perItem: { key: "number" as const, maxLength: 2 } },
+    ] }] };
+    const zone = { maxWidthMm: 300, maxHeightMm: 400 };
+    const piece = renderSurfaceSvg(personalize(doc, { size: "M", name: "Ndèye", number: "7" }).surfaces[0]!, zone, { dpi: 300, images: {} }).svg;
+    expect(piece).toContain(">NDÈYE<");
+    expect(piece).toContain(">7<");
+    expect(piece).not.toContain(">NOM<");
+    const noName = renderSurfaceSvg(personalize(doc, { size: "M", number: "9" }).surfaces[0]!, zone, { dpi: 300, images: {} }).svg;
+    expect(noName).not.toContain(">NOM<");
+    expect(noName).toContain(">9<");
+  });
+});
+
 describe("production sheet PDF", () => {
   it("has one A4 page per zone", async () => {
     const bytes = await buildProductionSheet({
@@ -51,6 +68,16 @@ describe("production sheet PDF", () => {
     const doc = await PDFDocument.load(bytes);
     expect(doc.getPageCount()).toBe(2);
     expect(Math.round(doc.getPage(0).getWidth())).toBe(595);
+  });
+  it("adds the list of pieces of a team order (40 per page)", async () => {
+    const roster = Array.from({ length: 45 }, (_, i) => ({ size: i % 2 ? "M" : "L", name: `Joueur ${i + 1} Ndèye`, number: String(i + 1) }));
+    const bytes = await buildProductionSheet({
+      reference: "SW-2026-000002", productName: "Maillot", colorName: "blanc", sizes: { M: 22, L: 23 },
+      versionHash: "abcdef0123456789", generatedAt: "22/11/2026",
+      zones: [{ label: "Dos", technique: "Transfert DTF", printedWidthCm: 25, printedHeightCm: 30, offsetLeftCm: 2, offsetTopCm: 2, zoneWidthCm: 30, zoneHeightCm: 40 }],
+      roster, variableZones: ["Dos"],
+    });
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(3);
   });
 });
 

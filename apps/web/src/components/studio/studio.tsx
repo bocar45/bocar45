@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { TECHNIQUE_LABEL, type Technique } from "@sawwa/catalog";
 import {
-  FONTS, MAX_DOCUMENT_CHARS, blocking, coverCrop, decorationsFor, effectiveDpi, emptyDocument, fillPhoto, fillText, parseDesign, preflight, templateFields,
-  type DesignDocument, type FieldRef, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
+  FONTS, MAX_DOCUMENT_CHARS, blocking, coverCrop, decorationsFor, effectiveDpi, emptyDocument, fillPhoto, fillText, needsRoster, parseDesign, personalize, preflight, templateFields, widestPiece,
+  type DesignDocument, type FieldRef, type RosterEntry, type FontKey, type Layer, type ShapeKind, type Surface, type TextLayer,
 } from "@sawwa/design";
 import { DELIVERY_OPTIONS, type DeliveryKey } from "@/lib/shipping";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
@@ -22,6 +22,7 @@ const Viewer3D = dynamic(() => import("../studio3d/viewer"), {
 import { getAsset, loadDraft, putAsset, saveDraft } from "./asset-store";
 import { LayerShape, StudioCanvas, isDark } from "./canvas";
 import { ImageTools } from "./image-tools";
+import { PerItemEditor, RosterEditor } from "./roster-panel";
 import { AssistantPanel, FieldEditor, TemplateSavePanel } from "./template-panels";
 import { moveLayerToZone } from "./move";
 import { useHistory } from "./use-history";
@@ -37,11 +38,11 @@ export interface StudioProps {
   initial: { id: string | null; title: string; document: DesignDocument; urls: Record<string, string> } | null;
   save: (input: { id: string | null; slug: string; title: string; document: unknown }) => Promise<{ ok: true; id: string } | { error: string }>;
   order: (input: {
-    designId: string; sizes: Record<string, number>; delivery: string; acceptWarnings: boolean;
+    designId: string; sizes: Record<string, number>; delivery: string; acceptWarnings: boolean; roster?: RosterEntry[] | null;
     address: { name: string; phone: string; district: string; landmark: string; city: string };
   }) => Promise<{ ok: true; orderId: string; number: string } | { error: string }>;
   /** E10: the studio opened to correct an order waiting for a correction. */
-  correction?: { orderId: string; number: string; comment: string | null } | null;
+  correction?: { orderId: string; number: string; comment: string | null; roster?: RosterEntry[] | null } | null;
   resubmit?: (input: { orderId: string; document: unknown; acceptWarnings: boolean; acceptedSurcharge: number | null }) => Promise<{ ok: true; surcharge: number } | { error: string; surcharge?: number }>;
   /** E15: a ready-to-personalise template opened by a customer (assistant first). */
   assistant?: { slug: string; title: string; description: string } | null;
@@ -61,6 +62,17 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const draftKey = `sawwa:studio:${product.slug}${correction ? `:commande:${correction.orderId}` : template ? `:gabarit:${template.id}` : assistant ? `:modele:${assistant.slug}` : initial ? `:${initial.id}` : ""}`;
   const [assistantOpen, setAssistantOpen] = useState(Boolean(assistant));
   const [photoBusy, setPhotoBusy] = useState<string | null>(null);
+  // E16: one line per piece (size, name, number) when a text changes on every piece; kept on this device.
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  useEffect(() => {
+    if (correction?.roster) { setRoster(correction.roster); return; } // frozen with the order
+    try { const r = JSON.parse(localStorage.getItem(`${draftKey}:liste`) ?? "[]"); if (Array.isArray(r)) setRoster(r.slice(0, 500)); } catch { /* no saved list */ }
+  }, [draftKey, correction?.roster]);
+  useEffect(() => {
+    const t = setTimeout(() => { try { localStorage.setItem(`${draftKey}:liste`, JSON.stringify(roster)); } catch { /* storage full or blocked */ } }, 400);
+    return () => clearTimeout(t);
+  }, [roster, draftKey]);
   const [designId, setDesignId] = useState<string | null>(initial?.id ?? null);
   const [title, setTitle] = useState(initial?.title ?? "Ma création");
   const [saving, setSaving] = useState(false);
@@ -92,6 +104,11 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const color = product.colors.find((c) => c.key === doc.colorKey) ?? product.colors[0] ?? { key: "", hex: "#F2E9D8", sizes: [] };
   const surface: Surface = doc.surfaces.find((s) => s.zoneKey === zone.key) ?? { zoneKey: zone.key, technique: zone.techniques[0] ?? "dtf", layers: [] };
   const selected = surface.layers.find((l) => l.id === selectedId) ?? null;
+  const teamMode = needsRoster(doc);
+  const previewEntry = teamMode && previewIdx !== null ? roster[previewIdx] : undefined;
+  /** What is shown: the design, or one personalised piece of the team list. */
+  const shownDoc = previewEntry ? personalize(doc, previewEntry) : doc;
+  const shownSurface = shownDoc.surfaces.find((s) => s.zoneKey === zone.key) ?? surface;
   const ink = isDark(color.hex) ? "#F2E9D8" : "#2A1A12";
 
   // ── Restore the draft kept on this device (a saved design or a template being edited opens as stored) ──
@@ -169,6 +186,16 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
     id: uid(), type: "text", text: "Votre texte", font: "manrope", sizeMm: Math.round(Math.min(40, Math.max(10, H * 0.09))),
     fill: ink, xMm: W / 2, yMm: H * 0.3, rotation: 0, widthMm: W * 0.5, heightMm: 20,
   });
+  /** Team shirt: a name and a big number, different on every piece. */
+  const addTeamTexts = () => {
+    const nameSize = Math.round(Math.min(60, Math.max(10, W * 0.15)));
+    const numSize = Math.round(Math.min(220, Math.max(20, H * 0.45)));
+    const name: Layer = { id: uid(), type: "text", text: "NOM", font: "anton", sizeMm: nameSize, fill: ink, xMm: W / 2, yMm: H * 0.15, rotation: 0, widthMm: nameSize * 1.4, heightMm: nameSize * 1.2, perItem: { key: "name", maxLength: 12 } };
+    const num: Layer = { id: uid(), type: "text", text: "10", font: "anton", sizeMm: numSize, fill: ink, xMm: W / 2, yMm: H * 0.6, rotation: 0, widthMm: numSize * 0.9, heightMm: numSize, perItem: { key: "number", maxLength: 2 } };
+    history.commit((d) => updateSurface(d, (s) => ({ ...s, layers: [...s.layers, name, num] })));
+    setSelectedId(num.id);
+    setNotice("Nom et numéro ajoutés : ils changeront sur chaque pièce. Vous donnerez la liste à la commande.");
+  };
   const addShape = (shape: ShapeKind) => {
     const s = Math.round(Math.min(W, H) * 0.3);
     addLayer({ id: uid(), type: "shape", shape, fill: "#B5562A", xMm: W / 2, yMm: H / 2, rotation: 0, widthMm: s, heightMm: s });
@@ -328,7 +355,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   })), [doc.surfaces, product.zones]);
   const zoneIssues = issuesByZone[zone.key] ?? [];
   const allIssues = Object.values(issuesByZone).flat();
-  const decorations = useMemo(() => decorationsFor(doc, product.zones.map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm }))), [doc, product.zones]);
+  // Team order: the price follows the widest name/number of the list, exactly like the server (widestPiece).
+  const decorations = useMemo(() => decorationsFor(teamMode ? widestPiece(doc, roster) : doc, product.zones.map((z) => ({ key: z.key, maxWidthMm: z.maxWidthMm, maxHeightMm: z.maxHeightMm }))), [doc, product.zones, teamMode, roster]);
   const decoKey = JSON.stringify(decorations);
 
   useEffect(() => {
@@ -354,6 +382,11 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
         <b className="display on-light text-xl">{product.name}</b>
         {correction && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Correction · {correction.number}</span>}
         {template && <span className="rounded-full bg-ocre px-3 py-1 text-xs font-bold text-brun">Modèle · {template.title}</span>}
+        {previewEntry && (
+          <button type="button" onClick={() => setPreviewIdx(null)} className="rounded-full bg-indigo-900 px-3 py-1 text-xs font-bold text-ivoire">
+            Aperçu pièce {previewIdx! + 1} : {[previewEntry.name, previewEntry.number, previewEntry.size].filter(Boolean).join(" · ")} ✕
+          </button>
+        )}
         {!webgl && <span className="text-xs text-muted">Vue 3D indisponible sur cet appareil : le studio fonctionne en 2D.</span>}
         <div className="flex items-center gap-1.5" role="group" aria-label="Couleur du produit">
           {product.colors.map((c) => (
@@ -383,6 +416,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           <Tool label="Losange" icon="◆" onClick={() => addShape("losange")} />
           <Tool label="Cercle" icon="●" onClick={() => addShape("circle")} />
           <Tool label="Carré" icon="■" onClick={() => addShape("rect")} />
+          <Tool label="Nom + n°" icon="10" onClick={addTeamTexts} />
           <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void importImage(f); e.target.value = ""; }} />
         </div>
@@ -415,7 +449,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
                   </div>
                 ) : (
                   <Viewer3DBoundary key={viewerKey} onFail={() => setViewerFailed("network")}>
-                    <Viewer3D kind={modelKindFor(`${product.slug} ${product.categorySlug}`)} garmentHex={color.hex} surfaces={doc.surfaces}
+                    <Viewer3D kind={modelKindFor(`${product.slug} ${product.categorySlug}`)} garmentHex={color.hex} surfaces={shownDoc.surfaces}
                       zones={product.zones} imageUrls={urls} activeZone={zone.key} onContextLost={() => setViewerFailed("network")} />
                   </Viewer3DBoundary>
                 )}
@@ -425,7 +459,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
               <div className="relative h-[460px] overflow-hidden rounded-[24px] border border-line bg-ivoire xl:h-[520px]">
                 <div className="absolute inset-0 p-4">
                   <StudioCanvas
-                    surface={surface}
+                    surface={shownSurface}
                     zone={{ maxWidthMm: W, maxHeightMm: H, label: zone.label }}
                     garmentColor={color.hex}
                     selectedId={selectedId}
@@ -434,7 +468,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
                     onSelect={assistantOpen ? () => undefined : setSelectedId}
                     onPreview={(id, patch) => history.preview(patchLayer(id, patch))}
                     onCommit={() => history.commit((d) => d)}
-                    onMeasure={(id, w, h) => history.silent(patchLayer(id, { widthMm: Math.round(w * 10) / 10, heightMm: Math.round(h * 10) / 10 }))}
+                    // while a team piece is previewed, the shown text is not the sample: never store its size
+                    onMeasure={previewEntry ? () => undefined : (id, w, h) => history.silent(patchLayer(id, { widthMm: Math.round(w * 10) / 10, heightMm: Math.round(h * 10) / 10 }))}
                   />
                 </div>
                 {surface.layers.length === 0 && !assistantOpen && (
@@ -568,13 +603,14 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           )}
           {ordering && (
             <OrderPanel sizes={color.sizes} issues={allIssues.length} price={price}
+              team={teamMode ? { doc, zones: product.zones, roster, setRoster, previewIdx, setPreviewIdx } : null}
               onQuantity={setQuantity} onCancel={() => setOrdering(false)}
               onConfirm={async (form) => {
                 const saved = await saveToAccount();
                 if (!saved) return "Enregistrez d'abord votre création.";
                 const r = await order({ designId: saved.id, ...form });
                 if ("error" in r) return r.error;
-                try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+                try { localStorage.removeItem(draftKey); localStorage.removeItem(`${draftKey}:liste`); } catch { /* ignore */ }
                 router.push(`/compte/commandes/${r.orderId}`);
                 return null;
               }} />
@@ -634,6 +670,7 @@ function Properties({ layer: l, zone, onChange, onDelete, onDuplicate, onReorder
 
       {templateMode && <FieldEditor layer={l} onChange={onChange} />}
       {l.type === "text" && <TextProps layer={l} onChange={onChange} />}
+      {l.type === "text" && !templateMode && <PerItemEditor layer={l} onChange={onChange} />}
       {l.type === "image" && (
         <ImageTools layer={l} url={imageUrl} onReplace={onReplace} onUrl={onUrl} />
       )}
@@ -704,10 +741,11 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (hex: strin
   );
 }
 
-function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm }: {
+function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm, team }: {
   sizes: string[]; issues: number; price: Awaited<ReturnType<StudioProps["quote"]>> | null;
   onQuantity: (n: number) => void; onCancel: () => void;
-  onConfirm: (form: { sizes: Record<string, number>; delivery: string; acceptWarnings: boolean; address: { name: string; phone: string; district: string; landmark: string; city: string } }) => Promise<string | null>;
+  onConfirm: (form: { sizes: Record<string, number>; roster: RosterEntry[] | null; delivery: string; acceptWarnings: boolean; address: { name: string; phone: string; district: string; landmark: string; city: string } }) => Promise<string | null>;
+  team: { doc: DesignDocument; zones: StudioZoneProps[]; roster: RosterEntry[]; setRoster: (r: RosterEntry[]) => void; previewIdx: number | null; setPreviewIdx: (i: number | null) => void } | null;
 }) {
   const [qty, setQty] = useState<Record<string, number>>(Object.fromEntries(sizes.map((s, i) => [s, i === Math.floor(sizes.length / 2) ? 1 : 0])));
   const [delivery, setDelivery] = useState<DeliveryKey>("dakar");
@@ -715,12 +753,16 @@ function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm }: {
   const [accept, setAccept] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const total = Object.values(qty).reduce((a, b) => a + b, 0);
+  const total = team ? team.roster.length : Object.values(qty).reduce((a, b) => a + b, 0);
   useEffect(() => { if (total > 0) onQuantity(total); }, [total, onQuantity]);
   const ship = DELIVERY_OPTIONS[delivery].price;
   return (
     <section className="grid gap-3 rounded-2xl border-2 border-terra bg-surface p-4" aria-labelledby="order-title">
       <h2 id="order-title" className="display on-light text-2xl">Votre commande</h2>
+      {team ? (
+        <RosterEditor doc={team.doc} sizes={sizes} zones={team.zones} value={team.roster} onChange={team.setRoster}
+          previewIndex={team.previewIdx} onPreview={team.setPreviewIdx} />
+      ) : (
       <fieldset className="grid gap-2">
         <legend className="text-xs font-semibold text-muted">Quantité par taille</legend>
         <div className="grid grid-cols-3 gap-2">
@@ -733,6 +775,7 @@ function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm }: {
         </div>
         <span className="text-sm">Total : <b>{total}</b> pièce{total > 1 ? "s" : ""}</span>
       </fieldset>
+      )}
       <label className="grid gap-1 text-xs font-semibold text-muted">Livraison
         <select value={delivery} onChange={(e) => setDelivery(e.target.value as DeliveryKey)} className={field}>
           {(Object.keys(DELIVERY_OPTIONS) as DeliveryKey[]).map((k) => (
@@ -759,7 +802,7 @@ function OrderPanel({ sizes, issues, price, onQuantity, onCancel, onConfirm }: {
       {error && <p role="alert" className="text-sm text-error">⚠ {error}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-terra !py-2 text-sm disabled:opacity-50" disabled={busy || total < 1}
-          onClick={async () => { setBusy(true); setError(null); const e = await onConfirm({ sizes: qty, delivery, acceptWarnings: accept, address }); if (e) setError(e); setBusy(false); }}>
+          onClick={async () => { setBusy(true); setError(null); const e = await onConfirm({ sizes: team ? {} : qty, roster: team ? team.roster : null, delivery, acceptWarnings: accept, address }); if (e) setError(e); setBusy(false); }}>
           {busy ? "Envoi…" : "Confirmer la commande"}
         </button>
         <button type="button" className={btn} onClick={onCancel}>Annuler</button>

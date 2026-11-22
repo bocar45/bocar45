@@ -1,3 +1,5 @@
+import { RosterList } from "@/components/roster-list";
+import type { RosterEntry } from "@sawwa/design";
 import { notFound } from "next/navigation";
 import { hasPlatformRole, requirePlatformRole } from "@/lib/auth";
 import { candidateVendors } from "@/lib/assignment";
@@ -20,10 +22,10 @@ export default async function AdminOrder({ params }: { params: Promise<{ id: str
   const isFinance = hasPlatformRole(memberships, ["finance"]);
   const { data: o } = await supabase
     .from("orders")
-    .select("id, number, payment_status, payment_reference, subtotal, shipping, tax, total, deposit_due, shipping_address, created_at, quote_snapshot, items:order_items(id, design_version_id, color_key, sizes, quantity, unit_price, decorations, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), fulfillments(id, status, vendor_cost, sla_due_at, qc_photos, carrier, tracking_number, vendor:organizations(name)), events:status_events(event, actor_role, payload, at)")
+    .select("id, number, payment_status, payment_reference, subtotal, shipping, tax, total, deposit_due, shipping_address, created_at, quote_snapshot, items:order_items(id, design_version_id, color_key, sizes, quantity, roster, unit_price, decorations, version:design_versions(document, sha256), product:base_products(name, variants:base_product_variants(color_key, color_hex), zones(key, anchor, max_width_mm, max_height_mm))), fulfillments(id, status, vendor_cost, sla_due_at, qc_photos, carrier, tracking_number, vendor:organizations(name)), events:status_events(event, actor_role, payload, at)")
     .eq("id", id).maybeSingle();
   if (!o) notFound();
-  const item = (o.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; unit_price: number; decorations: { zoneKey: string; technique: string; widthMm: number; heightMm: number }[]; version: { document: unknown; sha256: string } | null; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: ZoneRow[] } }[])[0];
+  const item = (o.items as unknown as { id: string; design_version_id: string; color_key: string; sizes: Record<string, number>; quantity: number; roster: RosterEntry[] | null; unit_price: number; decorations: { zoneKey: string; technique: string; widthMm: number; heightMm: number }[]; version: { document: unknown; sha256: string } | null; product: { name: unknown; variants: { color_key: string; color_hex: string }[]; zones: ZoneRow[] } }[])[0];
   const f = (o.fulfillments as unknown as { id: string; status: string; vendor_cost: number | null; sla_due_at: string | null; qc_photos: string[]; carrier: string | null; tracking_number: string | null; vendor: { name: string } | null }[])[0];
   const events = ((o.events ?? []) as { event: string; actor_role: string; payload: Record<string, string>; at: string }[]).sort((a, b) => a.at.localeCompare(b.at));
   const doc = item?.version ? readDoc(item.version.document) : null;
@@ -78,6 +80,7 @@ export default async function AdminOrder({ params }: { params: Promise<{ id: str
             {item && (
               <ul className="grid gap-1 text-sm">
                 <li>Tailles : {Object.entries(item.sizes).map(([s, n]) => `${s} × ${n}`).join(" · ")} ({item.quantity} pc)</li>
+                {item.roster?.length ? <li><RosterList roster={item.roster} /></li> : null}
                 {item.decorations.map((d) => <li key={d.zoneKey}>{d.zoneKey} · {d.technique} · {d.widthMm / 10} × {d.heightMm / 10} cm</li>)}
                 {item.version && <li className="text-xs text-muted">Version figée · empreinte {item.version.sha256.slice(0, 12)}</li>}
               </ul>

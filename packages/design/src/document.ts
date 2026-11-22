@@ -46,6 +46,13 @@ export interface TextLayer extends LayerBase {
   fill: string;
   italic?: boolean;
   letterSpacing?: number; // em
+  /** Team orders (E16): this text changes on every piece (the player's name or number). `text` is the sample shown. */
+  perItem?: PerItem | undefined;
+}
+
+export interface PerItem {
+  key: "name" | "number";
+  maxLength: number;
 }
 
 export interface ImageLayer extends LayerBase {
@@ -137,6 +144,11 @@ export function parseDesign(input: unknown): { ok: true; value: DesignDocument }
         if (!(l.font in FONTS)) errors.push(`${at}: font`);
         if (!isNum(l.sizeMm) || l.sizeMm <= 0) errors.push(`${at}: sizeMm`);
         if (!isHex(l.fill)) errors.push(`${at}: fill`);
+        if (l.perItem !== undefined) {
+          const p = l.perItem as Partial<PerItem> | null;
+          if (!p || !["name", "number"].includes(p.key as string) || !Number.isInteger(p.maxLength) || p.maxLength! < 1 || p.maxLength! > (p.key === "number" ? 3 : 30)) errors.push(`${at}: perItem`);
+          if (l.field) errors.push(`${at}: perItem and field`);
+        }
       } else if (l?.type === "image") {
         if (typeof l.src !== "string" || !isNum(l.pxWidth) || !isNum(l.pxHeight)) errors.push(`${at}: image`);
       } else if (l?.type === "shape") {
