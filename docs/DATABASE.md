@@ -22,7 +22,8 @@ Un client B2B (association, entreprise) est une `organization` de type `customer
 | `base_product_variants` | id, base_product_id, color_key, color_hex, size, sku_ref |
 | `views` | id, base_product_id, key (`front`, `back`, `left_sleeve`…), mockup_assets jsonb (photo, displacement, shading, mask par couleur) |
 | `zones` | id, base_product_id, view_id, key (`front_center`, `chest_left`…), max_w_mm, max_h_mm, anchor (repère physique + offset), print_area_path (SVG), allowed_technique_ids[] |
-| `models_3d` | id, base_product_id, glb_asset_id, uv_map jsonb (zone → région UV), lod jsonb, status |
+| `models_3d` | id, base_product_id, kind (`product`/`worn`), body (`male`/`female`/null), glb_asset_id, uv_map jsonb (zone → région UV calibrée en mm), animations[], lod jsonb, status |
+| `avatars` | id, body, glb_asset_id, skin_tones jsonb, animations[] |
 
 ## 3. Ateliers et offres
 | Table | Champs clés |
@@ -50,6 +51,7 @@ Un client B2B (association, entreprise) est une `organization` de type `customer
 | `assets` | id, owner_org_id/user_id, kind (`upload`, `ai_generated`, `library`, `export`, `mockup`, `glb`, `vendor_file`), storage_key, mime, bytes, width_px, height_px, sha256, rights_declared_at, moderation_status |
 | `designs` | id, owner (user/org), base_product_id, title, current_document jsonb (brouillon), updated_at |
 | `design_versions` | id, design_id, number, document jsonb, sha256, preflight_report jsonb, created_at — **immuable** |
+| `templates` | id, base_product_ids[], document jsonb (slots `photoSlot`/`textField`/`locked`/`variable`), tags (occasion, style), author_id, royalty_rate, status, popularity |
 | `design_shares` | id, design_id, token, permission (`view`/`comment`), expires_at |
 
 ## 6. Devis, panier, commandes

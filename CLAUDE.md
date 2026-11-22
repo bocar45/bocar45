@@ -22,6 +22,9 @@
 | Prix, commissions, simulation | `docs/BUSINESS_MODEL.md` |
 | Phases, critères d'acceptation | `docs/ROADMAP.md` |
 | Organisation du code, Git, méthode | `docs/EXECUTION.md` |
+| Logo (audit, système) | `docs/LOGO_AUDIT.md` |
+| 3D, mannequins | `docs/VISUALISATION_3D.md` |
+| Benchmark, catalogue, modèles | `docs/BENCHMARK_CATALOGUE.md` |
 
 ## Règles non négociables
 1. Rien de déployé, publié, acheté, supprimé ou configuré sur un service externe sans accord explicite.

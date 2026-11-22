@@ -3,7 +3,7 @@
 Visualisation : `design/maquettes.html` (palette, typographie, trame, maquettes des trois portails).
 
 ## 1. Logo SW
-**Le fichier du logo n'a pas été transmis.** Les points ci-dessous sont les critères de validation que je lui appliquerai.
+**Logo reçu et audité : voir `LOGO_AUDIT.md`** (forces, corrections, système à 3 niveaux, couleurs relevées). Critères de validation du redessin :
 
 | Critère | Test concret |
 |---|---|

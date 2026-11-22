@@ -15,9 +15,10 @@ Complexité : S (≤ 1 semaine), M (2–3 sem.), L (4–6 sem.), en développeme
 | 2 | **Socle** | Monorepo, CI, auth + rôles, organisations, schéma DB, audit log, design system en composants, admin catalogue de référence (produits, vues, zones), stockage fichiers | 1 | M |
 | 3 | **Tranche verticale** | Studio V1 (texte, image, formes, calques, zones, sauvegarde) sur 1 produit (t-shirt DTG), pré-contrôle, mockup 2D, moteur de prix v1, panier, Stripe **test**, commande, design figé, export 300 dpi + fiche technique, file atelier minimale (BAT → production → expédition), emails | 2 | L |
 | 4 | **Pilote fermé** | 20–50 commandes réelles (amis, 2–3 associations) avec les 2 ateliers pilotes. Mesures : conformité fichiers, délais, défauts, compréhension du prix | 3 + D1/D5 validées, paiement réel **sur ton accord** | S–M |
-| 5 | **Élargissement catalogue & B2B** | 6–8 produits de référence, broderie (frais de préparation), sérigraphie par lot, répartition par tailles, devis, codes promo, offres atelier en libre-service, routage semi-automatique | 4 | L |
+| 5 | **Élargissement catalogue & B2B** | **Modèles prêts à personnaliser** (assistant), occasions, 6–8 produits de référence, broderie (frais de préparation), sérigraphie par lot, répartition par tailles, devis, codes promo, offres atelier en libre-service, routage semi-automatique | 4 | L |
 | 6 | **Administration opérationnelle** | Tableau de bord, SLA, litiges/reprises, grand livre ateliers, virements, export comptable, factures, modération | 3 (en parallèle de 5) | M |
-| 7 | **3D** | Mug et gourde (UV), casquette (décalque), repli 2D, mesure de l'impact sur la conversion | 5 | M |
+| 3D-P | **Piste 3D parallèle** (démarre en phase 1) | Cahier des charges, artiste, avatars H/F, vêtements, objets ; visionneuse « Produit » en phase 3, **mannequins H/F en phase 5**, animations vitrines en phase 7. Voir `VISUALISATION_3D.md` | 1 | L |
+| 7 | **3D avancée** | Simulation textile pré-calculée, broderie en relief, casquette, vidéo partageable | 5 | M |
 | 8 | **IA** | Détourage (dès phase 3 si navigateur), génération de motifs/illustrations avec quotas et crédits, agrandissement, suggestions | 5 | M |
 | 9 | **Lancement public** | Tests de charge, sécurité (revue + tests d'intrusion légers), CGV/CGU/confidentialité relues par un juriste, SEO, analytics, FR/EN, procédure d'incident | 5, 6 | M |
 | 10 | **V2** | Turntable 3D vêtements, mobile money, boutiques créateurs, deuxième pays de facturation, application de l'API atelier | 9 | — |

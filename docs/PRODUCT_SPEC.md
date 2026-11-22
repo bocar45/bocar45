@@ -13,14 +13,17 @@ Priorités : **M** = indispensable au lancement (MVP) · **S** = juste après le
 8. Assistance IA (progressive).
 
 ## 2. Périmètre produits du lancement (proposition)
+> Catalogue cible élargi après le benchmark Vistaprint : voir `BENCHMARK_CATALOGUE.md §4`. 3D et mannequins : `VISUALISATION_3D.md`.
+
 | Produit de référence | Techniques V1 | Rendu V1 | 3D |
 |---|---|---|---|
-| T-shirt col rond coton 180 g | DTG, DTF, broderie (cœur) | Mockups photo face/dos/porté | V2 (turntable) |
-| Hoodie molleton 300 g | DTF, broderie | Mockups photo | V2 |
+| T-shirt col rond coton 180 g (H/F) | DTG, DTF, broderie (cœur) | Mockups + 3D produit | Mannequin H/F (phase 5) |
+| Hoodie molleton 300 g | DTF, broderie | Mockups + 3D produit | Mannequin H/F (phase 5) |
 | Polo piqué | Broderie | Mockups photo | L |
 | Casquette 6 pans | Broderie face/côtés | Mockups + **3D** | S |
 | Tote bag coton | Sérigraphie (lot), DTF | Mockups | L |
-| Mug céramique 33 cl | Sublimation | **3D rotation** | M |
+| Mug céramique 33 cl (standard, magique) | Sublimation | **3D rotation** | M |
+| Coussin | Sublimation | Mockups + 3D | S |
 | Gourde inox | Gravure / UV | 3D | S |
 
 Ajouter une famille = créer un produit de référence en admin (zones, vues, mockups), pas de code.
@@ -48,7 +51,13 @@ Chemin B2B alternatif : « Devis équipe » → formulaire guidé (quantités, l
 | Répartition par tailles (commande d'équipe) | M |
 | Demande de devis | M (formulaire) → S (devis en ligne) |
 | Lien de partage privé d'une création | S |
-| Noms/numéros individuels (personnalisation variable) | S |
+| Noms/numéros individuels (personnalisation variable) | M |
+| **Modèles prêts à personnaliser** (assistant photo/texte → studio) | M |
+| Occasions locales (collections) | M |
+| Visionneuse 3D « Produit » (mug, t-shirt) | M |
+| Mannequin homme/femme, teintes de peau, animations | S (piste 3D parallèle) |
+| Faire appel à un designer SAWWA | S |
+| Kit d'échantillons | S |
 | Réclamation avec photos | M |
 | Notifications WhatsApp | S |
 | Mobile money | Selon D1 |
@@ -121,4 +130,4 @@ toute étape → on_hold (admin) | cancelled
 Chaque transition : acteur autorisé, préconditions, effets (notification, paiement, horodatage), SLA (ex. `assigned` → acceptation sous 24 h ouvrées sinon alerte admin).
 
 ## 8. Fonctionnalités explicitement reportées
-Chaussures · mannequin animé · marketplace ouverte · boutiques créateurs · abonnements vendeurs · options de visibilité payantes · génération de logos vectoriels · multi-pays fiscal complet · application mobile native (le web responsive suffit, PWA possible).
+Chaussures · simulation textile en temps réel · marketplace ouverte · boutiques créateurs · abonnements vendeurs · options de visibilité payantes · génération de logos vectoriels · multi-pays fiscal complet · application mobile native (le web responsive suffit, PWA possible).
