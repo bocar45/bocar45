@@ -44,3 +44,6 @@ pnpm test && pnpm db:test                       # tests métier + migrations et 
 
 ## 4. Types TypeScript de la base
 Une fois le projet créé : `npx supabase gen types typescript --project-id <réf> > apps/web/src/lib/supabase/database.types.ts`, puis typer les clients avec. En attendant, les lectures sont typées à la main dans `src/lib/auth.ts`.
+
+## Important : variables au moment du build
+La politique de sécurité du site (CSP, E24a) autorise Supabase à partir de `NEXT_PUBLIC_SUPABASE_URL` **lue au build**. Sur Vercel, cette variable doit être définie pour l'environnement de build (Production et Preview), sinon le navigateur bloquera les appels à Supabase. Après l'avoir ajoutée ou modifiée, relancer un déploiement.

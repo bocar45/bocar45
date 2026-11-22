@@ -25,7 +25,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   if (error) logError("dashboard_read_failed", error);
   // each order is split with the VAT rate of the rule set it was priced with (frozen in its quote)
   const vatOf = new Map((ruleSets ?? []).map((r) => [r.version as number, (r.rules as { vatBps: number }).vatBps]));
-  const costs = await vendorCostsByOrder(supabase, (data ?? []).map((o) => o.id as string)).catch(() => new Map<string, number | null>());
+  const costs = await vendorCostsByOrder(supabase, (data ?? []).map((o) => o.id as string)).catch((e) => { logError("dashboard_costs_failed", e); return new Map<string, number | null>(); });
   const rows = (data ?? []).map((o) => ({ ...o, fulfillments: (o.fulfillments as unknown as Record<string, unknown>[]).map((f) => ({ ...f, vendor_cost: costs.get(o.id as string) ?? null })), vatBps: vatOf.get((o.quote_snapshot as { ruleSetVersion?: number } | null)?.ruleSetVersion ?? -1) ?? 1800 })) as unknown as OrderRow[];
   const k = computeKpis(rows);
   const tiles: [string, string, string?][] = [

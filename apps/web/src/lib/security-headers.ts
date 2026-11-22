@@ -23,7 +23,8 @@ export function securityHeaders(opts: { supabaseUrl?: string | undefined; dev?: 
   ].join("; ");
   return [
     { key: "Content-Security-Policy", value: csp },
-    { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+    // without includeSubDomains/preload until the final domain is fully on HTTPS (D27)
+    { key: "Strict-Transport-Security", value: "max-age=31536000" },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "X-Frame-Options", value: "DENY" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

@@ -2,6 +2,26 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-22 — E24a (sécurité avant lancement) — VALIDÉ
+Commit examiné : 3d1880e (depuis 5198e02), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
+Contrôles : typecheck ✅ · tests ✅ (166, 28 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé.
+Vérification serveur : build de production lancé sur le port 3999 et interrogé avec `curl -I /`. Les 7 en-têtes sont présents (CSP, HSTS, nosniff, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, COOP). Le serveur a été arrêté. Le studio sous CSP n'a pas été revérifié au navigateur (mesure de l'auteur).
+Critères de l'étape :
+- [x] Redirection ouverte corrigée. `safe-next.ts:5-12` contrôle le préfixe, refuse `\` et les caractères de contrôle, puis vérifie l'origine avec `URL`. La fonction est utilisée aux 3 endroits : `auth/callback/route.ts:9`, `connexion/actions.ts:21` et `login-form.tsx:18`. Le test `safe-next.test.ts` couvre `/\evil.com`, `//`, les schémas, la tabulation et les valeurs non textuelles.
+- [x] En-têtes de sécurité branchés sur `/:path*` (`next.config.ts:16-18`). Le test `security-headers.test.ts` vérifie `wasm-unsafe-eval`, l'absence de `unsafe-eval` en production, `frame-ancestors 'none'` et le domaine Supabase seul. Le contrôle avec curl est cité plus haut.
+- [x] Montant atelier protégé au niveau de la colonne. La migration 12 retire le droit de lecture sur la table. Elle redonne les droits sur les 12 autres colonnes, ce qui correspond exactement au schéma `designs_orders.sql:71-87`. La vue `fulfillment_costs` filtre sur `ops/finance/support` (super_admin inclus par `has_platform_role`) ou `is_org_manager`. La section 20 des tests couvre les cas : client et opérateur refusés (`insufficient_privilege`, vue vide), propriétaire et finance autorisés. Plus aucune lecture de `vendor_cost` sur `fulfillments` dans `apps/` (`git grep`). Aucune requête `fulfillments(*)` ne casserait. Les écritures passent par des fonctions `service_role`.
+- [x] Contours de patron figés. `studio/[slug]/actions.ts:189-190,204` écrit `quote_snapshot.patterns` pour les pièces utilisées. `api/production/[fulfillmentId]/route.ts:227-228` (`patternFor`) les privilégie, aux 3 endroits où ils servent.
+Critères communs : C1 ✅ · C2 ✅ (aucun calcul de prix ni transition ajoutés ; routes et pages gardées par `requirePlatformRole` ou `hasPlatformRole` ; règle 7 renforcée) · C3 ✅ (`git grep` des secrets : seulement des commentaires et des `grant ... to service_role` ; pas de `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ (aucun nouveau message client) · C5 ✅ (2 tests unitaires, section RLS 20) · C6 ✅ (D27, DATABASE migration 12, ROADMAP, BACKLOG 🔎 ; poussé ; aucune nouvelle dépendance).
+Corrections à faire : aucune.
+Remarques non bloquantes :
+- La CSP est calculée au build à partir de `NEXT_PUBLIC_SUPABASE_URL`. Si la variable manque au build sur Vercel, Supabase sera bloqué par `connect-src`. Il faut le noter dans `SETUP_SUPABASE_VERCEL.md`.
+- HSTS `includeSubDomains; preload` est déjà envoyé, alors que D27 dit « à n'activer que sur le domaine définitif ». Il faut aligner le code ou le texte.
+- Le tableau de bord avale l'erreur de `vendorCostsByOrder` (`.catch(() => new Map())`). Les coûts atelier deviennent alors 0 sans trace : ajouter `logError`.
+- `vendorCostsByOrder` suppose un seul ordre de fabrication par commande (indexé par `order_id`). À revoir si une commande est un jour répartie entre plusieurs ateliers.
+- Une pièce ajoutée lors d'une correction (`resubmitCorrection`) n'est pas figée dans `orders.quote_snapshot.patterns`. Elle retombe sur le catalogue en direct. C'est aussi le cas des commandes passées avant ce commit.
+- `fulfillment_costs` est une vue « security definer » (le linter Supabase la signalera). C'est voulu ici, car le filtrage est fait dans le `where`.
+Décision : passer à E24b (tests de charge locaux).
+
 ## 2026-11-22 — E18b (partie code, 2e passage) — VALIDÉ
 Commit examiné : 22a1ca8 (depuis 958f9c0), `git status` propre, HEAD = `origin/claude/sawwa-audit-cto-r8vt01`
 Contrôles : typecheck ✅ · tests ✅ (162) · db ✅ (ALL RLS TESTS PASSED) · build ✅ (code de sortie 0). Tout relancé, build compris.

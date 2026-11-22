@@ -156,7 +156,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [ ] 2 ateliers actifs, 20–50 commandes réelles.
 - [ ] Critères go/no-go de `ROADMAP.md` (délais, défauts, refus BAT, marge réelle).
 
-## E24a — Sécurité avant lancement 🔎
+## E24a — Sécurité avant lancement ✅
 - [x] Revue de sécurité (manuelle, l'outil automatique demande une branche de référence absente) : actions serveur (toutes contrôlent l'identité ou le rôle, sauf connexion, prix publics et annulation contrôlée par la base), usages de la clé serveur (toujours après un contrôle), redirections. **Corrigé : redirection ouverte après connexion** (`/\site.com` accepté) → `lib/safe-next.ts`, testé.
 - [x] En-têtes HTTP de sécurité sur toutes les réponses (CSP sans script tiers, WebAssembly autorisé, Supabase seul domaine externe ; HSTS ; pas d'encadrement ; Referrer-Policy ; Permissions-Policy ; COOP) ; studio complet vérifié au navigateur sous CSP (3D, import, détourage) sans violation.
 - [x] Montant atelier retiré du droit de lecture général de `fulfillments` (privilège de colonne) et exposé par la vue `fulfillment_costs` (équipe SAWWA, propriétaire et gérants) ; client et opérateur refusés (tests section 20) ; tableau de bord, export, pages commande adaptés. Décision D27.
