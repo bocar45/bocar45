@@ -1,3 +1,4 @@
+import { isMotif, type AllOver } from "./pattern.ts";
 /**
  * SAWWA Design Document — the source of truth for a creation.
  * Units are real millimetres, origin = top-left corner of the print zone, layer x/y = layer centre.
@@ -101,6 +102,8 @@ export interface DesignDocument {
   product: string; // base product slug
   colorKey: string;
   surfaces: Surface[];
+  /** E18b: continuous motif printed on every pattern piece, aligned across seams (all-over products only). */
+  allOver?: AllOver | undefined;
 }
 
 export const emptyDocument = (product: string, colorKey: string): DesignDocument => ({
@@ -123,6 +126,10 @@ export function parseDesign(input: unknown): { ok: true; value: DesignDocument }
   if (typeof d.product !== "string" || !d.product) errors.push("product required");
   if (typeof d.colorKey !== "string") errors.push("colorKey required");
   if (!Array.isArray(d.surfaces)) errors.push("surfaces must be an array");
+  if (d.allOver !== undefined) {
+    const a = d.allOver as Partial<AllOver> | null;
+    if (!a || !isMotif(a.motif) || !Array.isArray(a.colors) || a.colors.length !== 2 || !a.colors.every(isHex) || !isNum(a.tileMm) || a.tileMm! < 10 || a.tileMm! > 500) errors.push("allOver");
+  }
   for (const [si, s] of (d.surfaces ?? []).entries()) {
     if (typeof s?.zoneKey !== "string" || typeof s?.technique !== "string" || !Array.isArray(s?.layers)) {
       errors.push(`surface ${si} invalid`);
