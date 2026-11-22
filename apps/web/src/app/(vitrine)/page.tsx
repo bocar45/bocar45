@@ -22,7 +22,6 @@ export default function Home() {
   return (
     <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd(siteUrl())) }} />
-    <>
       {/* Hero */}
       <section className="trame relative overflow-hidden bg-brun text-ivoire">
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-20 pt-14 lg:grid-cols-[1.05fr_1fr] lg:pt-20">
@@ -146,7 +145,6 @@ export default function Home() {
           <Link href="/pro/candidature" className="btn btn-brun w-fit">Devenir atelier partenaire</Link>
         </div>
       </section>
-    </>
     </>
   );
 }

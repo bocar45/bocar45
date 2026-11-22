@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { siteUrl } from "@/lib/seo";
+import { SHARE, siteUrl } from "@/lib/seo";
 import { Fraunces, Manrope } from "next/font/google";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import "./globals.css";
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   icons: { icon: "/brand/symbole.png" },
   alternates: { canonical: "./" },
-  openGraph: { type: "website", siteName: "SAWWA", locale: "fr_SN", title: "SAWWA — Donner forme aux idées", description: DESCRIPTION, images: [{ url: "/brand/symbole.png", alt: "SAWWA" }] },
+  openGraph: { ...SHARE, title: "SAWWA — Donner forme aux idées", description: DESCRIPTION },
   twitter: { card: "summary", title: "SAWWA — Donner forme aux idées", description: DESCRIPTION },
 };
 

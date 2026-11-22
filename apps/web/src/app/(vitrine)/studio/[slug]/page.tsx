@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { templateMetadata } from "@/lib/seo";
 import { notFound, redirect } from "next/navigation";
 import { parseDesign, type RosterEntry } from "@sawwa/design";
 import { getSession, hasPlatformRole } from "@/lib/auth";
@@ -12,7 +14,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getStudioQuote, placeOrder, resubmitCorrection, saveDesign } from "./actions";
 import { saveTemplate } from "./template-actions";
 
-export const metadata = { title: "Studio de création" };
+/** E24c: each published template is its own indexable page (title, description, canonical with ?modele=). */
+export async function generateMetadata({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ modele?: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const { modele } = await searchParams;
+  if (modele && isSupabaseConfigured()) {
+    const t = await publishedTemplate(modele, slug).catch(() => null);
+    if (t) return templateMetadata(t);
+  }
+  return { title: "Studio de création", alternates: { canonical: `/studio/${slug}` } };
+}
 
 export default async function StudioPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ creation?: string; commande?: string; modele?: string; gabarit?: string; devis?: string }> }) {
   const { slug } = await params;

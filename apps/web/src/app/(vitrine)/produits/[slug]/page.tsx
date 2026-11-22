@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { jsonLd, productJsonLd, siteUrl } from "@/lib/seo";
+import { SHARE, jsonLd, productJsonLd, siteUrl } from "@/lib/seo";
 import { TECHNIQUE_LABEL } from "@sawwa/catalog";
 import { artKindFor } from "@/components/product-art";
 import { ProductShowcase } from "@/components/product-showcase";
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: product.name, description,
     alternates: { canonical: `/produits/${product.slug}` },
-    openGraph: { type: "website", title: `${product.name} · SAWWA`, description, url: `/produits/${product.slug}` },
+    openGraph: { ...SHARE, title: `${product.name} · SAWWA`, description, url: `/produits/${product.slug}` },
   };
 }
 

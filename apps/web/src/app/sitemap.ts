@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { loadPublicCatalog } from "@/lib/catalog-public";
 import { logError } from "@/lib/log";
-import { siteUrl } from "@/lib/seo";
+import { siteUrl, templateMetadata } from "@/lib/seo";
 import { listTemplates } from "@/lib/templates";
 
 export const revalidate = 3600;
@@ -23,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const p of catalog?.products ?? []) pages.push({ url: `${base}/produits/${p.slug}`, changeFrequency: "weekly", priority: 0.8 });
   } catch (e) { logError("sitemap_catalog_failed", e); }
   try {
-    for (const t of await listTemplates({})) pages.push({ url: `${base}/studio/${t.product.slug}?modele=${t.slug}`, changeFrequency: "monthly", priority: 0.5 });
+    for (const t of await listTemplates({})) pages.push({ url: `${base}${templateMetadata(t).alternates.canonical}`, changeFrequency: "monthly", priority: 0.5 }); // same canonical as the page
   } catch (e) { logError("sitemap_templates_failed", e); }
   return pages;
 }

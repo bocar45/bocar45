@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { requireUser, vendorMembership } from "@/lib/auth";
 import { ApplyForm } from "./apply-form";
 
-export const metadata = { title: "Candidature atelier" };
+// needs an account (sign-in first): not indexable, like the rest of the workshop space (E24c)
+export const metadata = { title: "Devenir atelier partenaire" };
 
 export default async function ApplyPage() {
   const { memberships } = await requireUser("/pro/candidature");
