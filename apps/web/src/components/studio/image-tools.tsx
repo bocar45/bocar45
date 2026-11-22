@@ -90,6 +90,16 @@ export function ImageTools({ layer, url, onReplace, onUrl }: {
             await replacePixels(crop(px, b), `${base}-rogne.png`, croppedGeometry(layer, px.width, px.height, b));
           })}>Rogner les bords vides</button>
         </div>
+        <button type="button" className={`${btn} w-fit`} disabled={!!busy} onClick={() => run("ia", async (px) => {
+          let ai: typeof import("./segment");
+          try { ai = await import("./segment"); } catch { throw new ToolError("Le détourage automatique n'a pas pu se charger (connexion). Réessayez."); }
+          let out: Pixels;
+          try { out = await ai.removeBackgroundAI(px); } catch { throw new ToolError("Le détourage automatique n'a pas pu se charger (connexion ou appareil trop ancien). Essayez « Retirer le fond »."); }
+          const b = opaqueBounds(out);
+          if (!b) throw new ToolError("Aucun sujet trouvé sur cette image : essayez « Retirer le fond ».");
+          await replacePixels(crop(out, b), `${base}-detoure.png`, croppedGeometry(layer, px.width, px.height, b));
+        })}>✨ Détourer la photo (automatique)</button>
+        <p className="text-xs text-muted">Pour une photo (personne, objet) : le sujet est détecté sur votre appareil, l&apos;image n&apos;est envoyée nulle part. Environ 8 Mo à télécharger la première fois.</p>
       </div>
 
       <details className="grid gap-2">
@@ -171,7 +181,7 @@ export function ImageTools({ layer, url, onReplace, onUrl }: {
         <p className="text-xs text-muted">Idéal pour un logo simple. Le résultat est net à toutes les tailles ; vous pouvez ensuite changer chaque couleur.</p>
       </details>
 
-      {busy && <p role="status" className="text-xs text-muted">Traitement en cours…</p>}
+      {busy && <p role="status" className="text-xs text-muted">{busy === "ia" ? "Détourage en cours (le premier peut prendre quelques secondes)…" : "Traitement en cours…"}</p>}
       {error && <p role="alert" className="text-xs text-error">⚠ {error}</p>}
     </section>
   );

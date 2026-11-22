@@ -6,7 +6,7 @@ qu'après ce verdict, et on l'enchaîne **automatiquement** dès que le verdict 
 
 Statuts : ✅ validée · 🔎 à valider · ⏳ à faire · 🧑‍💼 dépend d'une action du porteur du projet.
 
-**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → **E22** (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
+**Ordre de travail actuel** : E14 → E18 → E18c → E15 → E16 → E17 → E18d → E20 → E21 → E22 → **E18b** (détourage) → E18b → … ; E11, E12, E13, E19 attendent des actions du porteur.
 
 Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus des critères propres) :
 - C1. `pnpm typecheck`, `pnpm test`, `pnpm db:test` et `pnpm build` passent.
@@ -146,9 +146,10 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Capacité par jour et fermetures (`/pro/disponibilites`) prises en compte à l'affectation : charge en cours + commande ÷ capacité, jours ouvrés du lundi au samedi, fermetures sautées ; l'admin voit « prêt le… / surchargé / fermé jusqu'au… », les ateliers disponibles sont proposés en premier, l'affectation à un atelier fermé est refusée (`lib/capacity.ts`, tests). Marge de l'affectation calculée avec `splitGross` (règle 3).
 - [x] Plusieurs utilisateurs par atelier : invitation par numéro de téléphone (7 jours), acceptation par la personne connectée avec ce numéro, rôles propriétaire / gérant / opérateur ; l'opérateur ne voit ni l'argent ni les offres et ne gère ni l'équipe ni les disponibilités ; au moins un propriétaire garanti (`/pro/equipe`). Décision D24.
 
-## E22 — IA ⏳
-- [ ] Détourage d'image dans le navigateur.
-- [ ] Génération de motifs avec quotas, cache, suivi des coûts et modération.
+## E22 — IA 🔎 (détourage fait ; génération 🧑‍💼 budget)
+- [x] Détourage automatique dans le navigateur (« ✨ Détourer la photo ») : modèle U²-Net léger (Apache 2.0, 4,6 Mo) exécuté sur l'appareil par ONNX Runtime WebAssembly, servi par SAWWA (pas de CDN tiers, aucune image envoyée, aucun coût par image) ; ≈ 8 Mo téléchargés au premier usage puis en cache ; nouvelle image recadrée sur le sujet, taille réelle et position conservées, annulable ; ≈ 3 s mesurées. Décision D25.
+- [ ] 🧑‍💼 Génération de motifs avec quotas, cache, suivi des coûts et modération : choix du fournisseur et budget par le porteur.
+- [ ] Agrandissement sans perte (reporté depuis E18c) : avec la génération (même fournisseur), ou modèle local si la qualité suffit.
 
 ## E23 — Pilote fermé ⏳ 🧑‍💼
 - [ ] 2 ateliers actifs, 20–50 commandes réelles.
