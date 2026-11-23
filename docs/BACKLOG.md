@@ -180,7 +180,7 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Pages légales : en anglais, mention que la version française fait foi (traduction après relecture juridique).
 - [ ] Plus tard : messages d'erreur renvoyés par le serveur, panneaux secondaires du studio, espaces compte/atelier/admin (en français : équipes au Sénégal), adresses `/en/…` avec hreflang pour le référencement anglais. Décision D29.
 
-## E25 — Démo SAWWA Business : boutique en marque blanche + vraies photos 🔎
+## E25 — Démo SAWWA Business : boutique en marque blanche + vraies photos 🔎 (tests renforcés après revue)
 - [x] Analyse critique de la note Marketplace / Business et feuille de route : `docs/STRATEGIE_SAAS.md`, décision D30.
 - [x] Table `storefronts` (migration 13) : une boutique = un atelier ; elle ne peut lister que des produits que son atelier propose (contrôle en base) ; lecture publique des boutiques actives d'ateliers actifs ; écriture par l'atelier (propriétaire/gérant) ou l'équipe ateliers ; drapeau « démo » réservé à SAWWA. Tests RLS section 21.
 - [x] Page `/b/[boutique]` aux couleurs de l'atelier (en-tête SAWWA masqué), prix calculés par `@sawwa/pricing` avec la seule grille de cet atelier, bouton « Personnaliser » vers le studio SAWWA, mention « propulsée par SAWWA », non indexée si démo.

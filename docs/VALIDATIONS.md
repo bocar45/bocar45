@@ -2,6 +2,29 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-23 — E25 (SAWWA Business : marque blanche + photos) — À CORRIGER
+Commit examiné : 3b2c36e (depuis 2b805ae)
+Contrôles : typecheck ✅ · tests ✅ (174, 30 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅. Tout relancé.
+Critères de l'étape :
+- [x] Analyse `docs/STRATEGIE_SAAS.md` + D30 (🟡, à valider par le porteur).
+- [ ] Table `storefronts` : la migration est correcte (trigger `check_storefront`, RLS activée, `storefronts_public`, `storefronts_write`, drapeau démo limité à `vendor_manager`). Mais la section 21 ne prouve pas tout.
+  - `rls.test.sql:1033` : le test « B crée une boutique pour un autre atelier » passe `(select id from public.storefronts limit 1)`, donc l'id d'une **boutique**, comme `vendor_id`. L'échec vient du trigger ou de la clé étrangère, pas de la RLS, et `when others` le cache. Le test ne prouve rien.
+  - Aucun test négatif de lecture publique : une boutique `draft` et la boutique d'un atelier inactif doivent rester invisibles pour un visiteur anonyme.
+- [x] Page `/b/[boutique]` : couleurs revérifiées avant `style` (`storefront.ts:19,41-45`), grille du seul atelier (`catalog-public.ts`, `q.eq("vendor_id", …)`), prix calculés par `pricing`, en-tête et pied SAWWA masqués (`globals.css:142-146`), mention « propulsée par SAWWA », `noindex` si démo.
+- [x] Photos : `product-photos.ts`, `CREDITS.md`, illustration gardée en secours (`product-card.tsx`).
+- [x] Déploiement Supabase : fait via le connecteur, hors dépôt, non vérifiable ici (déclaratif). [ ] Vercel : en attente du porteur (🧑‍💼), ne bloque pas.
+Critères communs : C1 ✅ · C2 ✅ (prix par `pricing`, aucune transition) · C3 ✅ (aucun secret ni `SAWWA_PREVIEW_FIXTURE`) · C4 ✅ · C5 ❌ (voir la section 21) · C6 ✅ (D30, DATABASE, ROADMAP, BACKLOG 🔎 ; aucune dépendance).
+Corrections à faire (par priorité) :
+1. Section 21 : en tant que B, insérer avec le vrai `vendor_id` de l'Atelier Médina et n'attraper que `insufficient_privilege`.
+2. Section 21 : en anonyme, une boutique `draft` est invisible, et une boutique active d'un atelier suspendu aussi.
+Remarques non bloquantes :
+- `?boutique=` est ignoré par le studio (`studio/[slug]/page.tsx:30`). Le studio peut donc afficher le prix d'un autre atelier que celui de la boutique : à traiter en E27.
+- Un atelier peut repasser `is_demo` à `false` sur sa propre boutique démo. C'est acceptable tant que l'atelier démo appartient à SAWWA.
+- `revalidate = 600` n'a pas d'effet sur `/b/…` (layout dynamique, D29).
+- `CREDITS.md` donne des identifiants d'images `images.unsplash.com`, pas des adresses de pages `unsplash.com/photos/…` : vérifier les liens.
+- Une seule photo par produit, quelle que soit la couleur choisie.
+Décision : reprendre E25
+
 ## 2026-11-22 — E24d (version anglaise) — VALIDÉ
 Commit examiné : c6aed63 (depuis 3f3171d ; 8f4c804, b9f8a92 wip inclus)
 Contrôles : typecheck ✅ · tests ✅ (174, 30 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅. Tout relancé.

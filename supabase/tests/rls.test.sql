@@ -1020,6 +1020,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1'); -- workshop A own
 do $$ declare ok boolean := false; v uuid := (select id from public.organizations where name = 'Atelier Médina'); begin
   insert into public.storefronts (vendor_id, slug, name, product_ids, status)
   values (v, 'medina-shop', 'Médina Shop', array[(select id from public.base_products where slug = 'tee-crew-180')], 'active');
+  insert into public.storefronts (vendor_id, slug, name, status) values (v, 'medina-brouillon', 'Brouillon', 'draft');
   begin
     insert into public.storefronts (vendor_id, slug, name, product_ids) values (v, 'medina-faux', 'Faux', array[(select id from public.base_products where slug = 'hoodie-draft')]);
   exception when check_violation then ok := true; end;
@@ -1029,16 +1030,26 @@ do $$ declare ok boolean := false; v uuid := (select id from public.organization
   exception when insufficient_privilege then ok := true; end;
   if not ok then raise exception 'FAIL workshop flags its own storefront as demo'; end if;
 end $$;
+reset role;
+create temp table t_medina on commit drop as select id from public.organizations where name = 'Atelier Médina';
+grant select on t_medina to authenticated, anon;
 select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1'); -- workshop B owner
 do $$ declare ok boolean := false; begin
-  begin insert into public.storefronts (vendor_id, slug, name) values ((select id from public.storefronts limit 1), 'b-pirate', 'Pirate');
-  exception when others then ok := true; end;
+  begin insert into public.storefronts (vendor_id, slug, name) values ((select id from t_medina), 'b-pirate', 'Pirate');
+  exception when insufficient_privilege then ok := true; end;
   if not ok then raise exception 'FAIL B creates a storefront for another workshop'; end if;
   update public.storefronts set name = 'Pirate' where slug = 'medina-shop';
 end $$;
 select pg_temp.act_as(null); -- anonymous visitor
 do $$ begin
   if (select name from public.storefronts where slug = 'medina-shop') is distinct from 'Médina Shop' then raise exception 'FAIL storefront not public or altered by B'; end if;
+  if exists (select 1 from public.storefronts where slug = 'medina-brouillon') then raise exception 'FAIL draft storefront is public'; end if;
+end $$;
+reset role;
+update public.organizations set status = 'suspended' where name = 'Atelier Médina';
+select pg_temp.act_as(null);
+do $$ begin
+  if exists (select 1 from public.storefronts where slug = 'medina-shop') then raise exception 'FAIL storefront of a suspended workshop is public'; end if;
 end $$;
 rollback;
 

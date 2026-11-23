@@ -23,7 +23,8 @@ create index storefronts_vendor on public.storefronts (vendor_id);
 create trigger touch before update on public.storefronts for each row execute function app.touch_updated_at();
 
 -- Une boutique ne montre que des produits actifs que son atelier propose (offre active).
-create function app.check_storefront() returns trigger language plpgsql set search_path = '' as $$
+-- security definer : le contrôle ne dépend pas de ce que l'appelant peut lire (la RLS décide ensuite qui peut écrire).
+create function app.check_storefront() returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   if not exists (select 1 from public.organizations o where o.id = new.vendor_id and o.kind = 'vendor') then
     raise exception 'a storefront belongs to a workshop' using errcode = 'check_violation';
