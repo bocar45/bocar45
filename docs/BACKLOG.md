@@ -180,14 +180,20 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Pages légales : en anglais, mention que la version française fait foi (traduction après relecture juridique).
 - [ ] Plus tard : messages d'erreur renvoyés par le serveur, panneaux secondaires du studio, espaces compte/atelier/admin (en français : équipes au Sénégal), adresses `/en/…` avec hreflang pour le référencement anglais. Décision D29.
 
-## E25 — Démo SAWWA Business : boutique en marque blanche + vraies photos 🔎 (tests renforcés après revue)
+## E25 — Démo SAWWA Business : boutique en marque blanche + vraies photos ✅ (code ; Vercel 🧑‍💼)
 - [x] Analyse critique de la note Marketplace / Business et feuille de route : `docs/STRATEGIE_SAAS.md`, décision D30.
 - [x] Table `storefronts` (migration 13) : une boutique = un atelier ; elle ne peut lister que des produits que son atelier propose (contrôle en base) ; lecture publique des boutiques actives d'ateliers actifs ; écriture par l'atelier (propriétaire/gérant) ou l'équipe ateliers ; drapeau « démo » réservé à SAWWA. Tests RLS section 21.
 - [x] Page `/b/[boutique]` aux couleurs de l'atelier (en-tête SAWWA masqué), prix calculés par `@sawwa/pricing` avec la seule grille de cet atelier, bouton « Personnaliser » vers le studio SAWWA, mention « propulsée par SAWWA », non indexée si démo.
 - [x] Vraies photos produits (licence Unsplash, `public/products/CREDITS.md`) sur l'accueil, le catalogue et les fiches ; illustrations conservées en secours.
 - [x] Déploiement Supabase (projet « Wassa », eu-west-1) : 13 migrations, seed, catalogue de démo (7 produits, 1 atelier fictif « Atelier Démo SAWWA (fictif) », règles de prix v1), boutique démo `teranga-print`.
 - [ ] Déploiement Vercel : accès d'équipe à autoriser par le porteur, puis clé `SUPABASE_SERVICE_ROLE_KEY` à saisir par le porteur dans Vercel (🧑‍💼).
-- [ ] Plus tard (E27) : création de la boutique en libre-service dans SAWWA Pro, studio et paiement aux couleurs de la boutique, marge propre à la boutique.
+
+## E27 — Boutique en libre-service dans SAWWA Pro ⏳
+- [ ] Page `/pro/boutique` (propriétaire et gérants) : créer et modifier la boutique de l'atelier — nom, adresse (slug), phrase d'accroche, 3 couleurs avec aperçu, téléphone, choix des produits parmi les offres actives de l'atelier, statut brouillon/en ligne ; lien vers la boutique publique.
+- [ ] Contrôles côté serveur (rôle via `requireActiveVendor`, slug, couleurs, produits) ; la base reste la deuxième barrière (migration 13). Messages d'erreur clairs (adresse déjà prise).
+- [ ] Studio ouvert depuis une boutique (`?boutique=`) : prix calculé avec la seule grille de l'atelier de la boutique, bandeau aux couleurs de la boutique avec retour vers elle ; boutique inconnue ou produit hors boutique → studio SAWWA normal.
+- [ ] Tests unitaires de validation du formulaire.
+- [ ] Hors périmètre : paiement sur le compte de l'atelier (avec E13), domaine personnalisé, marge propre à la boutique.
 
 ## E24 — Lancement public ⏳ 🧑‍💼
 - [ ] Revue de sécurité, tests de charge, CGV/CGU/confidentialité relues, déclaration CDP, SEO, mesure d'audience.

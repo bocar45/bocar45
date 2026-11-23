@@ -2,6 +2,20 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-23 — E25 (reprise) — VALIDÉ
+Commit examiné : 5e128a5 (depuis 3b2c36e)
+Contrôles : typecheck ✅ · tests ✅ (174, aucun code TS modifié) · db ✅ (ALL RLS TESTS PASSED, relancé) · build ✅ (aucun code applicatif modifié depuis 3b2c36e).
+Critères de l'étape :
+- [x] Section 21, B contre un autre atelier : B utilise le vrai `vendor_id` de Médina (`t_medina`) et seul `insufficient_privilege` est attrapé. Le contrôle `check_storefront` est passé en `security definer` : il ne fait que lever une erreur et ne renvoie aucune donnée, donc la RLS décide seule qui écrit.
+- [x] Section 21, lecture anonyme : une boutique `draft` est invisible, et une boutique active d'un atelier `suspended` aussi.
+- [x] `CREDITS.md` : liens vers les fichiers source `images.unsplash.com`.
+- [x] Corrections 1 et 2 de l'entrée précédente faites. Vercel reste en attente du porteur (🧑‍💼).
+Critères communs : C1 à C6 ✅.
+Remarques non bloquantes :
+- La migration 13, déjà appliquée sur Supabase, a été modifiée sur place (`security definer`). La base distante n'a donc pas cette version de `app.check_storefront`. Il faut la réappliquer (`create or replace`) via le connecteur, avec l'accord du porteur, ou ajouter une migration 14. Désormais, ne plus modifier une migration déjà déployée.
+- Les remarques sur `?boutique=`, `is_demo` et `revalidate` sont reportées à E27, comme annoncé.
+Décision : passer à E27 (boutique en libre-service), à créer dans BACKLOG avec ses critères. Les étapes restantes du BACKLOG (E11, E12, E13, E19, E23, E24) et E26 (test de la grille auprès de 10 imprimeurs) dépendent du porteur (🧑‍💼).
+
 ## 2026-11-23 — E25 (SAWWA Business : marque blanche + photos) — À CORRIGER
 Commit examiné : 3b2c36e (depuis 2b805ae)
 Contrôles : typecheck ✅ · tests ✅ (174, 30 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅. Tout relancé.
