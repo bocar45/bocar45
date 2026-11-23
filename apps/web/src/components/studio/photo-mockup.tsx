@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Surface } from "@sawwa/design";
 import { drawSurface, loadImages, type ImageCache } from "../studio3d/paint";
 import { PORTE_AREAS } from "./porte-areas";
+import { PORTE_VIEWS } from "./porte-views";
 
 /**
  * Photo-realistic preview (studio). The customer's design is printed on a real-looking photo of the product:
@@ -15,7 +16,14 @@ import { PORTE_AREAS } from "./porte-areas";
  */
 export type Area = [x: number, y: number, w: number, h: number];
 export interface PhotoArea { x: number; y: number; w: number; h: number; wrapVisible?: number }
-export interface Person { key: string; label: string; tone: string; src: string; mask: string; areas: Record<string, Area> }
+export interface PersonView { key: ViewKey; src: string; mask: string; areas: Record<string, Area> }
+export interface Person { key: string; label: string; tone: string; src: string; mask: string; areas: Record<string, Area>; views?: PersonView[] }
+/** Turntable order: face, 3/4 right, right profile, back, left profile, 3/4 left (the person turns on the spot). */
+export type ViewKey = "face" | "q3d" | "pd" | "dos" | "pg" | "q3g";
+const VIEW_ORDER: ViewKey[] = ["face", "q3d", "pd", "dos", "pg", "q3g"];
+const VIEW_LABEL: Record<ViewKey, string> = { face: "Face", q3d: "3/4", pd: "Profil droit", dos: "Dos", pg: "Profil gauche", q3g: "3/4" };
+/** Best view to see a zone being edited. */
+const VIEW_FOR_ZONE: Record<string, ViewKey> = { back_center: "dos", left_sleeve: "pg", right_sleeve: "pd", front_center: "face", chest_left: "face" };
 export interface PhotoMockupSpec { src?: string; areas?: Record<string, PhotoArea>; people?: Person[]; note?: string }
 
 const area = (a: Area): PhotoArea => ({ x: a[0], y: a[1], w: a[2], h: a[3] });
@@ -32,7 +40,15 @@ const TONES: { key: string; label: string; tone: string }[] = [
 /** People wearing one garment (AI portraits, warm brown first = default). File prefix: teint (T-shirt), hoodie, sweat, polo, cap. */
 function peopleFor(garment: keyof typeof PORTE_AREAS): Person[] {
   const prefix = garment === "tshirt" ? "teint" : garment;
-  return TONES.map((t) => ({ ...t, src: `/porte/${prefix}-${t.key}.jpg`, mask: `/porte/${prefix}-${t.key}.mask.png`, areas: PORTE_AREAS[garment][t.key] ?? {} }));
+  return TONES.map((t) => {
+    const base = { ...t, src: `/porte/${prefix}-${t.key}.jpg`, mask: `/porte/${prefix}-${t.key}.mask.png`, areas: PORTE_AREAS[garment][t.key] ?? {} };
+    const turn = PORTE_VIEWS[`${prefix}-${t.key}`];
+    if (!turn) return base;
+    const views: PersonView[] = VIEW_ORDER.flatMap((v): PersonView[] => v === "face"
+      ? [{ key: v, src: base.src, mask: base.mask, areas: base.areas }]
+      : turn[v] ? [{ key: v, src: `/porte/${prefix}-${t.key}-${v}.jpg`, mask: `/porte/${prefix}-${t.key}-${v}.mask.png`, areas: turn[v]! }] : []);
+    return { ...base, views };
+  });
 }
 export const PEOPLE = peopleFor("tshirt");
 
@@ -187,19 +203,60 @@ export function PhotoMockup({ spec, surfaces, zones, imageUrls, activeZone, colo
   useEffect(() => { let live = true; loadImages(imageUrls, cache.current).then(() => { if (live) setTick((t) => t + 1); }); return () => { live = false; }; }, [imageUrls]);
 
   const person = spec.people?.find((p) => p.key === personKey) ?? spec.people?.[0];
-  const src = person?.src ?? spec.src ?? "";
-  const areas = person ? Object.fromEntries(Object.entries(person.areas).map(([k, v]) => [k, area(v)])) : (spec.areas ?? {});
+  const frames: PersonView[] = person?.views ?? (person ? [{ key: "face", src: person.src, mask: person.mask, areas: person.areas }] : []);
+  const [viewKey, setViewKey] = useState<ViewKey>("face");
+  const [spin, setSpin] = useState(false);
+  const drag = useRef<{ x: number; idx: number } | null>(null);
+  const idx = Math.max(0, frames.findIndex((f) => f.key === viewKey));
+  // Editing a zone turns the person towards it (back print → back view, sleeve → profile).
+  useEffect(() => {
+    const want = VIEW_FOR_ZONE[activeZone];
+    if (want && frames.some((f) => f.key === want)) { setViewKey(want); setSpin(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeZone, personKey]);
+  useEffect(() => {
+    if (!spin || frames.length < 2) return;
+    const t = setInterval(() => setViewKey((k) => frames[(frames.findIndex((f) => f.key === k) + 1) % frames.length]!.key), 1100);
+    return () => clearInterval(t);
+  }, [spin, frames]);
+  const turnBy = (d: number) => { setSpin(false); setViewKey(frames[(idx + d + frames.length) % frames.length]!.key); };
+
+  const single = frames.length <= 1;
+  const toAreas = (a: Record<string, Area>) => Object.fromEntries(Object.entries(a).map(([k, v]) => [k, area(v)]));
+  const areas = person ? toAreas(frames[idx]?.areas ?? person.areas) : (spec.areas ?? {});
   const shown = zones.filter((z) => areas[z.key]).map((z) => z.label);
   const recolors = Boolean(person);
 
   return (
-    <div className="relative grid h-full grid-rows-[1fr_auto] bg-[#F4F1EC]">
-      <div className="relative min-h-0 overflow-hidden">
-        <PreviewCanvas src={src} mask={person?.mask ?? null} areas={areas} surfaces={surfaces} zones={zones} cache={cache.current} tick={tick}
-          colorHex={recolors ? colorHex : undefined} activeZone={activeZone} label="Aperçu réaliste de votre création portée" className="absolute inset-0 h-full w-full object-contain" />
+    <div className="relative grid h-full grid-rows-[1fr_auto_auto] bg-[#F4F1EC]">
+      <div className="relative min-h-0 touch-pan-y select-none overflow-hidden"
+        onPointerDown={(e) => { if (!single) { drag.current = { x: e.clientX, idx }; setSpin(false); } }}
+        onPointerMove={(e) => {
+          if (!drag.current) return;
+          const steps = Math.round((e.clientX - drag.current.x) / 70);
+          const n = frames.length;
+          setViewKey(frames[(((drag.current.idx - steps) % n) + n) % n]!.key);
+        }}
+        onPointerUp={() => { drag.current = null; }} onPointerLeave={() => { drag.current = null; }}
+        style={{ cursor: single ? undefined : "grab" }}>
+        {person ? frames.map((f, i) => (
+          <PreviewCanvas key={f.key} src={f.src} mask={f.mask} areas={toAreas(f.areas)} surfaces={surfaces} zones={zones} cache={cache.current} tick={tick}
+            colorHex={colorHex} activeZone={i === idx ? activeZone : null} label={`Aperçu réaliste · ${VIEW_LABEL[f.key]}`}
+            className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${i === idx ? "opacity-100" : "opacity-0"}`} />
+        )) : (
+          <PreviewCanvas src={spec.src ?? ""} mask={null} areas={areas} surfaces={surfaces} zones={zones} cache={cache.current} tick={tick}
+            colorHex={undefined} activeZone={activeZone} label="Aperçu réaliste de votre création" className="absolute inset-0 h-full w-full object-contain" />
+        )}
         <span className="absolute bottom-2 left-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-brun shadow">
-          Aperçu réaliste{spec.note ? ` · ${spec.note}` : ""}{shown.length ? ` · ${shown.join(", ")}` : ""}
+          Aperçu réaliste{spec.note ? ` · ${spec.note}` : ""}{!single ? ` · ${VIEW_LABEL[frames[idx]!.key]}` : ""}{shown.length ? ` · ${shown.join(", ")}` : ""}
         </span>
+        {!single && (
+          <div className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-white/90 p-1 text-xs font-bold text-brun shadow">
+            <button type="button" onClick={() => turnBy(-1)} aria-label="Tourner vers la gauche" className="rounded-full px-2 py-1 hover:bg-sable">⟲</button>
+            <button type="button" onClick={() => setSpin((s) => !s)} aria-pressed={spin} className={`rounded-full px-3 py-1 ${spin ? "bg-brun text-ivoire" : "hover:bg-sable"}`}>{spin ? "Pause" : "Faire tourner"}</button>
+            <button type="button" onClick={() => turnBy(1)} aria-label="Tourner vers la droite" className="rounded-full px-2 py-1 hover:bg-sable">⟳</button>
+          </div>
+        )}
         {!recolors && colorHex && !/^#F{6}$/i.test(colorHex) && (
           <span className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-brun shadow">
             <span className="size-3 rounded-full border border-brun/30" style={{ background: colorHex }} aria-hidden="true" />
@@ -207,6 +264,14 @@ export function PhotoMockup({ spec, surfaces, zones, imageUrls, activeZone, colo
           </span>
         )}
       </div>
+      {!single && (
+        <div className="flex flex-wrap items-center justify-center gap-1 border-t border-line bg-white/70 px-3 py-1.5 text-xs font-bold" role="group" aria-label="Angle de vue">
+          {frames.map((f, i) => (
+            <button key={f.key} type="button" onClick={() => { setSpin(false); setViewKey(f.key); }} aria-pressed={i === idx}
+              className={`rounded-full px-2.5 py-1 ${i === idx ? "bg-brun text-ivoire" : "text-brun hover:bg-sable"}`}>{VIEW_LABEL[f.key]}</button>
+          ))}
+        </div>
+      )}
       {spec.people && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line bg-white/70 px-3 py-2">
           <span className="text-xs font-bold text-muted">Porté par</span>
