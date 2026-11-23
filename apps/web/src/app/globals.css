@@ -138,3 +138,9 @@ h1, h2, h3 { text-wrap: balance; }
 .btn-ghost-light:hover { border-color: var(--ivoire); }
 .btn-brun { background: var(--brun); color: var(--ivoire); }
 @media (prefers-reduced-motion: reduce) { .btn, .btn:hover { transition: none; transform: none; } }
+
+/* E25: a white-label storefront hides the SAWWA header and footer (same page, the shop's own brand). */
+body:has([data-white-label]) > header,
+body:has([data-white-label]) > footer,
+body:has([data-white-label]) header.sticky,
+body:has([data-white-label]) footer.trame { display: none; }

@@ -1014,4 +1014,32 @@ do $$ begin
 end $$;
 rollback;
 
+-- 21. Boutiques en marque blanche (E25)
+begin;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000a1'); -- workshop A owner (active, offers tee-crew-180)
+do $$ declare ok boolean := false; v uuid := (select id from public.organizations where name = 'Atelier Médina'); begin
+  insert into public.storefronts (vendor_id, slug, name, product_ids, status)
+  values (v, 'medina-shop', 'Médina Shop', array[(select id from public.base_products where slug = 'tee-crew-180')], 'active');
+  begin
+    insert into public.storefronts (vendor_id, slug, name, product_ids) values (v, 'medina-faux', 'Faux', array[(select id from public.base_products where slug = 'hoodie-draft')]);
+  exception when check_violation then ok := true; end;
+  if not ok then raise exception 'FAIL storefront lists a product its workshop does not offer'; end if;
+  ok := false;
+  begin insert into public.storefronts (vendor_id, slug, name, is_demo) values (v, 'medina-demo', 'Demo', true);
+  exception when insufficient_privilege then ok := true; end;
+  if not ok then raise exception 'FAIL workshop flags its own storefront as demo'; end if;
+end $$;
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000b1'); -- workshop B owner
+do $$ declare ok boolean := false; begin
+  begin insert into public.storefronts (vendor_id, slug, name) values ((select id from public.storefronts limit 1), 'b-pirate', 'Pirate');
+  exception when others then ok := true; end;
+  if not ok then raise exception 'FAIL B creates a storefront for another workshop'; end if;
+  update public.storefronts set name = 'Pirate' where slug = 'medina-shop';
+end $$;
+select pg_temp.act_as(null); -- anonymous visitor
+do $$ begin
+  if (select name from public.storefronts where slug = 'medina-shop') is distinct from 'Médina Shop' then raise exception 'FAIL storefront not public or altered by B'; end if;
+end $$;
+rollback;
+
 select 'ALL RLS TESTS PASSED' as result;

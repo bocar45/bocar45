@@ -198,3 +198,9 @@ Format : problème → recommandation → alternatives → coût → avis CTO.
 - **Référencement anglais** : l'URL ne change pas avec la langue (pas de hreflang) ; si un marché anglophone devient prioritaire, passer à des adresses `/en/…` (routage par langue de Next.js).
 - **Catalogue** : l'équipe catalogue peut renseigner `name.en` / `description.en` ; à défaut, le français s'affiche.
 - **Conséquence assumée** : la lecture du cookie rend les pages publiques dynamiques (le cache de page de 10 min et le cache CDN ne s'appliquent plus ; le catalogue reste mis en cache côté données). Mesuré en E24b : 340 req/s localement sans base. Si la charge l'exige, passer aux adresses `/en/…`, qui rendent de nouveau les pages statiques.
+
+## D30 🟡 SAWWA Business : marketplace d'abord, puis boutique en marque blanche (proposition CTO, 23/11/2026 — à valider par le porteur)
+- **Ordre** : marketplace (prête) puis boutiques en marque blanche pour les ateliers ; widget iframe ensuite ; API publique, connecteurs Shopify/WooCommerce et domaines personnalisés seulement après 10 clients payants. Analyse complète : `docs/STRATEGIE_SAAS.md`.
+- **Multi-locataire** : locataire = organisation existante ; isolation par la RLS, une seule base et une seule base de code ; la boutique (`storefronts`) ne porte que l'enveloppe (nom, couleurs, sélection de produits) ; prix toujours calculés par `packages/pricing` avec la grille de l'atelier.
+- **Facturation** : abonnement **ou** commission, jamais les deux sur une même commande. Paiement des boutiques sur le compte marchand de l'atelier (pas d'encaissement pour compte de tiers par SAWWA, question d'agrément).
+- **À valider** : ordre, règle de facturation, grille 15 000 / 35 000 / 75 000 FCFA à tester auprès de 10 imprimeurs (E26).

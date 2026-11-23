@@ -32,7 +32,7 @@ const fr = (v: unknown) => (v && typeof v === "object" && "fr" in v ? String((v 
  * prices it with the pricing engine, and returns only public data.
  * Returns null while Supabase is not configured.
  */
-export async function loadPublicCatalog(): Promise<{ categories: PublicCategory[]; products: PublicProduct[] } | null> {
+export async function loadPublicCatalog(opts: { vendorId?: string } = {}): Promise<{ categories: PublicCategory[]; products: PublicProduct[] } | null> {
   if (!isSupabaseConfigured() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
   const db = createServiceClient();
   const [cats, prods, offers, rules] = await Promise.all([
@@ -42,11 +42,15 @@ export async function loadPublicCatalog(): Promise<{ categories: PublicCategory[
       .select("id, slug, name, description, attributes, category:categories(slug, name), variants:base_product_variants(color_key, color_hex, size), zones(key, anchor, max_width_mm, max_height_mm, allowed_techniques)")
       .eq("status", "active")
       .order("updated_at", { ascending: false }),
-    db
-      .from("vendor_offers")
-      .select("base_product_id, min_qty, lead_time_days, vendor:organizations!inner(status), grids:vendor_price_grids(version, grid)")
-      .eq("status", "active")
-      .eq("vendor.status", "active"),
+    (() => {
+      const q = db
+        .from("vendor_offers")
+        .select("base_product_id, min_qty, lead_time_days, vendor:organizations!inner(status), grids:vendor_price_grids(version, grid)")
+        .eq("status", "active")
+        .eq("vendor.status", "active");
+      // E25: a white-label storefront prices only with its own workshop's grids.
+      return opts.vendorId ? q.eq("vendor_id", opts.vendorId) : q;
+    })(),
     db.from("price_rule_sets").select("rules").eq("status", "active").eq("currency", "XOF").maybeSingle(),
   ]);
   for (const r of [cats, prods, offers, rules]) if (r.error) { logError("public_catalog_read_failed", r.error); throw new Error("Catalogue indisponible."); }

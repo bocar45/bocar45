@@ -2,17 +2,17 @@ import { l, type Lang } from "@/lib/i18n";
 import { getLang } from "@/lib/lang";
 import { jsonLd, organizationJsonLd, siteUrl } from "@/lib/seo";
 import Link from "next/link";
-import { ProductArt, type ArtKind } from "@/components/product-art";
+import Image from "next/image";
 
 const OCCASIONS = (lang: Lang) => lang === "en"
   ? ["Tabaski", "Weddings", "Navétanes", "Baptisms", "Korité", "Back to school", "Magal", "Birthdays", "Companies", "Associations", "Year-end", "Valentine's Day"]
   : ["Tabaski", "Mariages", "Navétanes", "Baptêmes", "Korité", "Rentrée", "Magal", "Anniversaires", "Entreprises", "Associations", "Fin d'année", "Saint-Valentin"];
 
-const UNIVERS = (lang: Lang): { slug: string; title: string; text: string; bg: string; fg: string; art: ArtKind; artColor: string; ink: string }[] => [
-  { slug: "vetements", title: l(lang, "Vêtements", "Clothing"), text: l(lang, "T-shirts, hoodies, polos — brodés ou imprimés.", "T-shirts, hoodies, polos — embroidered or printed."), bg: "bg-terra", fg: "text-ivoire", art: "tee", artColor: "#F2E9D8", ink: "#2A1A12" },
-  { slug: "accessoires", title: l(lang, "Accessoires", "Accessories"), text: l(lang, "Casquettes, tote bags, bonnets.", "Caps, tote bags, beanies."), bg: "bg-indigo", fg: "text-ivoire", art: "cap", artColor: "#C9923E", ink: "#2A1A12" },
-  { slug: "cadeaux-photo", title: l(lang, "Cadeaux photo", "Photo gifts"), text: l(lang, "Mugs, coussins, souvenirs à offrir.", "Mugs, cushions, keepsakes to give."), bg: "bg-ocre", fg: "text-brun", art: "mug", artColor: "#FBF7EF", ink: "#2A1A12" },
-  { slug: "objets", title: l(lang, "Objets", "Objects"), text: l(lang, "Gourdes, carnets, objets d'entreprise.", "Bottles, notebooks, corporate items."), bg: "bg-olive", fg: "text-ivoire", art: "bottle", artColor: "#2A1A12", ink: "#F2E9D8" },
+const UNIVERS = (lang: Lang): { slug: string; title: string; text: string; bg: string; fg: string; photo: string }[] => [
+  { slug: "vetements", title: l(lang, "Vêtements", "Clothing"), text: l(lang, "T-shirts, hoodies, polos — brodés ou imprimés.", "T-shirts, hoodies, polos — embroidered or printed."), bg: "bg-terra", fg: "text-ivoire", photo: "/products/tshirt.jpg" },
+  { slug: "accessoires", title: l(lang, "Accessoires", "Accessories"), text: l(lang, "Casquettes, tote bags, bonnets.", "Caps, tote bags, beanies."), bg: "bg-indigo", fg: "text-ivoire", photo: "/products/casquette.jpg" },
+  { slug: "cadeaux-photo", title: l(lang, "Cadeaux photo", "Photo gifts"), text: l(lang, "Mugs, coussins, souvenirs à offrir.", "Mugs, cushions, keepsakes to give."), bg: "bg-ocre", fg: "text-brun", photo: "/products/mug.jpg" },
+  { slug: "__devis", title: l(lang, "Entreprises", "Companies"), text: l(lang, "Polos brodés, tenues d'équipe, cadeaux clients : devis sous 24 h.", "Embroidered polos, team outfits, client gifts: quote within 24 h."), bg: "bg-olive", fg: "text-ivoire", photo: "/products/polo.jpg" },
 ];
 
 const STEPS = (lang: Lang) => [
@@ -52,9 +52,15 @@ export default async function Home() {
           <div className="relative mx-auto aspect-square w-full max-w-[560px]" aria-hidden="true">
             <div className="absolute inset-[6%] rounded-full bg-terra" />
             <div className="absolute inset-[6%] rounded-full border-[10px] border-ocre/40 [clip-path:inset(0_0_50%_0)]" />
-            <ProductArt kind="tee" color="#F2E9D8" className="absolute left-[12%] top-[8%] w-[72%] drop-shadow-2xl" />
-            <ProductArt kind="mug" color="#FBF7EF" className="absolute bottom-[2%] right-[0%] w-[38%] drop-shadow-xl" />
-            <ProductArt kind="cap" color="#2F4B7C" ink="#F2E9D8" className="absolute bottom-[6%] left-[-2%] w-[36%] drop-shadow-xl" />
+            <div className="absolute left-[16%] top-[4%] aspect-[4/5] w-[62%] overflow-hidden rounded-[28px] shadow-2xl ring-4 ring-ivoire/80">
+              <Image src="/products/tshirt.jpg" alt="" fill priority sizes="(min-width: 1024px) 30vw, 60vw" className="object-cover" />
+            </div>
+            <div className="absolute bottom-[0%] right-[0%] aspect-square w-[36%] overflow-hidden rounded-[22px] shadow-xl ring-4 ring-ivoire/80">
+              <Image src="/products/mug.jpg" alt="" fill sizes="20vw" className="object-cover" />
+            </div>
+            <div className="absolute bottom-[4%] left-[-2%] aspect-square w-[34%] overflow-hidden rounded-[22px] shadow-xl ring-4 ring-ivoire/80">
+              <Image src="/products/casquette.jpg" alt="" fill sizes="20vw" className="object-cover" />
+            </div>
             <span className="absolute right-[2%] top-[14%] rotate-3 rounded-full bg-ivoire px-4 py-2 text-sm font-extrabold text-brun shadow-lg">{l(lang, "Brodé · 8 couleurs", "Embroidered · 8 colours")}</span>
             <span className="absolute left-[2%] top-[46%] -rotate-3 rounded-full bg-ocre px-4 py-2 text-sm font-extrabold text-brun shadow-lg">{l(lang, "Aperçu en 3D", "3D preview")}</span>
           </div>
@@ -81,13 +87,15 @@ export default async function Home() {
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {UNIVERS(lang).map((u) => (
-            <Link key={u.slug} href={`/catalogue/${u.slug}`} className={`group relative grid min-h-[380px] content-between overflow-hidden rounded-[28px] p-6 ${u.bg} ${u.fg}`}>
+            <Link key={u.slug} href={u.slug === "__devis" ? "/devis" : `/catalogue/${u.slug}`} className={`group relative grid min-h-[380px] content-between overflow-hidden rounded-[28px] p-6 ${u.bg} ${u.fg}`}>
               <div className="trame absolute inset-0 opacity-60" aria-hidden="true" />
               <div className="relative grid gap-2">
                 <h3 className="display text-4xl">{u.title}</h3>
                 <p className="text-sm opacity-80">{u.text}</p>
               </div>
-              <ProductArt kind={u.art} color={u.artColor} ink={u.ink} className="relative mx-auto w-[78%] transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-105 motion-reduce:transition-none" />
+              <div className="relative mx-auto aspect-[4/5] w-[82%] overflow-hidden rounded-[20px] shadow-xl">
+                <Image src={u.photo} alt="" fill sizes="(min-width: 1024px) 20vw, (min-width: 640px) 40vw, 80vw" className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none" />
+              </div>
               <span className="relative font-bold">{l(lang, "Découvrir →", "Discover →")}</span>
             </Link>
           ))}
@@ -131,9 +139,11 @@ export default async function Home() {
             <Link href="/catalogue#equipes" className="btn btn-ivoire w-fit">{l(lang, "Préparer une commande d'équipe", "Prepare a team order")}</Link>
           </div>
           <div className="relative flex items-end justify-center gap-2" aria-hidden="true">
-            <ProductArt kind="tee" color="#B5562A" ink="#F2E9D8" className="w-1/3 -rotate-6" />
-            <ProductArt kind="tee" color="#F2E9D8" className="w-[38%] -translate-y-6" />
-            <ProductArt kind="tee" color="#C9923E" className="w-1/3 rotate-6" />
+            {["/products/polo.jpg", "/products/sweat.jpg", "/products/hoodie.jpg"].map((src, i) => (
+              <div key={src} className={`relative aspect-[4/5] overflow-hidden rounded-[22px] shadow-2xl ring-4 ring-ivoire/20 ${i === 1 ? "w-[38%] -translate-y-6" : i === 0 ? "w-1/3 -rotate-6" : "w-1/3 rotate-6"}`}>
+                <Image src={src} alt="" fill sizes="25vw" className="object-cover" />
+              </div>
+            ))}
           </div>
         </div>
       </section>

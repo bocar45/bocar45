@@ -6,6 +6,7 @@ import { SHARE, jsonLd, productJsonLd, siteUrl } from "@/lib/seo";
 import { TECHNIQUE_LABEL } from "@sawwa/catalog";
 import { artKindFor } from "@/components/product-art";
 import { ProductShowcase } from "@/components/product-showcase";
+import { productPhotoFor } from "@/lib/product-photos";
 import { fcfa, loadPublicCatalog } from "@/lib/catalog-public";
 
 export const revalidate = 600;
@@ -50,7 +51,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       </nav>
       <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr]">
         <div className="self-start lg:sticky lg:top-24">
-          <ProductShowcase kind={artKindFor(`${product.slug} ${product.category.slug}`)} colors={product.colors} name={name} />
+          <ProductShowcase kind={artKindFor(`${product.slug} ${product.category.slug}`)} colors={product.colors} name={name} photo={productPhotoFor(`${product.slug} ${product.category.slug}`)} />
         </div>
 
         <div className="grid content-start gap-8">
