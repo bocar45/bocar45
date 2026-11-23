@@ -48,6 +48,7 @@ export default async function ProHome() {
             <Link href="/pro/disponibilites" className="btn btn-brun">Disponibilités</Link>
             <Link href="/pro/equipe" className="btn btn-brun">Mon équipe</Link>
             <Link href="/pro/releve" className="btn btn-brun">Mon relevé</Link>
+            <Link href="/pro/boutique" className="btn btn-brun">Ma boutique</Link>
           </>}
         </div>
       )}

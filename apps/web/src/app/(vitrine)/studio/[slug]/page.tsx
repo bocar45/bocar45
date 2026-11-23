@@ -11,7 +11,8 @@ import { isQuoteValid, type B2bQuoteRow } from "@/lib/b2b";
 import { isSupabaseConfigured } from "@/lib/env";
 import { loadStudioProduct } from "@/lib/studio-data";
 import { createClient } from "@/lib/supabase/server";
-import { getStudioQuote, placeOrder, resubmitCorrection, saveDesign } from "./actions";
+import { getStorefrontStudioQuote, getStudioQuote, placeOrder, resubmitCorrection, saveDesign } from "./actions";
+import { storefrontForStudio } from "@/lib/storefront";
 import { saveTemplate } from "./template-actions";
 
 /** E24c: each published template is its own indexable page (title, description, canonical with ?modele=). */
@@ -25,9 +26,9 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
   return { title: "Studio de création", alternates: { canonical: `/studio/${slug}` } };
 }
 
-export default async function StudioPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ creation?: string; commande?: string; modele?: string; gabarit?: string; devis?: string }> }) {
+export default async function StudioPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ creation?: string; commande?: string; modele?: string; gabarit?: string; devis?: string; boutique?: string }> }) {
   const { slug } = await params;
-  const { creation, commande, modele, gabarit, devis } = await searchParams;
+  const { creation, commande, modele, gabarit, devis, boutique } = await searchParams;
   if (!isSupabaseConfigured()) {
     return (
       <div className="mx-auto grid max-w-xl gap-4 px-4 py-16">
@@ -96,6 +97,20 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
         depositDue: q.deposit_due, leadTimeDays: q.lead_time_days, validUntil: q.valid_until, decorations: q.decorations };
     }
   }
-  return <Studio product={product} b2b={b2b} quote={getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={placeOrder} correction={correction} resubmit={resubmitCorrection}
+  // E27: opened from a white-label storefront → that workshop's prices and the shop's colours.
+  const shop = boutique && !b2b && !template ? await storefrontForStudio(boutique, slug) : null;
+  const studio = <Studio product={product} b2b={b2b} quote={shop ? getStorefrontStudioQuote.bind(null, shop.slug) : getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={placeOrder} correction={correction} resubmit={resubmitCorrection}
     assistant={assistant} template={template} saveTemplate={saveTemplate} />;
+  if (!shop) return studio;
+  return (
+    <>
+      <div style={{ background: shop.theme.primary, color: shop.theme.onPrimary }}>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2 text-sm">
+          <span>Vous personnalisez chez <b>{shop.name}</b> · prix de cet atelier</span>
+          <Link href={`/b/${shop.slug}`} className="font-bold underline-offset-4 hover:underline">← Retour à la boutique</Link>
+        </div>
+      </div>
+      {studio}
+    </>
+  );
 }

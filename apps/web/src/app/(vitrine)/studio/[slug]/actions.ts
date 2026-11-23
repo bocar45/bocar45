@@ -13,12 +13,24 @@ import { normalizeSenegalPhone } from "@/lib/phone";
 import { bestQuote, sanitizeDecorations } from "@/lib/quoting";
 import { DELIVERY_OPTIONS, isDeliveryKey } from "@/lib/shipping";
 import { quoteStudio, type StudioDecoration } from "@/lib/studio-data";
+import { storefrontForStudio } from "@/lib/storefront";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TRY_AGAIN, logError } from "@/lib/log";
 
 export async function getStudioQuote(slug: string, colorKey: string, quantity: number, decorations: StudioDecoration[]) {
   if (!(await rateLimit("quotePerIp", await clientIp()))) return { ok: false as const, reason: "rate_limited" as const, message: TOO_MANY };
   return quoteStudio({ slug: String(slug), colorKey: String(colorKey), quantity: Number(quantity), decorations: Array.isArray(decorations) ? decorations : [] });
+}
+
+/**
+ * E27: price in a white-label storefront with that shop's workshop only. The shop is resolved on the server from its
+ * public address (bound by the page), never from a vendor id sent by the browser.
+ */
+export async function getStorefrontStudioQuote(boutique: string, slug: string, colorKey: string, quantity: number, decorations: StudioDecoration[]) {
+  if (!(await rateLimit("quotePerIp", await clientIp()))) return { ok: false as const, reason: "rate_limited" as const, message: TOO_MANY };
+  const shop = await storefrontForStudio(String(boutique), String(slug));
+  if (!shop) return getStudioQuote(slug, colorKey, quantity, decorations);
+  return quoteStudio({ slug: String(slug), colorKey: String(colorKey), quantity: Number(quantity), decorations: Array.isArray(decorations) ? decorations : [], vendorId: shop.vendorId });
 }
 
 const onDeviceImages = (d: DesignDocument) => d.surfaces.some((s) => s.layers.some((l) => l.type === "image" && !l.src.startsWith("storage:")));

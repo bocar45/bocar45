@@ -51,7 +51,7 @@ export type StudioQuote =
   | { ok: false; reason: "not_configured" | "no_offer" | "not_offered" | "min_qty" | "rate_limited"; message: string };
 
 /** Best public price for a design (studio). Only public TTC figures leave the server. */
-export async function quoteStudio(input: { slug: string; colorKey: string; quantity: number; decorations: DecorationInput[] }): Promise<StudioQuote> {
+export async function quoteStudio(input: { slug: string; colorKey: string; quantity: number; decorations: DecorationInput[]; vendorId?: string }): Promise<StudioQuote> {
   if (!isSupabaseConfigured() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return { ok: false, reason: "not_configured", message: "Prix indisponible pour le moment." };
   const quantity = Math.floor(input.quantity);
   if (!Number.isFinite(quantity) || quantity < 1 || quantity > 5000) return { ok: false, reason: "min_qty", message: "Quantité entre 1 et 5 000." };
@@ -64,6 +64,7 @@ export async function quoteStudio(input: { slug: string; colorKey: string; quant
   const { best, minQty, reason } = await bestQuote({
     productId: product.id, categorySlug: (product.category as unknown as { slug: string } | null)?.slug ?? "default",
     colorKey: input.colorKey, sizes: null, quantity, decorations,
+    ...(input.vendorId ? { vendorId: input.vendorId } : {}),
   });
   if (best) {
     const q = best.quote;

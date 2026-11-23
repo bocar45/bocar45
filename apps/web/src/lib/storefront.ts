@@ -48,3 +48,21 @@ export async function loadStorefront(slug: string): Promise<Storefront | null> {
     products: (catalog?.products ?? []).filter((p) => ids.has(p.id) && p.price),
   };
 }
+
+/** E27: the shop a studio was opened from, if it is active and sells this product (else null → normal SAWWA studio). */
+export async function storefrontForStudio(boutique: string, productSlug: string): Promise<{ vendorId: string; slug: string; name: string; theme: Storefront["theme"] } | null> {
+  if (!SLUG.test(boutique) || boutique.length > 40) return null;
+  if (!isSupabaseConfigured() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+  const db = createServiceClient();
+  const [{ data: s }, { data: p }] = await Promise.all([
+    db.from("storefronts").select("slug, name, theme, product_ids, vendor_id, vendor:organizations!inner(status)")
+      .eq("slug", boutique).eq("status", "active").eq("vendor.status", "active").maybeSingle(),
+    db.from("base_products").select("id").eq("slug", productSlug).eq("status", "active").maybeSingle(),
+  ]);
+  if (!s || !p || !(s.product_ids ?? []).includes(p.id)) return null;
+  const t = (s.theme ?? {}) as Partial<Storefront["theme"]>;
+  return {
+    vendorId: s.vendor_id, slug: s.slug, name: s.name,
+    theme: { primary: HEX.test(t.primary ?? "") ? t.primary! : "#1F2A44", accent: HEX.test(t.accent ?? "") ? t.accent! : "#C9923E", onPrimary: HEX.test(t.onPrimary ?? "") ? t.onPrimary! : "#FFFFFF" },
+  };
+}
