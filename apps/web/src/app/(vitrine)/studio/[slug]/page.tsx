@@ -11,7 +11,7 @@ import { isQuoteValid, type B2bQuoteRow } from "@/lib/b2b";
 import { isSupabaseConfigured } from "@/lib/env";
 import { loadStudioProduct } from "@/lib/studio-data";
 import { createClient } from "@/lib/supabase/server";
-import { getStorefrontStudioQuote, getStudioQuote, placeOrder, resubmitCorrection, saveDesign } from "./actions";
+import { getStorefrontStudioQuote, getStudioQuote, placeOrder, placeStorefrontOrder, resubmitCorrection, saveDesign } from "./actions";
 import { storefrontForStudio } from "@/lib/storefront";
 import { saveTemplate } from "./template-actions";
 
@@ -99,7 +99,7 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
   }
   // E27: opened from a white-label storefront → that workshop's prices and the shop's colours.
   const shop = boutique && !b2b && !template ? await storefrontForStudio(boutique, slug) : null;
-  const studio = <Studio product={product} b2b={b2b} quote={shop ? getStorefrontStudioQuote.bind(null, shop.slug) : getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={placeOrder} correction={correction} resubmit={resubmitCorrection}
+  const studio = <Studio product={product} b2b={b2b} quote={shop ? getStorefrontStudioQuote.bind(null, shop.slug) : getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={shop ? placeStorefrontOrder.bind(null, shop.slug) : placeOrder} correction={correction} resubmit={resubmitCorrection}
     assistant={assistant} template={template} saveTemplate={saveTemplate} />;
   if (!shop) return studio;
   return (

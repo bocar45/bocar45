@@ -14,6 +14,7 @@ import { bestQuote, sanitizeDecorations } from "@/lib/quoting";
 import { DELIVERY_OPTIONS, isDeliveryKey } from "@/lib/shipping";
 import { quoteStudio, type StudioDecoration } from "@/lib/studio-data";
 import { storefrontForStudio } from "@/lib/storefront";
+import { orderVendorScope } from "@/lib/storefront-form";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { TRY_AGAIN, logError } from "@/lib/log";
 
@@ -82,6 +83,19 @@ export interface PlaceOrderInput {
 }
 
 export async function placeOrder(input: PlaceOrderInput) {
+  return placeOrderFor(input, null);
+}
+
+/**
+ * E27: an order placed from a white-label storefront is priced with that shop's workshop only, exactly as the studio
+ * showed it. The shop is resolved on the server from its address (bound by the page); unknown, inactive, or a product
+ * the shop does not sell → the order is refused rather than silently priced by another workshop.
+ */
+export async function placeStorefrontOrder(boutique: string, input: PlaceOrderInput) {
+  return placeOrderFor(input, String(boutique));
+}
+
+async function placeOrderFor(input: PlaceOrderInput, boutique: string | null) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Connectez-vous pour commander." };
@@ -110,6 +124,8 @@ export async function placeOrder(input: PlaceOrderInput) {
     .eq("id", input.designId).maybeSingle();
   const product = design?.product as unknown as { id: string; slug: string; status: string; category: { slug: string } | null; zones: { key: string; max_width_mm: number; max_height_mm: number; allowed_techniques: string[]; anchor: unknown }[] } | null;
   if (!design || !product || product.status !== "active") return { error: "Création ou produit introuvable." };
+  const scope = orderVendorScope(boutique, boutique ? await storefrontForStudio(boutique, product.slug) : null);
+  if (!scope.ok) return { error: scope.error };
   const parsed = parseDesign(design.document);
   if (!parsed.ok) return { error: "Création illisible." };
   const doc = parsed.value;
@@ -192,6 +208,7 @@ export async function placeOrder(input: PlaceOrderInput) {
     const { best } = await bestQuote({
       productId: product.id, categorySlug: product.category?.slug ?? "default", colorKey: doc.colorKey,
       sizes, quantity, decorations, shipping,
+      ...(scope.vendorId ? { vendorId: scope.vendorId } : {}),
     });
     if (!best) return { error: "Aucun atelier ne peut fabriquer cette combinaison pour l'instant (tailles, couleur ou marquage)." };
     q = best.quote; suggestedVendorId = best.vendorId; leadTimeDays = best.leadTimeDays;

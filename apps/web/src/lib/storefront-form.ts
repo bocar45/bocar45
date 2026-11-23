@@ -57,3 +57,13 @@ export function parseStorefront(
     value: { slug, name, tagline, theme: { primary: raw.primary.toUpperCase(), accent: raw.accent.toUpperCase(), onPrimary: textOn(raw.primary) }, contactPhone, productIds, status: raw.status },
   };
 }
+
+/**
+ * E27: which workshops may price an order. From a storefront: only that shop's workshop, or refuse (never another
+ * workshop's price behind the shop's banner). Elsewhere: every workshop (best price).
+ */
+export function orderVendorScope(boutique: string | null, shop: { vendorId: string } | null): { ok: true; vendorId?: string } | { ok: false; error: string } {
+  if (boutique === null) return { ok: true };
+  if (!shop) return { ok: false, error: "Cette boutique ne propose plus ce produit. Rouvrez-le depuis la boutique." };
+  return { ok: true, vendorId: shop.vendorId };
+}

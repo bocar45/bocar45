@@ -2,6 +2,22 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-23 — E27 (boutique en libre-service) — À CORRIGER
+Commit examiné : 6058d71 (depuis 5e128a5)
+Contrôles : typecheck ✅ · tests ✅ (180, 31 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅. Tout relancé.
+Critères de l'étape :
+- [x] `/pro/boutique` : le formulaire est validé par `parseStorefront`, dont les 6 tests couvrent l'adresse (accents, mots réservés), les couleurs, `textOn`, le téléphone, les produits hors offre et le passage en ligne sans produit. Les opérateurs sont en lecture seule (`canManage`, `actions.ts:12`). `is_demo` n'est jamais envoyé. Une adresse déjà prise (23505) donne un message clair.
+- [ ] Studio `?boutique=` : l'atelier est bien résolu côté serveur, et `vendorId` ne vient jamais du navigateur (`storefront.ts` `storefrontForStudio`, `getStorefrontStudioQuote`). Mais **la commande ne reprend pas ce prix**.
+  - `placeOrder` (`studio/[slug]/actions.ts:192-195`) appelle `bestQuote` sans `vendorId`, donc avec le meilleur prix tous ateliers confondus.
+  - Le client voit « prix de cet atelier » à un montant, puis la commande et l'acompte sont figés à un autre montant (quand plusieurs ateliers proposent le produit).
+  - Le prix affiché doit être le prix facturé. L'affectation à un atelier peut rester hors périmètre, pas le prix.
+Critères communs : C1 ✅ · C2 ❌ (prix affiché ≠ prix de la commande) · C3 ✅ (rôle vérifié côté serveur, RLS en seconde barrière) · C4 ✅ · C5 ⚠️ (pas de test du parcours boutique → commande) · C6 ✅.
+Corrections à faire :
+1. Passer `boutique` à `placeOrder`, résoudre l'atelier côté serveur avec `storefrontForStudio`, puis chiffrer avec `bestQuote({ …, vendorId })`. Mettre `suggestedVendorId` dans le devis figé si c'est cohérent, et ajouter un test.
+   - Sinon, retirer « prix de cet atelier » et chiffrer le studio comme la commande.
+Remarque : l'action liée `getStorefrontStudioQuote.bind(null, slug)` accepte n'importe quelle adresse de boutique active. C'est sans risque : seuls des prix publics en sortent.
+Décision : reprendre E27
+
 ## 2026-11-23 — E25 (reprise) — VALIDÉ
 Commit examiné : 5e128a5 (depuis 3b2c36e)
 Contrôles : typecheck ✅ · tests ✅ (174, aucun code TS modifié) · db ✅ (ALL RLS TESTS PASSED, relancé) · build ✅ (aucun code applicatif modifié depuis 3b2c36e).

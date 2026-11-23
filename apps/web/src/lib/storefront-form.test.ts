@@ -39,3 +39,12 @@ describe("storefront form", () => {
     expect(textOn("#1F2A44")).toBe("#FFFFFF");
   });
 });
+
+describe("order from a storefront", () => {
+  it("prices with the shop's workshop only, or refuses", async () => {
+    const { orderVendorScope } = await import("./storefront-form");
+    expect(orderVendorScope(null, null)).toEqual({ ok: true });
+    expect(orderVendorScope("teranga-print", { vendorId: "v1" })).toEqual({ ok: true, vendorId: "v1" });
+    expect(orderVendorScope("teranga-print", null)).toMatchObject({ ok: false });
+  });
+});
