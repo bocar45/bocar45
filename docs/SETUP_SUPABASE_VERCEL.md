@@ -48,3 +48,9 @@ Une fois le projet créé : `npx supabase gen types typescript --project-id <ré
 ## Important : variables au moment du build
 La politique de sécurité du site (CSP, E24a) autorise Supabase à partir de `NEXT_PUBLIC_SUPABASE_URL` **lue au build**. Sur Vercel, cette variable doit être définie pour l'environnement de build (Production et Preview), sinon le navigateur bloquera les appels à Supabase. Après l'avoir ajoutée ou modifiée, relancer un déploiement.
 `NEXT_PUBLIC_SITE_URL` (adresse définitive du site, ex. `https://www.<domaine>`) doit aussi être défini au build : il sert aux adresses canoniques, au plan du site, aux liens de partage et aux e-mails de connexion.
+
+## Premier déploiement réel (23/11/2026)
+- Supabase : projet « Wassa » (`omrpfdzoeotfmdcsvlrq`), 14 migrations appliquées, catalogue de démo (atelier fictif « Atelier Démo SAWWA (fictif) », boutique `teranga-print`).
+- Vercel : projet `wassa-web`, production = branche `claude/sawwa-audit-cto-r8vt01`, adresse https://wassa-web.vercel.app ; protection Vercel limitée aux préversions (production publique) ; Node 22.
+- Piège rencontré : les nouveaux projets Supabase ne donnent plus les droits de table aux rôles de l'API → « permission denied for table … ». Corrigé par la migration 14.
+- À régler par le porteur dans Supabase → Authentication → URL Configuration : Site URL = `https://wassa-web.vercel.app`, Redirect URLs = `https://wassa-web.vercel.app/**` (sinon le lien de connexion par e-mail renvoie vers localhost).
