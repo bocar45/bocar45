@@ -489,7 +489,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
                   </div>
                 )}
                 {photoSpec && preview === "photo" ? (
-                  <PhotoMockup spec={photoSpec} surfaces={shownDoc.surfaces} zones={product.zones} imageUrls={urls} activeZone={zone.key} />
+                  <PhotoMockup spec={photoSpec} surfaces={shownDoc.surfaces} zones={product.zones} imageUrls={urls} activeZone={zone.key} colorHex={color.hex} />
                 ) : viewerFailed ? (
                   <div role="alert" className="grid h-full place-items-center gap-3 p-6 text-center text-sm">
                     <p className="max-w-sm text-muted">La vue 3D n&apos;a pas pu se charger (connexion interrompue ou carte graphique occupée). Votre création n&apos;est pas perdue et l&apos;édition 2D continue.</p>

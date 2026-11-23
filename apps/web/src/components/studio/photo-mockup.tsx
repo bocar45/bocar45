@@ -26,12 +26,13 @@ export function photoMockupFor(slug: string): PhotoMockupSpec | null {
   return PHOTOS.find((p) => p.test.test(s))?.spec ?? null;
 }
 
-export function PhotoMockup({ spec, surfaces, zones, imageUrls, activeZone }: {
+export function PhotoMockup({ spec, surfaces, zones, imageUrls, activeZone, colorHex }: {
   spec: PhotoMockupSpec;
   surfaces: Surface[];
   zones: { key: string; label: string; maxWidthMm: number; maxHeightMm: number }[];
   imageUrls: Record<string, string>;
   activeZone: string;
+  colorHex?: string;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const cache = useRef<ImageCache>(new Map());
@@ -101,6 +102,12 @@ export function PhotoMockup({ spec, surfaces, zones, imageUrls, activeZone }: {
       <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-brun shadow">
         Aperçu photo réaliste{spec.note ? ` · ${spec.note}` : ""} · {shown.join(", ")}
       </span>
+      {colorHex && !/^#F{6}$/i.test(colorHex) && (
+        <span className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-brun shadow">
+          <span className="size-3 rounded-full border border-brun/30" style={{ background: colorHex }} aria-hidden="true" />
+          Photo du modèle blanc · couleur choisie visible en 3D et en 2D
+        </span>
+      )}
     </div>
   );
 }
