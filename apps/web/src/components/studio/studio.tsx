@@ -110,9 +110,8 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 2D by default on small screens (the editor stays in view, the 3D module loads only on demand) and without WebGL.
   const [mode, setMode] = useState<StudioMode>("edit");
-  // Photo-realistic preview on the real product photo by default; the 3D model stays available.
+  // Realistic preview (people of every skin tone, turning on the spot) replaces the provisional 3D model where it exists.
   const photoSpec = photoMockupFor(`${product.slug} ${product.categorySlug}`);
-  const [preview, setPreview] = useState<"photo" | "3d">(photoSpec ? "photo" : "3d");
   const [webgl, setWebgl] = useState(true);
   // 3D failed to download (network) or lost its GPU context: show why and let the person retry.
   const [viewerFailed, setViewerFailed] = useState<null | "network">(null);
@@ -480,15 +479,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             {mode !== "edit" && (
               // Fixed height: the 3D canvas fills its box, so the box must not depend on the canvas (no resize loop).
               <div className={`relative overflow-hidden rounded-[24px] border border-line ${mode === "3d" ? "h-[70vh] min-h-[420px]" : "h-[380px] xl:h-[520px]"}`}>
-                {photoSpec && (
-                  <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-full bg-brun p-1 text-xs font-bold">
-                    {(["photo", "3d"] as const).map((v) => (
-                      <button key={v} type="button" onClick={() => setPreview(v)} aria-pressed={preview === v}
-                        className={`rounded-full px-3 py-1 ${preview === v ? "bg-ivoire text-brun" : "text-ivoire"}`}>{v === "photo" ? "Photo réaliste" : "3D"}</button>
-                    ))}
-                  </div>
-                )}
-                {photoSpec && preview === "photo" ? (
+                {photoSpec ? (
                   <PhotoMockup spec={photoSpec} surfaces={shownDoc.surfaces} zones={product.zones} imageUrls={urls} activeZone={zone.key} colorHex={color.hex} />
                 ) : viewerFailed ? (
                   <div role="alert" className="grid h-full place-items-center gap-3 p-6 text-center text-sm">
