@@ -188,12 +188,12 @@ Critères communs à **toutes** les étapes (vérifiés à chaque fois, en plus 
 - [x] Déploiement Supabase (projet « Wassa », eu-west-1) : 13 migrations, seed, catalogue de démo (7 produits, 1 atelier fictif « Atelier Démo SAWWA (fictif) », règles de prix v1), boutique démo `teranga-print`.
 - [ ] Déploiement Vercel : accès d'équipe à autoriser par le porteur, puis clé `SUPABASE_SERVICE_ROLE_KEY` à saisir par le porteur dans Vercel (🧑‍💼).
 
-## E27 — Boutique en libre-service dans SAWWA Pro 🔎
+## E27 — Boutique en libre-service dans SAWWA Pro ✅
 - [x] Page `/pro/boutique` (lien depuis l'accueil SAWWA Pro) : créer et modifier la boutique — nom, adresse `/b/…` (calculée depuis le nom, accents retirés, mots réservés refusés), accroche, couleur principale et couleur des boutons (couleur du texte calculée pour rester lisible), téléphone, produits parmi les offres actives de l'atelier, brouillon/en ligne ; lien vers la boutique. Opérateurs : lecture seule.
 - [x] Contrôles serveur (`requireActiveVendor` + `canManage`, `lib/storefront-form.ts` testé : 6 tests) ; la base revérifie (RLS, produits de l'atelier, drapeau démo). Adresse déjà prise → message clair.
 - [x] Studio ouvert depuis une boutique (`?boutique=`) : bandeau aux couleurs de la boutique avec retour ; prix calculé avec la seule grille de l'atelier de la boutique, boutique résolue côté serveur depuis son adresse (jamais d'identifiant d'atelier venant du navigateur) ; boutique inconnue, inactive ou produit hors boutique → studio SAWWA normal.
 - [x] Commande passée depuis une boutique : chiffrée avec la seule grille de l'atelier de la boutique (même prix que le studio), atelier suggéré = celui de la boutique ; boutique devenue inactive ou produit retiré → commande refusée avec un message clair (`orderVendorScope`, testé).
-- [ ] Hors périmètre : l'affectation reste validée par l'équipe SAWWA (l'équipe SAWWA affecte l'atelier) ; affectation directe à l'atelier de la boutique et paiement sur son compte avec E13 ; domaine personnalisé ; marge propre à la boutique.
+- [ ] Hors périmètre : l'affectation reste validée par l'équipe SAWWA (l'équipe SAWWA affecte l'atelier) ; affectation directe à l'atelier de la boutique, prix d'une correction limité à cet atelier et paiement sur son compte avec E13 ; domaine personnalisé ; marge propre à la boutique.
 
 ## E24 — Lancement public ⏳ 🧑‍💼
 - [ ] Revue de sécurité, tests de charge, CGV/CGU/confidentialité relues, déclaration CDP, SEO, mesure d'audience.

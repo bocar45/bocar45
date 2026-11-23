@@ -1,3 +1,5 @@
+import { getLang } from "@/lib/lang";
+import { l } from "@/lib/i18n";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { templateMetadata } from "@/lib/seo";
@@ -102,12 +104,13 @@ export default async function StudioPage({ params, searchParams }: { params: Pro
   const studio = <Studio product={product} b2b={b2b} quote={shop ? getStorefrontStudioQuote.bind(null, shop.slug) : getStudioQuote} userId={user?.id ?? null} initial={initial} save={saveDesign} order={shop ? placeStorefrontOrder.bind(null, shop.slug) : placeOrder} correction={correction} resubmit={resubmitCorrection}
     assistant={assistant} template={template} saveTemplate={saveTemplate} />;
   if (!shop) return studio;
+  const lang = await getLang();
   return (
     <>
       <div style={{ background: shop.theme.primary, color: shop.theme.onPrimary }}>
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-2 text-sm">
-          <span>Vous personnalisez chez <b>{shop.name}</b> · prix de cet atelier</span>
-          <Link href={`/b/${shop.slug}`} className="font-bold underline-offset-4 hover:underline">← Retour à la boutique</Link>
+          <span>{l(lang, "Vous personnalisez chez", "You are customising at")} <b>{shop.name}</b> · {l(lang, "prix de cet atelier", "this workshop's prices")}</span>
+          <Link href={`/b/${shop.slug}`} className="font-bold underline-offset-4 hover:underline">← {l(lang, "Retour à la boutique", "Back to the shop")}</Link>
         </div>
       </div>
       {studio}

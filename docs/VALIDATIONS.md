@@ -2,6 +2,19 @@
 
 Rempli uniquement par l'agent `sawwa-validateur` (`.claude/agents/sawwa-validateur.md`). La plus récente en haut.
 
+## 2026-11-23 — E27 (reprise) — VALIDÉ
+Commit examiné : 1132f5f (depuis 6058d71)
+Contrôles : typecheck ✅ · tests ✅ (181, 31 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅. Tout relancé.
+Critères de l'étape :
+- [x] Le prix affiché est le prix facturé. `placeStorefrontOrder` est lié par la page (`page.tsx:102`). `placeOrderFor` revérifie la boutique côté serveur avec le slug produit **du design**, et non avec un slug envoyé par le navigateur (`actions.ts:127-128`). Puis `bestQuote({ …, vendorId })` est appelé (`actions.ts:211`), donc le devis figé et `suggestedVendorId` sont ceux de l'atelier de la boutique.
+- [x] Boutique inactive ou produit retiré → refus clair : `orderVendorScope`, testé (`storefront-form.test.ts`, 3 cas).
+- [x] Les autres critères E27 sont acquis à l'entrée précédente (formulaire, rôles, bandeau, résolution serveur).
+Critères communs : C1 à C6 ✅.
+Remarques non bloquantes :
+- La re-soumission d'une correction (`actions.ts` ~l. 290, `bestQuote` avant/après) n'est pas limitée à l'atelier de la boutique. L'écart de prix reste possible sur une correction : à aligner en E13, avec l'affectation directe.
+- Le bandeau du studio n'est qu'en français (« Vous personnalisez chez… »), alors que la page boutique est bilingue.
+Décision : toutes les étapes restantes du BACKLOG dépendent du porteur (🧑‍💼 : E11, E12, E13, E19, E23, E24, E26). Il faut une nouvelle étape définie par l'auteur, ou un arbitrage du porteur.
+
 ## 2026-11-23 — E27 (boutique en libre-service) — À CORRIGER
 Commit examiné : 6058d71 (depuis 5e128a5)
 Contrôles : typecheck ✅ · tests ✅ (180, 31 fichiers) · db ✅ (ALL RLS TESTS PASSED) · build ✅. Tout relancé.
