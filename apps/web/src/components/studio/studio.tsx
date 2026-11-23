@@ -15,6 +15,7 @@ import { Viewer3DBoundary } from "../studio3d/boundary";
 import { modelKindFor } from "../studio3d/garment";
 import { hasWebGL, preferredMode, type StudioMode } from "../studio3d/support";
 
+import { PhotoMockup, photoMockupFor } from "./photo-mockup";
 const Viewer3D = dynamic(() => import("../studio3d/viewer"), {
   ssr: false,
   loading: () => <p className="grid h-full place-items-center text-sm text-muted">Chargement de la vue 3D…</p>,
@@ -109,6 +110,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 2D by default on small screens (the editor stays in view, the 3D module loads only on demand) and without WebGL.
   const [mode, setMode] = useState<StudioMode>("edit");
+  // Photo-realistic preview on the real product photo by default; the 3D model stays available.
+  const photoSpec = photoMockupFor(`${product.slug} ${product.categorySlug}`);
+  const [preview, setPreview] = useState<"photo" | "3d">(photoSpec ? "photo" : "3d");
   const [webgl, setWebgl] = useState(true);
   // 3D failed to download (network) or lost its GPU context: show why and let the person retry.
   const [viewerFailed, setViewerFailed] = useState<null | "network">(null);
@@ -116,7 +120,7 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
   useEffect(() => {
     const ok = hasWebGL();
     setWebgl(ok);
-    setMode(preferredMode(ok, window.innerWidth));
+    setMode(preferredMode(ok || Boolean(photoSpec), window.innerWidth));
   }, []);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
@@ -437,9 +441,9 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
           <button type="button" className={btn} onClick={history.redo} disabled={!history.canRedo} aria-label={t("Rétablir (Ctrl+Maj+Z)", "Redo (Ctrl+Shift+Z)")}>{t("↷ Rétablir", "↷ Redo")}</button>
           <div className="flex rounded-full bg-brun p-1 text-sm font-bold" role="group" aria-label="Mode">
             {(["edit", "split", "3d"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m} disabled={m !== "edit" && !webgl}
-                title={m !== "edit" && !webgl ? "La 3D n'est pas disponible sur cet appareil" : undefined}
-                className={`rounded-full px-4 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 ${mode === m ? "bg-ivoire text-brun" : "text-ivoire"}`}>{({ edit: "2D", split: "2D + 3D", "3d": "3D" } as const)[m]}</button>
+              <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={mode === m} disabled={m !== "edit" && !webgl && !photoSpec}
+                title={m !== "edit" && !webgl && !photoSpec ? "La 3D n'est pas disponible sur cet appareil" : undefined}
+                className={`rounded-full px-4 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 ${mode === m ? "bg-ivoire text-brun" : "text-ivoire"}`}>{(photoSpec ? { edit: "2D", split: "2D + aperçu", "3d": "Aperçu" } : { edit: "2D", split: "2D + 3D", "3d": "3D" } as const)[m]}</button>
             ))}
           </div>
         </div>
@@ -476,7 +480,17 @@ export function Studio({ product, quote, userId, initial, save, order, correctio
             {mode !== "edit" && (
               // Fixed height: the 3D canvas fills its box, so the box must not depend on the canvas (no resize loop).
               <div className={`relative overflow-hidden rounded-[24px] border border-line ${mode === "3d" ? "h-[70vh] min-h-[420px]" : "h-[380px] xl:h-[520px]"}`}>
-                {viewerFailed ? (
+                {photoSpec && (
+                  <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-full bg-brun p-1 text-xs font-bold">
+                    {(["photo", "3d"] as const).map((v) => (
+                      <button key={v} type="button" onClick={() => setPreview(v)} aria-pressed={preview === v}
+                        className={`rounded-full px-3 py-1 ${preview === v ? "bg-ivoire text-brun" : "text-ivoire"}`}>{v === "photo" ? "Photo réaliste" : "3D"}</button>
+                    ))}
+                  </div>
+                )}
+                {photoSpec && preview === "photo" ? (
+                  <PhotoMockup spec={photoSpec} surfaces={shownDoc.surfaces} zones={product.zones} imageUrls={urls} activeZone={zone.key} />
+                ) : viewerFailed ? (
                   <div role="alert" className="grid h-full place-items-center gap-3 p-6 text-center text-sm">
                     <p className="max-w-sm text-muted">La vue 3D n&apos;a pas pu se charger (connexion interrompue ou carte graphique occupée). Votre création n&apos;est pas perdue et l&apos;édition 2D continue.</p>
                     <div className="flex gap-2">
